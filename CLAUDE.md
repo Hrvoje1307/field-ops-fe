@@ -1,0 +1,52 @@
+# FieldOps web
+
+React frontend for FieldOps, a multi-tenant field service platform (work orders, technician scheduling, routes, signed work reports). Pilot customer is an alarm installer, but the product is generic: never hardcode anything alarm-specific (job types, asset types, fields come from tenant configuration via the API).
+
+Backend is a separate .NET API built by another developer. This repo only talks to it through the OpenAPI contract.
+
+## Source of truth
+
+- `openapi/openapi.json` is the API contract. Read the relevant paths and schemas before building a screen.
+- `docs/schema.md` describes the database; use it for meaning of fields, not for API shapes.
+- Never invent endpoints or fields. If the UI needs something the contract lacks, stop and tell me so I can raise it with the backend.
+
+## Stack
+
+Vite + React + TypeScript (strict), TanStack Router (file-based routes in `src/routes`), TanStack Query, Orval-generated client, Tailwind CSS, shadcn/ui-style components on Radix, react-hook-form + zod, react-i18next (Croatian first), MSW for a mock API, Vitest + Testing Library, Playwright.
+
+Hosting: Vercel (SPA rewrite to index.html). API on AWS, DB on Supabase; the frontend never talks to Supabase directly.
+
+## Rules
+
+- API calls only through the generated client in `src/api/generated` (never edit it; regenerate with `npm run api:generate`) and the single fetch mutator `src/api/fetcher.ts`.
+- The fetcher handles: base URL from `VITE_API_URL`, bearer token, refresh on 401 (refresh tokens rotate), `Idempotency-Key` on POST/PUT/DELETE, throwing `ApiError` with RFC 9457 ProblemDetails (`errors` = field path → messages).
+- Access token in memory only; refresh token in localStorage.
+- Tenant comes from the JWT. Never put tenantId in URLs or bodies.
+- Dates: instants are UTC ISO strings; `HH:mm` and `yyyy-MM-dd` are tenant-local (Europe/Zagreb). Always format in the tenant timezone, never the browser's.
+- Phones are E.164; show them in Croatian national format.
+- Money is a decimal string; never parse to float for arithmetic.
+- Job status buttons are driven by `allowedTransitions` from the API, not by client-side rules. `completed` only via `/jobs/{id}/complete`.
+- Updates send `version`; on 409 refetch and tell the user the data changed.
+- Show 400 field errors next to the fields; other errors as a toast.
+- Every list/detail has loading, empty and error states.
+- All user-facing text goes through i18n (`src/i18n/hr.ts`), in Croatian, sentence case, plain verbs ("Spremi nalog", not "Submit").
+- Roles: owner and dispatcher use the office area (desktop-first); technician uses `/field` (phone-first, big touch targets, one primary action per screen). Technicians must not reach office routes.
+- Sensitive values (alarm/gate codes) hidden by default, revealed on click.
+- No PWA/offline yet (later phase), but keep idempotency keys and don't lose form input on a failed request.
+
+## Mock API
+
+While the backend isn't ready, `VITE_API_MOCK=true` starts MSW handlers in `src/mocks`. Mocks must follow the contract exactly (shapes, status machine, roles, validation, 409 on stale version). Seed data: a fictional Zagreb alarm firm, dates relative to today. When you add a screen, add the mock handlers it needs in the same change.
+
+## Workflow
+
+- Before a feature: read the relevant OpenAPI paths, propose the plan (routes, components, queries/mutations), wait for my OK.
+- Small, reviewable steps. After each step run `npm run lint`, `npm run typecheck`, `npm test`.
+- Add a Vitest test for logic (formatting, fetcher, state helpers) and a Playwright test for each main user flow.
+- Commit with clear messages; don't commit `.env.local`.
+
+## Commands
+
+- `npm run dev` – dev server (mock API by default)
+- `npm run api:generate` – regenerate client from `openapi/openapi.json`
+- `npm run lint` / `npm run typecheck` / `npm test` / `npx playwright test`

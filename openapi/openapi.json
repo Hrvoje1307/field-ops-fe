@@ -1,0 +1,7693 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "FieldOps API",
+    "version": "0.1.0",
+    "description": "Multi-tenant field service platform API. Source of truth for the frontend\nclient (orval / openapi-typescript). Backend must emit an equivalent\n`openapi.json` from code; diffs go through PR review.\n\n## Conventions\n- Tenant comes from the JWT claim `tenant_id`, never from URL or body.\n- JSON is camelCase; enums are snake_case strings.\n- Instants: ISO 8601 UTC (`2026-10-16T08:00:00Z`). Dates: `2026-10-16`.\n  Wall-clock times (working hours, client windows): `HH:mm`, tenant-local.\n- Phones: E.164 (`+385911234567`). Server normalises input.\n- Money: decimal string (`\"12.50\"`). Never float.\n- Lists: `?page=1&pageSize=50` (max 200), `?sort=field` / `?sort=-field`.\n- Errors: `application/problem+json` (RFC 9457); validation errors map\n  field path → messages in `errors`.\n- Field actions accept `Idempotency-Key`; a replay returns the stored\n  response, a replay with a different body returns 422.\n- Updates are full replacements (PUT) unless stated otherwise.\n  `version` (from Postgres xmin) enables optimistic concurrency → 409.\n\n## Job status machine\n| from | allowed to |\n|---|---|\n| new | scheduled, cancelled |\n| scheduled | confirmed, en_route, new, cancelled |\n| confirmed | en_route, scheduled, cancelled |\n| en_route | on_site, scheduled |\n| on_site | completed (only via `/complete`), on_hold |\n| on_hold | new, scheduled, cancelled |\n| completed | invoiced, new (reopen, owner/dispatcher) |\n| invoiced | — |\n| cancelled | new (owner/dispatcher) |\n\n## Realtime (SignalR hub `/hubs/dispatch`)\nAuth via `?access_token=`. Server adds connection to groups `tenant:{id}`\nand, for technicians, `tech:{technicianId}`. Server → client events:\n`JobUpdated` (JobUpdatedEvent), `JobStatusChanged` (JobStatusChangedEvent),\n`RoutePlanPublished` (RoutePlanPublishedEvent). Clients invalidate\nTanStack Query caches on receipt; payloads are intentionally thin.\n"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:5080/api/v1",
+      "description": "local"
+    },
+    {
+      "url": "https://api.staging.fieldops.example/api/v1",
+      "description": "staging"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "tags": [
+    {
+      "name": "Auth"
+    },
+    {
+      "name": "Tenant"
+    },
+    {
+      "name": "Technicians"
+    },
+    {
+      "name": "Clients"
+    },
+    {
+      "name": "Locations"
+    },
+    {
+      "name": "Assets"
+    },
+    {
+      "name": "Jobs"
+    },
+    {
+      "name": "Field"
+    },
+    {
+      "name": "Attachments"
+    },
+    {
+      "name": "Dispatch"
+    },
+    {
+      "name": "ServicePlans"
+    },
+    {
+      "name": "Configuration"
+    },
+    {
+      "name": "Messages"
+    },
+    {
+      "name": "Public"
+    },
+    {
+      "name": "Reports"
+    }
+  ],
+  "paths": {
+    "/auth/login": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "login",
+        "security": [],
+        "summary": "Email + password login. Picks `tenantId` if given, else the last-used tenant.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "password"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "password": {
+                    "type": "string",
+                    "format": "password"
+                  },
+                  "tenantId": {
+                    "$ref": "#/components/schemas/Id"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Tokens"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "429": {
+            "$ref": "#/components/responses/TooManyRequests"
+          }
+        }
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "refreshToken",
+        "security": [],
+        "summary": "Rotate refresh token. Reusing a rotated token revokes the whole token family.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "refreshToken"
+                ],
+                "properties": {
+                  "refreshToken": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Tokens"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "logout",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "refreshToken"
+                ],
+                "properties": {
+                  "refreshToken": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Logged out"
+          }
+        }
+      }
+    },
+    "/auth/switch-tenant": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "switchTenant",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "tenantId"
+                ],
+                "properties": {
+                  "tenantId": {
+                    "$ref": "#/components/schemas/Id"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Tokens"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/auth/invite/accept": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "acceptInvite",
+        "security": [],
+        "summary": "Accept an invitation. Creates the user if the email is new; otherwise `password` must match the existing account.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "token",
+                  "password"
+                ],
+                "properties": {
+                  "token": {
+                    "type": "string"
+                  },
+                  "fullName": {
+                    "type": "string",
+                    "description": "Required for new users"
+                  },
+                  "password": {
+                    "type": "string",
+                    "format": "password",
+                    "minLength": 10
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/Tokens"
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "410": {
+            "$ref": "#/components/responses/Gone"
+          }
+        }
+      }
+    },
+    "/auth/password/forgot": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "forgotPassword",
+        "security": [],
+        "summary": "Always returns 202 (no account enumeration).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Email sent if the account exists"
+          }
+        }
+      }
+    },
+    "/auth/password/reset": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "resetPassword",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "token",
+                  "password"
+                ],
+                "properties": {
+                  "token": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string",
+                    "format": "password",
+                    "minLength": 10
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Password changed, all sessions revoked"
+          },
+          "410": {
+            "$ref": "#/components/responses/Gone"
+          }
+        }
+      }
+    },
+    "/me": {
+      "get": {
+        "tags": [
+          "Auth"
+        ],
+        "operationId": "getMe",
+        "responses": {
+          "200": {
+            "description": "Current user, active tenant and all memberships",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Me"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tenant": {
+      "get": {
+        "tags": [
+          "Tenant"
+        ],
+        "operationId": "getTenant",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Tenant"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Tenant"
+        ],
+        "operationId": "updateTenant",
+        "description": "Owner only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TenantUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Tenant"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/tenant/usage": {
+      "get": {
+        "tags": [
+          "Tenant"
+        ],
+        "operationId": "getTenantUsage",
+        "parameters": [
+          {
+            "name": "month",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^\\d{4}-\\d{2}$"
+            },
+            "example": "2026-10"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Usage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/depots": {
+      "get": {
+        "tags": [
+          "Tenant"
+        ],
+        "operationId": "listDepots",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Depot"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Tenant"
+        ],
+        "operationId": "createDepot",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DepotInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Depot"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/depots/{id}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        }
+      ],
+      "put": {
+        "tags": [
+          "Tenant"
+        ],
+        "operationId": "updateDepot",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DepotInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Depot"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Tenant"
+        ],
+        "operationId": "deleteDepot",
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/skills": {
+      "get": {
+        "tags": [
+          "Tenant"
+        ],
+        "operationId": "listSkills",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Skill"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Tenant"
+        ],
+        "operationId": "createSkill",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SkillInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Skill"
+                }
+              }
+            }
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/skills/{id}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        }
+      ],
+      "put": {
+        "tags": [
+          "Tenant"
+        ],
+        "operationId": "updateSkill",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SkillInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Skill"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Tenant"
+        ],
+        "operationId": "deleteSkill",
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          }
+        }
+      }
+    },
+    "/users": {
+      "get": {
+        "tags": [
+          "Tenant"
+        ],
+        "operationId": "listMembers",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Member"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/{userId}": {
+      "parameters": [
+        {
+          "name": "userId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "$ref": "#/components/schemas/Id"
+          }
+        }
+      ],
+      "put": {
+        "tags": [
+          "Tenant"
+        ],
+        "operationId": "updateMember",
+        "description": "Owner only. Changes role/active flag of the membership, not the global user.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "role",
+                  "isActive"
+                ],
+                "properties": {
+                  "role": {
+                    "$ref": "#/components/schemas/Role"
+                  },
+                  "isActive": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Member"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Would leave tenant without an owner",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/invitations": {
+      "get": {
+        "tags": [
+          "Tenant"
+        ],
+        "operationId": "listInvitations",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Invitation"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Tenant"
+        ],
+        "operationId": "createInvitation",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "email",
+                  "role"
+                ],
+                "properties": {
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "role": {
+                    "$ref": "#/components/schemas/Role"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Invitation emailed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Invitation"
+                }
+              }
+            }
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/users/invitations/{id}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        }
+      ],
+      "delete": {
+        "tags": [
+          "Tenant"
+        ],
+        "operationId": "revokeInvitation",
+        "responses": {
+          "204": {
+            "description": "Revoked"
+          }
+        }
+      }
+    },
+    "/technicians": {
+      "get": {
+        "tags": [
+          "Technicians"
+        ],
+        "operationId": "listTechnicians",
+        "parameters": [
+          {
+            "name": "includeInactive",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Technician"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Technicians"
+        ],
+        "operationId": "createTechnician",
+        "description": "The user must already be a member of the tenant with role `technician` (or be invited first).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TechnicianCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Technician"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/technicians/{id}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        }
+      ],
+      "get": {
+        "tags": [
+          "Technicians"
+        ],
+        "operationId": "getTechnician",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Technician"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Technicians"
+        ],
+        "operationId": "updateTechnician",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TechnicianUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Technician"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/technicians/{id}/schedule": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        }
+      ],
+      "get": {
+        "tags": [
+          "Technicians"
+        ],
+        "operationId": "getTechnicianSchedule",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/DateQueryRequired"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ordered jobs for the day",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TechnicianDay"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/clients": {
+      "get": {
+        "tags": [
+          "Clients"
+        ],
+        "operationId": "listClients",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "description": "Fuzzy search: name, phone, OIB, address",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "type",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/ClientType"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "name",
+                "-name",
+                "createdAt",
+                "-createdAt"
+              ],
+              "default": "name"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ClientSummaryPage"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Clients"
+        ],
+        "operationId": "createClient",
+        "description": "Optionally creates the first location in the same transaction (quick job entry flow).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Client"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/clients/lookup": {
+      "get": {
+        "tags": [
+          "Clients"
+        ],
+        "operationId": "lookupClientByPhone",
+        "summary": "Caller ID lookup for quick job entry. Phone is normalised server-side.",
+        "parameters": [
+          {
+            "name": "phone",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "example": "091 123 4567"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Matches (usually 0 or 1), with locations and assets inlined",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "normalizedPhone",
+                    "matches"
+                  ],
+                  "properties": {
+                    "normalizedPhone": {
+                      "$ref": "#/components/schemas/Phone"
+                    },
+                    "matches": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Client"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/clients/import": {
+      "post": {
+        "tags": [
+          "Clients"
+        ],
+        "operationId": "importClients",
+        "summary": "CSV/XLSX import. `dryRun=true` validates and returns the preview without writing.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file",
+                  "mapping"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "contentMediaType": "application/octet-stream"
+                  },
+                  "mapping": {
+                    "type": "string",
+                    "description": "JSON object: target field → source column, e.g. {\"name\":\"Ime\",\"phone\":\"Mobitel\",\"street\":\"Adresa\"}"
+                  },
+                  "dryRun": {
+                    "type": "boolean",
+                    "default": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/clients/{id}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        }
+      ],
+      "get": {
+        "tags": [
+          "Clients"
+        ],
+        "operationId": "getClient",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Client"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Clients"
+        ],
+        "operationId": "updateClient",
+        "description": "Contacts are synced — items with `id` are updated, without `id` created, missing ones soft-deleted.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClientUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Client"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Clients"
+        ],
+        "operationId": "deleteClient",
+        "description": "Soft delete. 409 if the client has open jobs.",
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/clients/{id}/locations": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        }
+      ],
+      "get": {
+        "tags": [
+          "Locations"
+        ],
+        "operationId": "listClientLocations",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Location"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Locations"
+        ],
+        "operationId": "createLocation",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocationInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Location"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/locations/{id}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        }
+      ],
+      "get": {
+        "tags": [
+          "Locations"
+        ],
+        "operationId": "getLocation",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Location"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Locations"
+        ],
+        "operationId": "updateLocation",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LocationInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Location"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Locations"
+        ],
+        "operationId": "deleteLocation",
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/geocode": {
+      "post": {
+        "tags": [
+          "Locations"
+        ],
+        "operationId": "geocode",
+        "summary": "Server-side fallback when the frontend has no Places result.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "street",
+                  "city"
+                ],
+                "properties": {
+                  "street": {
+                    "type": "string"
+                  },
+                  "city": {
+                    "type": "string"
+                  },
+                  "postalCode": {
+                    "type": "string"
+                  },
+                  "country": {
+                    "type": "string",
+                    "default": "HR"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Candidates, best first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "formatted",
+                      "lat",
+                      "lng"
+                    ],
+                    "properties": {
+                      "formatted": {
+                        "type": "string"
+                      },
+                      "lat": {
+                        "type": "number"
+                      },
+                      "lng": {
+                        "type": "number"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/locations/{id}/assets": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        }
+      ],
+      "get": {
+        "tags": [
+          "Assets"
+        ],
+        "operationId": "listLocationAssets",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Asset"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Assets"
+        ],
+        "operationId": "createAsset",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssetInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Asset"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/assets/{id}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        }
+      ],
+      "get": {
+        "tags": [
+          "Assets"
+        ],
+        "operationId": "getAsset",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Asset"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Assets"
+        ],
+        "operationId": "updateAsset",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssetInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Asset"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Assets"
+        ],
+        "operationId": "deleteAsset",
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          }
+        }
+      }
+    },
+    "/asset-types": {
+      "get": {
+        "tags": [
+          "Assets"
+        ],
+        "operationId": "listAssetTypes",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AssetType"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Assets"
+        ],
+        "operationId": "createAssetType",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssetTypeInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetType"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/asset-types/{id}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        }
+      ],
+      "put": {
+        "tags": [
+          "Assets"
+        ],
+        "operationId": "updateAssetType",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssetTypeInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AssetType"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Assets"
+        ],
+        "operationId": "deleteAssetType",
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/jobs": {
+      "get": {
+        "tags": [
+          "Jobs"
+        ],
+        "operationId": "listJobs",
+        "description": "Technicians only ever see jobs assigned to them, regardless of filters.",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "style": "form",
+            "explode": false,
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/JobStatus"
+              }
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "description": "scheduledDate >= from",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "description": "scheduledDate <= to",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "unscheduled",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "technicianId",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          },
+          {
+            "name": "jobTypeId",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          },
+          {
+            "name": "clientId",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          },
+          {
+            "name": "locationId",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          },
+          {
+            "name": "assetId",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          },
+          {
+            "name": "priority",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/Priority"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "description": "Number, title, client name, address",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "scheduledStart",
+                "-scheduledStart",
+                "createdAt",
+                "-createdAt",
+                "priority",
+                "-priority",
+                "number",
+                "-number"
+              ],
+              "default": "-createdAt"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobSummaryPage"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Jobs"
+        ],
+        "operationId": "createJob",
+        "description": "Status starts as `new`. `durationMin`, `requiredPeople` and the checklist are\ncopied from the job type unless overridden. Number allocated from the\ntenant sequence. Broadcasts `JobUpdated`.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/jobs/{id}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        }
+      ],
+      "get": {
+        "tags": [
+          "Jobs"
+        ],
+        "operationId": "getJob",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Jobs"
+        ],
+        "operationId": "updateJob",
+        "description": "Office fields only. Status, assignment and field data have dedicated endpoints. Technicians may only change `internalNote`.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/jobs/{id}/transition": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        },
+        {
+          "$ref": "#/components/parameters/IdempotencyKey"
+        }
+      ],
+      "post": {
+        "tags": [
+          "Jobs"
+        ],
+        "operationId": "transitionJob",
+        "description": "Moves the job along the state machine (see top of spec). Writes job_status_history\nand fires side effects (e.g. `en_route` → \"on the way\" SMS if enabled).\n`completed` is not allowed here — use `/complete`.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransitionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "New state",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            }
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "description": "Transition not allowed from current status",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/{id}/assign": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        }
+      ],
+      "post": {
+        "tags": [
+          "Jobs"
+        ],
+        "operationId": "assignJob",
+        "description": "Manual assignment (drag & drop). Replaces the assignment set. With a\n`scheduledDate`, a `new` job moves to `scheduled`; an empty\n`technicianIds` moves a scheduled job back to `new`.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssignRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/jobs/{id}/history": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        }
+      ],
+      "get": {
+        "tags": [
+          "Jobs"
+        ],
+        "operationId": "getJobHistory",
+        "responses": {
+          "200": {
+            "description": "Oldest first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/StatusHistoryEntry"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/jobs": {
+      "get": {
+        "tags": [
+          "Field"
+        ],
+        "operationId": "getMyJobs",
+        "summary": "The signed-in technician's day, in route order.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/DateQueryRequired"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TechnicianDay"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/{id}/report": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        },
+        {
+          "$ref": "#/components/parameters/IdempotencyKey"
+        }
+      ],
+      "get": {
+        "tags": [
+          "Field"
+        ],
+        "operationId": "getJobReport",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobReport"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Field"
+        ],
+        "operationId": "saveJobReport",
+        "description": "Save draft report fields. Allowed while `on_site` (or by office until `invoiced`).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobReportInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobReport"
+                }
+              }
+            }
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/jobs/{id}/materials": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        }
+      ],
+      "get": {
+        "tags": [
+          "Field"
+        ],
+        "operationId": "listJobMaterials",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/JobMaterial"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Field"
+        ],
+        "operationId": "addJobMaterial",
+        "description": "Pass `catalogItemId` (name/unit/price copied) or free-text `name` + `unit`.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobMaterialInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Added",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobMaterial"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/jobs/{id}/materials/{materialId}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        },
+        {
+          "name": "materialId",
+          "in": "path",
+          "required": true,
+          "schema": {
+            "$ref": "#/components/schemas/Id"
+          }
+        }
+      ],
+      "delete": {
+        "tags": [
+          "Field"
+        ],
+        "operationId": "removeJobMaterial",
+        "responses": {
+          "204": {
+            "description": "Removed"
+          }
+        }
+      }
+    },
+    "/jobs/{id}/checklist": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        },
+        {
+          "$ref": "#/components/parameters/IdempotencyKey"
+        }
+      ],
+      "get": {
+        "tags": [
+          "Field"
+        ],
+        "operationId": "getJobChecklist",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ChecklistItem"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Field"
+        ],
+        "operationId": "updateJobChecklist",
+        "description": "Patch-style — only listed items change.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "isDone"
+                  ],
+                  "properties": {
+                    "id": {
+                      "$ref": "#/components/schemas/Id"
+                    },
+                    "isDone": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Full checklist",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ChecklistItem"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/{id}/signature": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        },
+        {
+          "$ref": "#/components/parameters/IdempotencyKey"
+        }
+      ],
+      "post": {
+        "tags": [
+          "Field"
+        ],
+        "operationId": "attachSignature",
+        "description": "Upload the signature PNG via `/attachments/upload-url` (kind `signature`), confirm it, then link it here.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "attachmentId",
+                  "signedByName"
+                ],
+                "properties": {
+                  "attachmentId": {
+                    "$ref": "#/components/schemas/Id"
+                  },
+                  "signedByName": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Linked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobReport"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/{id}/complete": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        },
+        {
+          "$ref": "#/components/parameters/IdempotencyKey"
+        }
+      ],
+      "post": {
+        "tags": [
+          "Field"
+        ],
+        "operationId": "completeJob",
+        "description": "Validates (required checklist items, signature if `tenant.settings.requireSignature`,\n`workDone` present), sets `completed`, enqueues PDF generation and client email.\nThe PDF appears on the report as `pdfAttachmentId` when the background job finishes.\n",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "lat": {
+                    "type": "number"
+                  },
+                  "lng": {
+                    "type": "number"
+                  },
+                  "sendReportToClient": {
+                    "type": "boolean",
+                    "default": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Completed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Job"
+                }
+              }
+            }
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "422": {
+            "description": "Completion requirements not met",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/attachments": {
+      "get": {
+        "tags": [
+          "Attachments"
+        ],
+        "operationId": "listAttachments",
+        "parameters": [
+          {
+            "name": "ownerType",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/AttachmentOwnerType"
+            }
+          },
+          {
+            "name": "ownerId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Attachment"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Attachments"
+        ],
+        "operationId": "confirmAttachment",
+        "summary": "Confirm a finished S3 upload. Server checks the object exists and size/mime match.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "attachmentId"
+                ],
+                "properties": {
+                  "attachmentId": {
+                    "$ref": "#/components/schemas/Id"
+                  },
+                  "takenAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Confirmed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Attachment"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Object missing or mismatched",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/attachments/upload-url": {
+      "post": {
+        "tags": [
+          "Attachments"
+        ],
+        "operationId": "createUploadUrl",
+        "summary": "Creates a pending attachment and a presigned S3 PUT URL (valid 10 min).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "ownerType",
+                  "ownerId",
+                  "kind",
+                  "mime",
+                  "sizeBytes"
+                ],
+                "properties": {
+                  "ownerType": {
+                    "$ref": "#/components/schemas/AttachmentOwnerType"
+                  },
+                  "ownerId": {
+                    "$ref": "#/components/schemas/Id"
+                  },
+                  "kind": {
+                    "$ref": "#/components/schemas/AttachmentKind"
+                  },
+                  "fileName": {
+                    "type": "string"
+                  },
+                  "mime": {
+                    "type": "string",
+                    "enum": [
+                      "image/jpeg",
+                      "image/png",
+                      "image/webp",
+                      "image/heic",
+                      "application/pdf"
+                    ]
+                  },
+                  "sizeBytes": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 20971520
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Upload with PUT to `uploadUrl`, sending exactly `headers`",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "attachmentId",
+                    "uploadUrl",
+                    "method",
+                    "headers",
+                    "expiresAt"
+                  ],
+                  "properties": {
+                    "attachmentId": {
+                      "$ref": "#/components/schemas/Id"
+                    },
+                    "uploadUrl": {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    "method": {
+                      "type": "string",
+                      "const": "PUT"
+                    },
+                    "headers": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string"
+                      }
+                    },
+                    "expiresAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/attachments/{id}/url": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        }
+      ],
+      "get": {
+        "tags": [
+          "Attachments"
+        ],
+        "operationId": "getAttachmentUrl",
+        "responses": {
+          "200": {
+            "description": "Short-lived presigned GET URL (5 min)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "url",
+                    "expiresAt"
+                  ],
+                  "properties": {
+                    "url": {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    "thumbnailUrl": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "uri"
+                    },
+                    "expiresAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/attachments/{id}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        }
+      ],
+      "delete": {
+        "tags": [
+          "Attachments"
+        ],
+        "operationId": "deleteAttachment",
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          }
+        }
+      }
+    },
+    "/dispatch/board": {
+      "get": {
+        "tags": [
+          "Dispatch"
+        ],
+        "operationId": "getDispatchBoard",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/DateQueryRequired"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DispatchBoard"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/route-plans/optimize": {
+      "post": {
+        "tags": [
+          "Dispatch"
+        ],
+        "operationId": "optimizeRoutes",
+        "description": "Builds the VROOM problem (vehicles = technicians, jobs = jobs), calls the\nsolver and stores the result as a `draft` plan. Locked jobs and\nmulti-person jobs stay fixed with their current assignee. Synchronous;\nexpect up to ~10 s. Counts towards `usage.optimizationsCount`.\n",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "date",
+                  "technicianIds",
+                  "jobIds"
+                ],
+                "properties": {
+                  "date": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "technicianIds": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "$ref": "#/components/schemas/Id"
+                    }
+                  },
+                  "jobIds": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "$ref": "#/components/schemas/Id"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Draft plan",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutePlan"
+                }
+              }
+            }
+          },
+          "402": {
+            "description": "Plan does not include optimisation",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Solver failed",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/route-plans/{id}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        }
+      ],
+      "get": {
+        "tags": [
+          "Dispatch"
+        ],
+        "operationId": "getRoutePlan",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutePlan"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Dispatch"
+        ],
+        "operationId": "updateRoutePlan",
+        "description": "Manual corrections to a draft. Server recomputes ETAs only for routes that changed.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "routes"
+                ],
+                "properties": {
+                  "routes": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "technicianId",
+                        "jobIds"
+                      ],
+                      "properties": {
+                        "technicianId": {
+                          "$ref": "#/components/schemas/Id"
+                        },
+                        "jobIds": {
+                          "type": "array",
+                          "description": "In visit order",
+                          "items": {
+                            "$ref": "#/components/schemas/Id"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated draft",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutePlan"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Plan is not a draft",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/route-plans/{id}/publish": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        }
+      ],
+      "post": {
+        "tags": [
+          "Dispatch"
+        ],
+        "operationId": "publishRoutePlan",
+        "description": "Applies the plan: assignments, scheduledStart, jobs → `scheduled`. Any\npreviously published plan for that date becomes `discarded`. Schedules\nSMS reminders. Broadcasts `RoutePlanPublished`.\n",
+        "responses": {
+          "200": {
+            "description": "Published",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RoutePlan"
+                }
+              }
+            }
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/service-plans": {
+      "get": {
+        "tags": [
+          "ServicePlans"
+        ],
+        "operationId": "listServicePlans",
+        "parameters": [
+          {
+            "name": "clientId",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          },
+          {
+            "name": "assetId",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          },
+          {
+            "name": "isActive",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServicePlanPage"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "ServicePlans"
+        ],
+        "operationId": "createServicePlan",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ServicePlanInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServicePlan"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/service-plans/due": {
+      "get": {
+        "tags": [
+          "ServicePlans"
+        ],
+        "operationId": "listDueServicePlans",
+        "parameters": [
+          {
+            "name": "days",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 365,
+              "default": 30
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Plans due within N days, soonest first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ServicePlan"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/service-plans/{id}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        }
+      ],
+      "get": {
+        "tags": [
+          "ServicePlans"
+        ],
+        "operationId": "getServicePlan",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServicePlan"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "ServicePlans"
+        ],
+        "operationId": "updateServicePlan",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ServicePlanInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ServicePlan"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "ServicePlans"
+        ],
+        "operationId": "deleteServicePlan",
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          }
+        }
+      }
+    },
+    "/job-types": {
+      "get": {
+        "tags": [
+          "Configuration"
+        ],
+        "operationId": "listJobTypes",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/JobType"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Configuration"
+        ],
+        "operationId": "createJobType",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobTypeInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobType"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/job-types/{id}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        }
+      ],
+      "put": {
+        "tags": [
+          "Configuration"
+        ],
+        "operationId": "updateJobType",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobTypeInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobType"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Configuration"
+        ],
+        "operationId": "deleteJobType",
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/custom-fields": {
+      "get": {
+        "tags": [
+          "Configuration"
+        ],
+        "operationId": "listCustomFields",
+        "parameters": [
+          {
+            "name": "entity",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/CustomFieldEntity"
+            }
+          },
+          {
+            "name": "assetTypeId",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ordered by sortOrder",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/CustomFieldDefinition"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Configuration"
+        ],
+        "operationId": "createCustomField",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomFieldDefinitionInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomFieldDefinition"
+                }
+              }
+            }
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/custom-fields/{id}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        }
+      ],
+      "put": {
+        "tags": [
+          "Configuration"
+        ],
+        "operationId": "updateCustomField",
+        "description": "`key`, `entity` and `type` are immutable after creation (existing JSONB values depend on them).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomFieldDefinitionInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomFieldDefinition"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Tried to change an immutable property",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Configuration"
+        ],
+        "operationId": "deleteCustomField",
+        "responses": {
+          "204": {
+            "description": "Deleted (values stay in JSONB but are hidden)"
+          }
+        }
+      }
+    },
+    "/catalog-items": {
+      "get": {
+        "tags": [
+          "Configuration"
+        ],
+        "operationId": "listCatalogItems",
+        "parameters": [
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "includeInactive",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogItemPage"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Configuration"
+        ],
+        "operationId": "createCatalogItem",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CatalogItemInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogItem"
+                }
+              }
+            }
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/catalog-items/import": {
+      "post": {
+        "tags": [
+          "Configuration"
+        ],
+        "operationId": "importCatalogItems",
+        "summary": "CSV import, upsert by SKU.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "file"
+                ],
+                "properties": {
+                  "file": {
+                    "type": "string",
+                    "contentMediaType": "text/csv"
+                  },
+                  "dryRun": {
+                    "type": "boolean",
+                    "default": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/catalog-items/{id}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        }
+      ],
+      "put": {
+        "tags": [
+          "Configuration"
+        ],
+        "operationId": "updateCatalogItem",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CatalogItemInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogItem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Configuration"
+        ],
+        "operationId": "deleteCatalogItem",
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          }
+        }
+      }
+    },
+    "/message-templates": {
+      "get": {
+        "tags": [
+          "Configuration"
+        ],
+        "operationId": "listMessageTemplates",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/MessageTemplate"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Configuration"
+        ],
+        "operationId": "createMessageTemplate",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MessageTemplateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageTemplate"
+                }
+              }
+            }
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/message-templates/preview": {
+      "post": {
+        "tags": [
+          "Configuration"
+        ],
+        "operationId": "previewMessageTemplate",
+        "summary": "Render a template body against a job (or sample data) and show SMS segment count.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "body"
+                ],
+                "properties": {
+                  "body": {
+                    "type": "string"
+                  },
+                  "jobId": {
+                    "$ref": "#/components/schemas/Id"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Rendered",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "rendered",
+                    "length",
+                    "smsSegments",
+                    "unknownPlaceholders"
+                  ],
+                  "properties": {
+                    "rendered": {
+                      "type": "string"
+                    },
+                    "length": {
+                      "type": "integer"
+                    },
+                    "smsSegments": {
+                      "type": "integer",
+                      "description": "GSM-7: 160/153 chars; UCS-2 (č,ć,ž,š,đ): 70/67"
+                    },
+                    "unknownPlaceholders": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/message-templates/{id}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        }
+      ],
+      "put": {
+        "tags": [
+          "Configuration"
+        ],
+        "operationId": "updateMessageTemplate",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MessageTemplateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessageTemplate"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Configuration"
+        ],
+        "operationId": "deleteMessageTemplate",
+        "responses": {
+          "204": {
+            "description": "Deleted (falls back to platform default)"
+          }
+        }
+      }
+    },
+    "/checklist-templates": {
+      "get": {
+        "tags": [
+          "Configuration"
+        ],
+        "operationId": "listChecklistTemplates",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ChecklistTemplate"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Configuration"
+        ],
+        "operationId": "createChecklistTemplate",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChecklistTemplateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChecklistTemplate"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/checklist-templates/{id}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        }
+      ],
+      "put": {
+        "tags": [
+          "Configuration"
+        ],
+        "operationId": "updateChecklistTemplate",
+        "description": "Affects only jobs created afterwards (items are copied into each job).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChecklistTemplateInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Updated",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChecklistTemplate"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Configuration"
+        ],
+        "operationId": "deleteChecklistTemplate",
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          }
+        }
+      }
+    },
+    "/messages": {
+      "get": {
+        "tags": [
+          "Messages"
+        ],
+        "operationId": "listMessages",
+        "parameters": [
+          {
+            "name": "jobId",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/MessageStatus"
+            }
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Newest first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MessagePage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/jobs/{id}/notify": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        },
+        {
+          "$ref": "#/components/parameters/IdempotencyKey"
+        }
+      ],
+      "post": {
+        "tags": [
+          "Messages"
+        ],
+        "operationId": "notifyClient",
+        "summary": "Manually send a message to the job's client contact(s).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "channel"
+                ],
+                "properties": {
+                  "channel": {
+                    "$ref": "#/components/schemas/MessageChannel"
+                  },
+                  "templateKey": {
+                    "$ref": "#/components/schemas/MessageTemplateKey"
+                  },
+                  "body": {
+                    "type": "string",
+                    "description": "Free text; used when templateKey is absent"
+                  },
+                  "contactId": {
+                    "$ref": "#/components/schemas/Id"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Queued",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Message"
+                  }
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "No contact with phone/email or SMS disabled",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/webhooks/infobip": {
+      "post": {
+        "tags": [
+          "Messages"
+        ],
+        "operationId": "infobipDeliveryReport",
+        "security": [
+          {
+            "webhookSecret": []
+          }
+        ],
+        "summary": "Infobip delivery reports. Updates message status/cost and usage counters.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "description": "Infobip delivery report payload (passed through, see Infobip docs).",
+                "additionalProperties": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Accepted"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/public/jobs/{token}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PublicToken"
+        }
+      ],
+      "get": {
+        "tags": [
+          "Public"
+        ],
+        "operationId": "getPublicJob",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicJob"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "410": {
+            "$ref": "#/components/responses/Gone"
+          }
+        }
+      }
+    },
+    "/public/jobs/{token}/confirm": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PublicToken"
+        }
+      ],
+      "post": {
+        "tags": [
+          "Public"
+        ],
+        "operationId": "confirmPublicJob",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Confirmed (idempotent)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicJob"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Job no longer confirmable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "410": {
+            "$ref": "#/components/responses/Gone"
+          }
+        }
+      }
+    },
+    "/public/jobs/{token}/reschedule-request": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/PublicToken"
+        }
+      ],
+      "post": {
+        "tags": [
+          "Public"
+        ],
+        "operationId": "requestPublicReschedule",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "note": {
+                    "type": "string",
+                    "maxLength": 500
+                  },
+                  "preferredDates": {
+                    "type": "array",
+                    "maxItems": 3,
+                    "items": {
+                      "type": "string",
+                      "format": "date"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Dispatcher notified",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicJob"
+                }
+              }
+            }
+          },
+          "410": {
+            "$ref": "#/components/responses/Gone"
+          }
+        }
+      }
+    },
+    "/reports/jobs-summary": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "operationId": "getJobsSummary",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/FromRequired"
+          },
+          {
+            "$ref": "#/components/parameters/ToRequired"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobsSummaryReport"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/reports/technicians": {
+      "get": {
+        "tags": [
+          "Reports"
+        ],
+        "operationId": "getTechnicianReport",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/FromRequired"
+          },
+          {
+            "$ref": "#/components/parameters/ToRequired"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/TechnicianReportRow"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Access token, ~15 min. Claims: sub, tenant_id, role, technician_id (if technician)."
+      },
+      "webhookSecret": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-Webhook-Secret"
+      }
+    },
+    "parameters": {
+      "IdPath": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "$ref": "#/components/schemas/Id"
+        }
+      },
+      "Page": {
+        "name": "page",
+        "in": "query",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "default": 1
+        }
+      },
+      "PageSize": {
+        "name": "pageSize",
+        "in": "query",
+        "schema": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200,
+          "default": 50
+        }
+      },
+      "DateQueryRequired": {
+        "name": "date",
+        "in": "query",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "date"
+        }
+      },
+      "FromRequired": {
+        "name": "from",
+        "in": "query",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "date"
+        }
+      },
+      "ToRequired": {
+        "name": "to",
+        "in": "query",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "format": "date"
+        }
+      },
+      "IdempotencyKey": {
+        "name": "Idempotency-Key",
+        "in": "header",
+        "required": false,
+        "description": "Client-generated UUID per user action. Replays within 24 h return the original response.",
+        "schema": {
+          "type": "string",
+          "minLength": 8,
+          "maxLength": 128
+        }
+      },
+      "PublicToken": {
+        "name": "token",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "string",
+          "minLength": 32,
+          "maxLength": 64
+        }
+      }
+    },
+    "responses": {
+      "Tokens": {
+        "description": "Token pair",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/TokenResponse"
+            }
+          }
+        }
+      },
+      "ValidationError": {
+        "description": "Validation failed",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ValidationProblemDetails"
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "Missing or invalid credentials",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            }
+          }
+        }
+      },
+      "Forbidden": {
+        "description": "Role does not allow this action",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            }
+          }
+        }
+      },
+      "NotFound": {
+        "description": "Not found (also returned for other tenants' resources)",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            }
+          }
+        }
+      },
+      "Conflict": {
+        "description": "Conflict (stale version, duplicate, or invalid state)",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            }
+          }
+        }
+      },
+      "Gone": {
+        "description": "Token expired or already used",
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            }
+          }
+        }
+      },
+      "TooManyRequests": {
+        "description": "Rate limited",
+        "headers": {
+          "Retry-After": {
+            "schema": {
+              "type": "integer"
+            }
+          }
+        },
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "$ref": "#/components/schemas/ProblemDetails"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Id": {
+        "type": "string",
+        "format": "uuid"
+      },
+      "Phone": {
+        "type": "string",
+        "pattern": "^\\+[1-9][0-9]{6,14}$",
+        "examples": [
+          "+385911234567"
+        ]
+      },
+      "Money": {
+        "type": "string",
+        "pattern": "^-?\\d{1,10}(\\.\\d{1,2})?$",
+        "examples": [
+          "12.50"
+        ]
+      },
+      "TimeOfDay": {
+        "type": "string",
+        "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+        "examples": [
+          "08:00"
+        ]
+      },
+      "HexColor": {
+        "type": "string",
+        "pattern": "^#[0-9a-fA-F]{6}$"
+      },
+      "Oib": {
+        "type": "string",
+        "pattern": "^\\d{11}$"
+      },
+      "CustomFieldValues": {
+        "type": "object",
+        "description": "key → value, validated against CustomFieldDefinition. Sensitive fields are returned only to owners/dispatchers and assigned technicians; otherwise omitted.",
+        "additionalProperties": true
+      },
+      "Timestamps": {
+        "type": "object",
+        "required": [
+          "createdAt",
+          "updatedAt"
+        ],
+        "properties": {
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "readOnly": true
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time",
+            "readOnly": true
+          }
+        }
+      },
+      "Role": {
+        "type": "string",
+        "enum": [
+          "owner",
+          "dispatcher",
+          "technician"
+        ]
+      },
+      "JobStatus": {
+        "type": "string",
+        "enum": [
+          "new",
+          "scheduled",
+          "confirmed",
+          "en_route",
+          "on_site",
+          "on_hold",
+          "completed",
+          "invoiced",
+          "cancelled"
+        ]
+      },
+      "Priority": {
+        "type": "string",
+        "enum": [
+          "low",
+          "normal",
+          "high",
+          "urgent"
+        ]
+      },
+      "JobSource": {
+        "type": "string",
+        "enum": [
+          "phone",
+          "email",
+          "portal",
+          "service_plan"
+        ]
+      },
+      "ClientType": {
+        "type": "string",
+        "enum": [
+          "person",
+          "company"
+        ]
+      },
+      "GeocodeStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "ok",
+          "failed",
+          "manual"
+        ]
+      },
+      "AttachmentOwnerType": {
+        "type": "string",
+        "enum": [
+          "tenant",
+          "client",
+          "location",
+          "asset",
+          "job"
+        ]
+      },
+      "AttachmentKind": {
+        "type": "string",
+        "enum": [
+          "photo",
+          "signature",
+          "pdf",
+          "doc",
+          "logo"
+        ]
+      },
+      "CustomFieldEntity": {
+        "type": "string",
+        "enum": [
+          "client",
+          "location",
+          "asset",
+          "job"
+        ]
+      },
+      "CustomFieldType": {
+        "type": "string",
+        "enum": [
+          "text",
+          "textarea",
+          "number",
+          "date",
+          "select",
+          "multiselect",
+          "checkbox"
+        ]
+      },
+      "MessageChannel": {
+        "type": "string",
+        "enum": [
+          "sms",
+          "email"
+        ]
+      },
+      "MessageStatus": {
+        "type": "string",
+        "enum": [
+          "queued",
+          "sent",
+          "delivered",
+          "failed",
+          "undeliverable"
+        ]
+      },
+      "MessageTemplateKey": {
+        "type": "string",
+        "enum": [
+          "reminder_day_before",
+          "on_the_way",
+          "report_ready",
+          "reschedule_ack"
+        ]
+      },
+      "RoutePlanStatus": {
+        "type": "string",
+        "enum": [
+          "draft",
+          "published",
+          "discarded"
+        ]
+      },
+      "UnassignedReason": {
+        "type": "string",
+        "enum": [
+          "skills",
+          "time_window",
+          "working_hours",
+          "capacity",
+          "missing_coordinates",
+          "other"
+        ]
+      },
+      "ProblemDetails": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "format": "uri-reference"
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "instance": {
+            "type": "string"
+          },
+          "traceId": {
+            "type": "string"
+          },
+          "code": {
+            "type": "string",
+            "description": "Stable machine code for the frontend, e.g. `job.invalid_transition`, `job.signature_required`"
+          }
+        },
+        "additionalProperties": true
+      },
+      "ValidationProblemDetails": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ProblemDetails"
+          },
+          {
+            "type": "object",
+            "required": [
+              "errors"
+            ],
+            "properties": {
+              "errors": {
+                "type": "object",
+                "description": "Field path (camelCase, e.g. `contacts[0].phone`, `customFields.zone_count`) → messages",
+                "additionalProperties": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "PageMeta": {
+        "type": "object",
+        "required": [
+          "page",
+          "pageSize",
+          "totalCount"
+        ],
+        "properties": {
+          "page": {
+            "type": "integer"
+          },
+          "pageSize": {
+            "type": "integer"
+          },
+          "totalCount": {
+            "type": "integer"
+          }
+        }
+      },
+      "ClientSummaryPage": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PageMeta"
+          },
+          {
+            "type": "object",
+            "required": [
+              "items"
+            ],
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ClientSummary"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "JobSummaryPage": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PageMeta"
+          },
+          {
+            "type": "object",
+            "required": [
+              "items"
+            ],
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/JobSummary"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "ServicePlanPage": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PageMeta"
+          },
+          {
+            "type": "object",
+            "required": [
+              "items"
+            ],
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ServicePlan"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "CatalogItemPage": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PageMeta"
+          },
+          {
+            "type": "object",
+            "required": [
+              "items"
+            ],
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/CatalogItem"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "MessagePage": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PageMeta"
+          },
+          {
+            "type": "object",
+            "required": [
+              "items"
+            ],
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Message"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "ImportResult": {
+        "type": "object",
+        "required": [
+          "dryRun",
+          "total",
+          "created",
+          "updated",
+          "skipped",
+          "errors"
+        ],
+        "properties": {
+          "dryRun": {
+            "type": "boolean"
+          },
+          "total": {
+            "type": "integer"
+          },
+          "created": {
+            "type": "integer"
+          },
+          "updated": {
+            "type": "integer"
+          },
+          "skipped": {
+            "type": "integer"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "row",
+                "message"
+              ],
+              "properties": {
+                "row": {
+                  "type": "integer"
+                },
+                "column": {
+                  "type": "string"
+                },
+                "message": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "TokenResponse": {
+        "type": "object",
+        "required": [
+          "accessToken",
+          "expiresIn",
+          "refreshToken",
+          "tenantId",
+          "role"
+        ],
+        "properties": {
+          "accessToken": {
+            "type": "string"
+          },
+          "expiresIn": {
+            "type": "integer",
+            "description": "Seconds"
+          },
+          "refreshToken": {
+            "type": "string"
+          },
+          "tenantId": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          }
+        }
+      },
+      "Me": {
+        "type": "object",
+        "required": [
+          "user",
+          "tenant",
+          "role",
+          "memberships"
+        ],
+        "properties": {
+          "user": {
+            "type": "object",
+            "required": [
+              "id",
+              "email",
+              "fullName"
+            ],
+            "properties": {
+              "id": {
+                "$ref": "#/components/schemas/Id"
+              },
+              "email": {
+                "type": "string",
+                "format": "email"
+              },
+              "fullName": {
+                "type": "string"
+              },
+              "phone": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          },
+          "tenant": {
+            "$ref": "#/components/schemas/TenantBrief"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "technicianId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Set when the user is a technician in the active tenant"
+          },
+          "features": {
+            "type": "array",
+            "description": "Plan feature flags, e.g. `route_optimization`, `sms`",
+            "items": {
+              "type": "string"
+            }
+          },
+          "memberships": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "tenant",
+                "role"
+              ],
+              "properties": {
+                "tenant": {
+                  "$ref": "#/components/schemas/TenantBrief"
+                },
+                "role": {
+                  "$ref": "#/components/schemas/Role"
+                }
+              }
+            }
+          }
+        }
+      },
+      "TenantBrief": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "slug"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "logoUrl": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uri"
+          }
+        }
+      },
+      "TenantSettings": {
+        "type": "object",
+        "properties": {
+          "requireSignature": {
+            "type": "boolean",
+            "default": true
+          },
+          "reminderSendTime": {
+            "$ref": "#/components/schemas/TimeOfDay",
+            "description": "Day-before SMS time; default 17:00"
+          },
+          "smsSenderName": {
+            "type": "string",
+            "maxLength": 11,
+            "description": "Alphanumeric sender ID"
+          },
+          "smsQuietHoursStart": {
+            "$ref": "#/components/schemas/TimeOfDay"
+          },
+          "smsQuietHoursEnd": {
+            "$ref": "#/components/schemas/TimeOfDay"
+          },
+          "onTheWaySmsEnabled": {
+            "type": "boolean",
+            "default": false
+          },
+          "publicLinkValidityHours": {
+            "type": "integer",
+            "default": 72
+          },
+          "jobNumberPrefix": {
+            "type": "string",
+            "default": "RN"
+          },
+          "pdfAccentColor": {
+            "$ref": "#/components/schemas/HexColor"
+          },
+          "pdfFooter": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "TenantUpdate": {
+        "type": "object",
+        "required": [
+          "name",
+          "locale",
+          "timezone",
+          "currency",
+          "settings"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 2
+          },
+          "oib": {
+            "$ref": "#/components/schemas/Oib"
+          },
+          "address": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "phone": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "email"
+          },
+          "iban": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "logoAttachmentId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "locale": {
+            "type": "string",
+            "examples": [
+              "hr-HR"
+            ]
+          },
+          "timezone": {
+            "type": "string",
+            "examples": [
+              "Europe/Zagreb"
+            ]
+          },
+          "currency": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 3
+          },
+          "settings": {
+            "$ref": "#/components/schemas/TenantSettings"
+          }
+        }
+      },
+      "Tenant": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/TenantUpdate"
+          },
+          {
+            "$ref": "#/components/schemas/Timestamps"
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "slug",
+              "plan",
+              "status"
+            ],
+            "properties": {
+              "id": {
+                "$ref": "#/components/schemas/Id"
+              },
+              "slug": {
+                "type": "string"
+              },
+              "logoUrl": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uri"
+              },
+              "plan": {
+                "type": "string",
+                "enum": [
+                  "trial",
+                  "basic",
+                  "pro"
+                ]
+              },
+              "status": {
+                "type": "string",
+                "enum": [
+                  "active",
+                  "suspended",
+                  "cancelled"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "Usage": {
+        "type": "object",
+        "required": [
+          "month",
+          "smsCount",
+          "smsCost",
+          "emailCount",
+          "optimizationsCount"
+        ],
+        "properties": {
+          "month": {
+            "type": "string"
+          },
+          "smsCount": {
+            "type": "integer"
+          },
+          "smsCost": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "emailCount": {
+            "type": "integer"
+          },
+          "optimizationsCount": {
+            "type": "integer"
+          }
+        }
+      },
+      "DepotInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "address",
+          "opensAt",
+          "closesAt"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "address": {
+            "type": "string"
+          },
+          "lat": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "lng": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "opensAt": {
+            "$ref": "#/components/schemas/TimeOfDay"
+          },
+          "closesAt": {
+            "$ref": "#/components/schemas/TimeOfDay"
+          }
+        }
+      },
+      "Depot": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/DepotInput"
+          },
+          {
+            "type": "object",
+            "required": [
+              "id"
+            ],
+            "properties": {
+              "id": {
+                "$ref": "#/components/schemas/Id"
+              }
+            }
+          }
+        ]
+      },
+      "SkillInput": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60
+          }
+        }
+      },
+      "Skill": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SkillInput"
+          },
+          {
+            "type": "object",
+            "required": [
+              "id"
+            ],
+            "properties": {
+              "id": {
+                "$ref": "#/components/schemas/Id"
+              }
+            }
+          }
+        ]
+      },
+      "Member": {
+        "type": "object",
+        "required": [
+          "userId",
+          "email",
+          "fullName",
+          "role",
+          "isActive"
+        ],
+        "properties": {
+          "userId": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "fullName": {
+            "type": "string"
+          },
+          "phone": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "technicianId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "lastLoginAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "Invitation": {
+        "type": "object",
+        "required": [
+          "id",
+          "email",
+          "role",
+          "expiresAt",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "role": {
+            "$ref": "#/components/schemas/Role"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "TechnicianUpdate": {
+        "type": "object",
+        "required": [
+          "color",
+          "workStart",
+          "workEnd",
+          "workingDays",
+          "skillIds",
+          "isActive"
+        ],
+        "properties": {
+          "depotId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "color": {
+            "$ref": "#/components/schemas/HexColor"
+          },
+          "workStart": {
+            "$ref": "#/components/schemas/TimeOfDay"
+          },
+          "workEnd": {
+            "$ref": "#/components/schemas/TimeOfDay"
+          },
+          "workingDays": {
+            "type": "array",
+            "description": "ISO weekdays, 1 = Monday",
+            "uniqueItems": true,
+            "items": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 7
+            }
+          },
+          "skillIds": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/components/schemas/Id"
+            }
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        }
+      },
+      "TechnicianCreate": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/TechnicianUpdate"
+          },
+          {
+            "type": "object",
+            "required": [
+              "userId"
+            ],
+            "properties": {
+              "userId": {
+                "$ref": "#/components/schemas/Id"
+              }
+            }
+          }
+        ]
+      },
+      "Technician": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/TechnicianCreate"
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "fullName",
+              "skills"
+            ],
+            "properties": {
+              "id": {
+                "$ref": "#/components/schemas/Id"
+              },
+              "fullName": {
+                "type": "string"
+              },
+              "phone": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "skills": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Skill"
+                }
+              },
+              "depot": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/Depot"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "TechnicianBrief": {
+        "type": "object",
+        "required": [
+          "id",
+          "fullName",
+          "color"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "fullName": {
+            "type": "string"
+          },
+          "color": {
+            "$ref": "#/components/schemas/HexColor"
+          }
+        }
+      },
+      "TechnicianDay": {
+        "type": "object",
+        "required": [
+          "date",
+          "technician",
+          "jobs"
+        ],
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "technician": {
+            "$ref": "#/components/schemas/TechnicianBrief"
+          },
+          "route": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Route"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "jobs": {
+            "type": "array",
+            "description": "In visit order; each includes location/contact data needed offline-ish on the phone",
+            "items": {
+              "$ref": "#/components/schemas/Job"
+            }
+          }
+        }
+      },
+      "ContactInput": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Present → update existing contact"
+          },
+          "name": {
+            "type": "string"
+          },
+          "phone": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Any format in",
+            "E.164 out": null
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "email"
+          },
+          "isPrimary": {
+            "type": "boolean",
+            "default": false
+          },
+          "receivesSms": {
+            "type": "boolean",
+            "default": true
+          }
+        }
+      },
+      "Contact": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "isPrimary",
+          "receivesSms"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "name": {
+            "type": "string"
+          },
+          "phone": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Phone"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "email"
+          },
+          "isPrimary": {
+            "type": "boolean"
+          },
+          "receivesSms": {
+            "type": "boolean"
+          }
+        }
+      },
+      "ClientUpdate": {
+        "type": "object",
+        "required": [
+          "type",
+          "name",
+          "contacts"
+        ],
+        "properties": {
+          "type": {
+            "$ref": "#/components/schemas/ClientType"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1
+          },
+          "oib": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Oib"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "email"
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "contacts": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/components/schemas/ContactInput"
+            }
+          },
+          "customFields": {
+            "$ref": "#/components/schemas/CustomFieldValues"
+          },
+          "version": {
+            "type": "integer",
+            "description": "Optimistic concurrency token from GET"
+          }
+        }
+      },
+      "ClientCreate": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ClientUpdate"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "firstLocation": {
+                "$ref": "#/components/schemas/LocationInput"
+              }
+            }
+          }
+        ]
+      },
+      "ClientSummary": {
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "name",
+          "openJobsCount"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "type": {
+            "$ref": "#/components/schemas/ClientType"
+          },
+          "name": {
+            "type": "string"
+          },
+          "primaryPhone": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "primaryAddress": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "openJobsCount": {
+            "type": "integer"
+          }
+        }
+      },
+      "Client": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Timestamps"
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "type",
+              "name",
+              "contacts",
+              "locations",
+              "customFields",
+              "version"
+            ],
+            "properties": {
+              "id": {
+                "$ref": "#/components/schemas/Id"
+              },
+              "type": {
+                "$ref": "#/components/schemas/ClientType"
+              },
+              "name": {
+                "type": "string"
+              },
+              "oib": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "email": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "notes": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "contacts": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Contact"
+                }
+              },
+              "locations": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Location"
+                }
+              },
+              "customFields": {
+                "$ref": "#/components/schemas/CustomFieldValues"
+              },
+              "version": {
+                "type": "integer"
+              }
+            }
+          }
+        ]
+      },
+      "LocationInput": {
+        "type": "object",
+        "required": [
+          "street",
+          "city"
+        ],
+        "properties": {
+          "label": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "street": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string"
+          },
+          "postalCode": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "country": {
+            "type": "string",
+            "default": "HR",
+            "minLength": 2,
+            "maxLength": 2
+          },
+          "lat": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "From Places autocomplete; if absent",
+            "geocoded in background": null
+          },
+          "lng": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "accessNotes": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Non-secret: parking, dog, entrance"
+          },
+          "accessCodes": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "writeOnly": true,
+            "description": "Secret (alarm/gate codes). Encrypted at rest; read back via Location.accessCodes only by allowed roles."
+          },
+          "customFields": {
+            "$ref": "#/components/schemas/CustomFieldValues"
+          }
+        }
+      },
+      "Location": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Timestamps"
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "clientId",
+              "street",
+              "city",
+              "country",
+              "geocodeStatus",
+              "customFields"
+            ],
+            "properties": {
+              "id": {
+                "$ref": "#/components/schemas/Id"
+              },
+              "clientId": {
+                "$ref": "#/components/schemas/Id"
+              },
+              "label": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "street": {
+                "type": "string"
+              },
+              "city": {
+                "type": "string"
+              },
+              "postalCode": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "country": {
+                "type": "string"
+              },
+              "lat": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "lng": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "geocodeStatus": {
+                "$ref": "#/components/schemas/GeocodeStatus"
+              },
+              "accessNotes": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "accessCodes": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Only for owner/dispatcher and technicians assigned to an open job here (access is audit-logged). Otherwise omitted."
+              },
+              "hasAccessCodes": {
+                "type": "boolean"
+              },
+              "assets": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Asset"
+                }
+              },
+              "customFields": {
+                "$ref": "#/components/schemas/CustomFieldValues"
+              }
+            }
+          }
+        ]
+      },
+      "AssetTypeInput": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "icon": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "AssetType": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/AssetTypeInput"
+          },
+          {
+            "type": "object",
+            "required": [
+              "id"
+            ],
+            "properties": {
+              "id": {
+                "$ref": "#/components/schemas/Id"
+              }
+            }
+          }
+        ]
+      },
+      "AssetInput": {
+        "type": "object",
+        "required": [
+          "assetTypeId"
+        ],
+        "properties": {
+          "assetTypeId": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "manufacturer": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "model": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "serialNo": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "installedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "warrantyUntil": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "customFields": {
+            "$ref": "#/components/schemas/CustomFieldValues"
+          }
+        }
+      },
+      "Asset": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/AssetInput"
+          },
+          {
+            "$ref": "#/components/schemas/Timestamps"
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "locationId",
+              "assetType"
+            ],
+            "properties": {
+              "id": {
+                "$ref": "#/components/schemas/Id"
+              },
+              "locationId": {
+                "$ref": "#/components/schemas/Id"
+              },
+              "assetType": {
+                "$ref": "#/components/schemas/AssetType"
+              }
+            }
+          }
+        ]
+      },
+      "JobCreate": {
+        "type": "object",
+        "required": [
+          "clientId",
+          "locationId",
+          "jobTypeId",
+          "title"
+        ],
+        "properties": {
+          "clientId": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "locationId": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "assetId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "jobTypeId": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "priority": {
+            "$ref": "#/components/schemas/Priority"
+          },
+          "source": {
+            "$ref": "#/components/schemas/JobSource"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "durationMin": {
+            "type": "integer",
+            "minimum": 5,
+            "description": "Defaults to job type"
+          },
+          "requiredPeople": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10,
+            "description": "Defaults to job type"
+          },
+          "preferredDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "windowStart": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/TimeOfDay"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "windowEnd": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/TimeOfDay"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "internalNote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "customFields": {
+            "$ref": "#/components/schemas/CustomFieldValues"
+          }
+        }
+      },
+      "JobUpdate": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/JobCreate"
+          },
+          {
+            "type": "object",
+            "required": [
+              "version"
+            ],
+            "properties": {
+              "locked": {
+                "type": "boolean"
+              },
+              "version": {
+                "type": "integer"
+              }
+            }
+          }
+        ]
+      },
+      "JobSummary": {
+        "type": "object",
+        "description": "Row shape for lists, calendar and dispatch board cards.",
+        "required": [
+          "id",
+          "number",
+          "status",
+          "priority",
+          "title",
+          "durationMin",
+          "requiredPeople",
+          "locked",
+          "jobType",
+          "client",
+          "location",
+          "technicians"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "number": {
+            "type": "string",
+            "examples": [
+              "RN-2026-0001"
+            ]
+          },
+          "status": {
+            "$ref": "#/components/schemas/JobStatus"
+          },
+          "priority": {
+            "$ref": "#/components/schemas/Priority"
+          },
+          "title": {
+            "type": "string"
+          },
+          "durationMin": {
+            "type": "integer"
+          },
+          "requiredPeople": {
+            "type": "integer"
+          },
+          "preferredDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "windowStart": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/TimeOfDay"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "windowEnd": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/TimeOfDay"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "scheduledDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "scheduledStart": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "locked": {
+            "type": "boolean"
+          },
+          "rescheduleRequested": {
+            "type": "boolean"
+          },
+          "jobType": {
+            "type": "object",
+            "required": [
+              "id",
+              "name",
+              "color"
+            ],
+            "properties": {
+              "id": {
+                "$ref": "#/components/schemas/Id"
+              },
+              "name": {
+                "type": "string"
+              },
+              "color": {
+                "$ref": "#/components/schemas/HexColor"
+              }
+            }
+          },
+          "client": {
+            "type": "object",
+            "required": [
+              "id",
+              "name"
+            ],
+            "properties": {
+              "id": {
+                "$ref": "#/components/schemas/Id"
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          },
+          "location": {
+            "type": "object",
+            "required": [
+              "id",
+              "address"
+            ],
+            "properties": {
+              "id": {
+                "$ref": "#/components/schemas/Id"
+              },
+              "address": {
+                "type": "string",
+                "description": "Single-line \"street, city\""
+              },
+              "lat": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              },
+              "lng": {
+                "type": [
+                  "number",
+                  "null"
+                ]
+              }
+            }
+          },
+          "technicians": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AssignedTechnician"
+            }
+          }
+        }
+      },
+      "AssignedTechnician": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/TechnicianBrief"
+          },
+          {
+            "type": "object",
+            "required": [
+              "isLead"
+            ],
+            "properties": {
+              "isLead": {
+                "type": "boolean"
+              }
+            }
+          }
+        ]
+      },
+      "Job": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/JobSummary"
+          },
+          {
+            "$ref": "#/components/schemas/Timestamps"
+          },
+          {
+            "type": "object",
+            "required": [
+              "source",
+              "customFields",
+              "version",
+              "allowedTransitions"
+            ],
+            "properties": {
+              "source": {
+                "$ref": "#/components/schemas/JobSource"
+              },
+              "description": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "internalNote": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "assetId": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid"
+              },
+              "servicePlanId": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid"
+              },
+              "onHoldReason": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "cancelReason": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "rescheduleNote": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "completedAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              },
+              "clientDetail": {
+                "description": "Full client with contacts (detail view and technician day)",
+                "$ref": "#/components/schemas/Client"
+              },
+              "locationDetail": {
+                "$ref": "#/components/schemas/Location"
+              },
+              "asset": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/Asset"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "routeStop": {
+                "oneOf": [
+                  {
+                    "type": "object",
+                    "required": [
+                      "sequence"
+                    ],
+                    "properties": {
+                      "sequence": {
+                        "type": "integer"
+                      },
+                      "eta": {
+                        "type": [
+                          "string",
+                          "null"
+                        ],
+                        "format": "date-time"
+                      }
+                    }
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "report": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/JobReport"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "customFields": {
+                "$ref": "#/components/schemas/CustomFieldValues"
+              },
+              "allowedTransitions": {
+                "type": "array",
+                "description": "Transitions the current user may perform now — drive buttons from this, not from client-side rules.",
+                "items": {
+                  "$ref": "#/components/schemas/JobStatus"
+                }
+              },
+              "version": {
+                "type": "integer"
+              }
+            }
+          }
+        ]
+      },
+      "TransitionRequest": {
+        "type": "object",
+        "required": [
+          "to"
+        ],
+        "properties": {
+          "to": {
+            "$ref": "#/components/schemas/JobStatus"
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Required for cancelled and on_hold"
+          },
+          "lat": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "lng": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "version": {
+            "type": "integer"
+          }
+        }
+      },
+      "AssignRequest": {
+        "type": "object",
+        "required": [
+          "technicianIds"
+        ],
+        "properties": {
+          "technicianIds": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/components/schemas/Id"
+            }
+          },
+          "leadTechnicianId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Defaults to first technician"
+          },
+          "scheduledDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "scheduledStart": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "sequence": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "description": "Position in the lead technician's day (board ordering)"
+          },
+          "locked": {
+            "type": "boolean"
+          },
+          "version": {
+            "type": "integer"
+          }
+        }
+      },
+      "StatusHistoryEntry": {
+        "type": "object",
+        "required": [
+          "id",
+          "toStatus",
+          "changedAt"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "fromStatus": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/JobStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "toStatus": {
+            "$ref": "#/components/schemas/JobStatus"
+          },
+          "changedBy": {
+            "oneOf": [
+              {
+                "type": "object",
+                "required": [
+                  "id",
+                  "fullName"
+                ],
+                "properties": {
+                  "id": {
+                    "$ref": "#/components/schemas/Id"
+                  },
+                  "fullName": {
+                    "type": "string"
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "actor": {
+            "type": "string",
+            "enum": [
+              "user",
+              "client",
+              "system"
+            ]
+          },
+          "changedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lat": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "lng": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "JobReportInput": {
+        "type": "object",
+        "properties": {
+          "workDone": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "startedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "finishedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "labourMinutes": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 0
+          }
+        }
+      },
+      "JobReport": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/JobReportInput"
+          },
+          {
+            "type": "object",
+            "required": [
+              "jobId",
+              "materials",
+              "checklist",
+              "photos"
+            ],
+            "properties": {
+              "jobId": {
+                "$ref": "#/components/schemas/Id"
+              },
+              "signedByName": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "signatureAttachmentId": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid"
+              },
+              "pdfAttachmentId": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid"
+              },
+              "completedAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              },
+              "materials": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/JobMaterial"
+                }
+              },
+              "checklist": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ChecklistItem"
+                }
+              },
+              "photos": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Attachment"
+                }
+              },
+              "totalMaterials": {
+                "$ref": "#/components/schemas/Money"
+              }
+            }
+          }
+        ]
+      },
+      "JobMaterialInput": {
+        "type": "object",
+        "required": [
+          "quantity"
+        ],
+        "properties": {
+          "catalogItemId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "name": {
+            "type": "string",
+            "description": "Required without catalogItemId"
+          },
+          "unit": {
+            "type": "string",
+            "description": "Required without catalogItemId"
+          },
+          "unitPrice": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "quantity": {
+            "type": "string",
+            "pattern": "^\\d{1,9}(\\.\\d{1,3})?$",
+            "examples": [
+              "2",
+              "12.5"
+            ]
+          }
+        }
+      },
+      "JobMaterial": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "quantity",
+          "unit",
+          "unitPrice",
+          "lineTotal"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "catalogItemId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "sku": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "name": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "string"
+          },
+          "unit": {
+            "type": "string"
+          },
+          "unitPrice": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "lineTotal": {
+            "$ref": "#/components/schemas/Money"
+          }
+        }
+      },
+      "ChecklistItem": {
+        "type": "object",
+        "required": [
+          "id",
+          "position",
+          "label",
+          "isRequired",
+          "isDone"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "position": {
+            "type": "integer"
+          },
+          "label": {
+            "type": "string"
+          },
+          "isRequired": {
+            "type": "boolean"
+          },
+          "isDone": {
+            "type": "boolean"
+          },
+          "doneAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "doneByName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "Attachment": {
+        "type": "object",
+        "required": [
+          "id",
+          "ownerType",
+          "ownerId",
+          "kind",
+          "mime",
+          "sizeBytes",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "ownerType": {
+            "$ref": "#/components/schemas/AttachmentOwnerType"
+          },
+          "ownerId": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/AttachmentKind"
+          },
+          "fileName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "mime": {
+            "type": "string"
+          },
+          "sizeBytes": {
+            "type": "integer"
+          },
+          "takenAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "DispatchBoard": {
+        "type": "object",
+        "required": [
+          "date",
+          "columns",
+          "unassigned"
+        ],
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "columns": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "technician",
+                "workStart",
+                "workEnd",
+                "isWorkingDay",
+                "jobs"
+              ],
+              "properties": {
+                "technician": {
+                  "$ref": "#/components/schemas/TechnicianBrief"
+                },
+                "workStart": {
+                  "$ref": "#/components/schemas/TimeOfDay"
+                },
+                "workEnd": {
+                  "$ref": "#/components/schemas/TimeOfDay"
+                },
+                "isWorkingDay": {
+                  "type": "boolean"
+                },
+                "plannedMinutes": {
+                  "type": "integer",
+                  "description": "Sum of job durations + travel if a plan exists"
+                },
+                "jobs": {
+                  "type": "array",
+                  "description": "In visit order",
+                  "items": {
+                    "$ref": "#/components/schemas/JobSummary"
+                  }
+                }
+              }
+            }
+          },
+          "unassigned": {
+            "type": "array",
+            "description": "Status new (any date) + scheduled for this date without technicians",
+            "items": {
+              "$ref": "#/components/schemas/JobSummary"
+            }
+          },
+          "publishedPlanId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "draftPlanId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          }
+        }
+      },
+      "RoutePlan": {
+        "type": "object",
+        "required": [
+          "id",
+          "date",
+          "status",
+          "routes",
+          "unassigned",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          },
+          "status": {
+            "$ref": "#/components/schemas/RoutePlanStatus"
+          },
+          "totalDistanceM": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "totalDurationS": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "routes": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Route"
+            }
+          },
+          "unassigned": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "jobId",
+                "reason"
+              ],
+              "properties": {
+                "jobId": {
+                  "$ref": "#/components/schemas/Id"
+                },
+                "reason": {
+                  "$ref": "#/components/schemas/UnassignedReason"
+                },
+                "detail": {
+                  "type": "string",
+                  "description": "Human-readable, e.g. \"Nijedan monter nema vještinu: video nadzor\""
+                }
+              }
+            }
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "publishedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "Route": {
+        "type": "object",
+        "required": [
+          "id",
+          "technicianId",
+          "stops"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "technicianId": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "depotId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "startTime": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "endTime": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "distanceM": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "durationS": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "polyline": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Encoded polyline (precision 5)"
+          },
+          "stops": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "jobId",
+                "sequence"
+              ],
+              "properties": {
+                "jobId": {
+                  "$ref": "#/components/schemas/Id"
+                },
+                "sequence": {
+                  "type": "integer"
+                },
+                "eta": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "date-time"
+                },
+                "etd": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "format": "date-time"
+                },
+                "travelFromPrevS": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "ServicePlanInput": {
+        "type": "object",
+        "required": [
+          "clientId",
+          "locationId",
+          "jobTypeId",
+          "intervalMonths",
+          "nextDueDate"
+        ],
+        "properties": {
+          "clientId": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "locationId": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "assetId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "jobTypeId": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "intervalMonths": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 120
+          },
+          "nextDueDate": {
+            "type": "string",
+            "format": "date"
+          },
+          "leadDays": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 365,
+            "default": 14
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "isActive": {
+            "type": "boolean",
+            "default": true
+          }
+        }
+      },
+      "ServicePlan": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ServicePlanInput"
+          },
+          {
+            "$ref": "#/components/schemas/Timestamps"
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "clientName",
+              "address",
+              "jobTypeName"
+            ],
+            "properties": {
+              "id": {
+                "$ref": "#/components/schemas/Id"
+              },
+              "clientName": {
+                "type": "string"
+              },
+              "address": {
+                "type": "string"
+              },
+              "jobTypeName": {
+                "type": "string"
+              },
+              "openJobId": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid",
+                "description": "Generated job not yet completed"
+              }
+            }
+          }
+        ]
+      },
+      "JobTypeInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "color",
+          "defaultDurationMin",
+          "requiredPeople",
+          "requiredSkillIds",
+          "smsEnabled",
+          "isActive"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "color": {
+            "$ref": "#/components/schemas/HexColor"
+          },
+          "defaultDurationMin": {
+            "type": "integer",
+            "minimum": 5
+          },
+          "requiredPeople": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10
+          },
+          "requiredSkillIds": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "$ref": "#/components/schemas/Id"
+            }
+          },
+          "checklistTemplateId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "smsEnabled": {
+            "type": "boolean"
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        }
+      },
+      "JobType": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/JobTypeInput"
+          },
+          {
+            "type": "object",
+            "required": [
+              "id"
+            ],
+            "properties": {
+              "id": {
+                "$ref": "#/components/schemas/Id"
+              }
+            }
+          }
+        ]
+      },
+      "CustomFieldDefinitionInput": {
+        "type": "object",
+        "required": [
+          "entity",
+          "key",
+          "label",
+          "type",
+          "required",
+          "isSensitive",
+          "sortOrder"
+        ],
+        "properties": {
+          "entity": {
+            "$ref": "#/components/schemas/CustomFieldEntity"
+          },
+          "assetTypeId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Only for entity=asset"
+          },
+          "key": {
+            "type": "string",
+            "pattern": "^[a-z][a-z0-9_]{0,62}$"
+          },
+          "label": {
+            "type": "string"
+          },
+          "type": {
+            "$ref": "#/components/schemas/CustomFieldType"
+          },
+          "options": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "description": "Required for select / multiselect",
+            "items": {
+              "type": "object",
+              "required": [
+                "value",
+                "label"
+              ],
+              "properties": {
+                "value": {
+                  "type": "string"
+                },
+                "label": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "isSensitive": {
+            "type": "boolean"
+          },
+          "sortOrder": {
+            "type": "integer"
+          }
+        }
+      },
+      "CustomFieldDefinition": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/CustomFieldDefinitionInput"
+          },
+          {
+            "type": "object",
+            "required": [
+              "id"
+            ],
+            "properties": {
+              "id": {
+                "$ref": "#/components/schemas/Id"
+              }
+            }
+          }
+        ]
+      },
+      "CatalogItemInput": {
+        "type": "object",
+        "required": [
+          "sku",
+          "name",
+          "unit",
+          "price",
+          "isActive"
+        ],
+        "properties": {
+          "sku": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "unit": {
+            "type": "string",
+            "examples": [
+              "kom",
+              "m",
+              "h"
+            ]
+          },
+          "price": {
+            "$ref": "#/components/schemas/Money"
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        }
+      },
+      "CatalogItem": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/CatalogItemInput"
+          },
+          {
+            "type": "object",
+            "required": [
+              "id"
+            ],
+            "properties": {
+              "id": {
+                "$ref": "#/components/schemas/Id"
+              }
+            }
+          }
+        ]
+      },
+      "MessageTemplateInput": {
+        "type": "object",
+        "required": [
+          "key",
+          "channel",
+          "locale",
+          "body",
+          "isActive"
+        ],
+        "properties": {
+          "key": {
+            "$ref": "#/components/schemas/MessageTemplateKey"
+          },
+          "channel": {
+            "$ref": "#/components/schemas/MessageChannel"
+          },
+          "locale": {
+            "type": "string",
+            "default": "hr-HR"
+          },
+          "subject": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Email only"
+          },
+          "body": {
+            "type": "string",
+            "description": "Placeholders: {klijent} {datum} {vrijeme_od} {vrijeme_do} {firma} {monter} {broj_naloga} {link}"
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        }
+      },
+      "MessageTemplate": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/MessageTemplateInput"
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "isDefault"
+            ],
+            "properties": {
+              "id": {
+                "$ref": "#/components/schemas/Id"
+              },
+              "isDefault": {
+                "type": "boolean",
+                "description": "Platform default",
+                "not yet customised by tenant": null
+              }
+            }
+          }
+        ]
+      },
+      "ChecklistTemplateInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "items"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "label"
+              ],
+              "properties": {
+                "label": {
+                  "type": "string"
+                },
+                "required": {
+                  "type": "boolean",
+                  "default": false
+                }
+              }
+            }
+          }
+        }
+      },
+      "ChecklistTemplate": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/ChecklistTemplateInput"
+          },
+          {
+            "type": "object",
+            "required": [
+              "id"
+            ],
+            "properties": {
+              "id": {
+                "$ref": "#/components/schemas/Id"
+              }
+            }
+          }
+        ]
+      },
+      "Message": {
+        "type": "object",
+        "required": [
+          "id",
+          "channel",
+          "to",
+          "body",
+          "status",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "jobId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "channel": {
+            "$ref": "#/components/schemas/MessageChannel"
+          },
+          "templateKey": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/MessageTemplateKey"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "to": {
+            "type": "string"
+          },
+          "subject": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "body": {
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/MessageStatus"
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "segments": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "cost": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "sentAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "deliveredAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "PublicJob": {
+        "type": "object",
+        "description": "Deliberately minimal — no client PII beyond first name, no access codes.",
+        "required": [
+          "company",
+          "jobNumber",
+          "jobTypeName",
+          "status",
+          "canConfirm",
+          "canRequestReschedule"
+        ],
+        "properties": {
+          "company": {
+            "type": "object",
+            "required": [
+              "name"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "phone": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "logoUrl": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uri"
+              },
+              "accentColor": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/HexColor"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            }
+          },
+          "jobNumber": {
+            "type": "string"
+          },
+          "jobTypeName": {
+            "type": "string"
+          },
+          "clientFirstName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "addressShort": {
+            "type": "string",
+            "description": "Street only, e.g. \"Ilica 12\""
+          },
+          "scheduledDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "arrivalWindowStart": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/TimeOfDay"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "arrivalWindowEnd": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/TimeOfDay"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "scheduled",
+              "confirmed",
+              "reschedule_requested",
+              "en_route",
+              "done",
+              "cancelled"
+            ]
+          },
+          "canConfirm": {
+            "type": "boolean"
+          },
+          "canRequestReschedule": {
+            "type": "boolean"
+          }
+        }
+      },
+      "JobsSummaryReport": {
+        "type": "object",
+        "required": [
+          "from",
+          "to",
+          "totals",
+          "byJobType",
+          "byStatus"
+        ],
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          },
+          "totals": {
+            "type": "object",
+            "required": [
+              "created",
+              "completed",
+              "cancelled",
+              "avgDurationMin",
+              "materialsTotal"
+            ],
+            "properties": {
+              "created": {
+                "type": "integer"
+              },
+              "completed": {
+                "type": "integer"
+              },
+              "cancelled": {
+                "type": "integer"
+              },
+              "avgDurationMin": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "description": "From report startedAt/finishedAt"
+              },
+              "materialsTotal": {
+                "$ref": "#/components/schemas/Money"
+              }
+            }
+          },
+          "byJobType": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "jobTypeId",
+                "name",
+                "completed",
+                "avgDurationMin"
+              ],
+              "properties": {
+                "jobTypeId": {
+                  "$ref": "#/components/schemas/Id"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "completed": {
+                  "type": "integer"
+                },
+                "avgDurationMin": {
+                  "type": [
+                    "number",
+                    "null"
+                  ]
+                },
+                "estimatedDurationMin": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "description": "Average planned durationMin — compare against actual"
+                }
+              }
+            }
+          },
+          "byStatus": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer"
+            }
+          }
+        }
+      },
+      "TechnicianReportRow": {
+        "type": "object",
+        "required": [
+          "technician",
+          "completed",
+          "labourMinutes",
+          "materialsTotal"
+        ],
+        "properties": {
+          "technician": {
+            "$ref": "#/components/schemas/TechnicianBrief"
+          },
+          "completed": {
+            "type": "integer"
+          },
+          "labourMinutes": {
+            "type": "integer"
+          },
+          "avgDurationMin": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "materialsTotal": {
+            "$ref": "#/components/schemas/Money"
+          }
+        }
+      },
+      "JobUpdatedEvent": {
+        "type": "object",
+        "required": [
+          "jobId",
+          "scheduledDate"
+        ],
+        "properties": {
+          "jobId": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "scheduledDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date",
+            "description": "Lets the board decide whether to refetch"
+          }
+        }
+      },
+      "JobStatusChangedEvent": {
+        "type": "object",
+        "required": [
+          "jobId",
+          "from",
+          "to",
+          "changedAt"
+        ],
+        "properties": {
+          "jobId": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "from": {
+            "$ref": "#/components/schemas/JobStatus"
+          },
+          "to": {
+            "$ref": "#/components/schemas/JobStatus"
+          },
+          "technicianId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "changedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "RoutePlanPublishedEvent": {
+        "type": "object",
+        "required": [
+          "routePlanId",
+          "date"
+        ],
+        "properties": {
+          "routePlanId": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "date": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      }
+    }
+  }
+}
