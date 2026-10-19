@@ -32,7 +32,7 @@ Places where `openapi/openapi.json` is ambiguous, incomplete or contradicts `sch
 
 ## 4. Error responses the spec doesn't declare
 
-**Spec says:** most operations declare only their success response, sometimes one error. Examples: `GET /locations/{id}` declares only 200, though the `NotFound` response says it is "also returned for other tenants' resources". Technicians' 403s are almost nowhere. The idempotency 422 ("a replay with a different body returns 422") is declared on 4 operations only.
+**Spec says:** most operations declare only their success response, sometimes one error. Examples: `GET /locations/{id}` declares only 200, though the `NotFound` response says it is "also returned for other tenants' resources". Technicians' 403s are almost nowhere. The idempotency 422 ("a replay with a different body returns 422") isn't declared on any operation. The four operations that do declare a 422 use it for something else: completion requirements, attachment confirmation, immutable custom-field properties and notify.
 
 **Mock does:** returns them anyway. The contract test accepts these undeclared responses:
 
