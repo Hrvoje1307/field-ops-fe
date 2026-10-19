@@ -20,6 +20,9 @@ const PUBLIC_PATHS = [
 /** Web Locks name shared by all tabs, so only one tab rotates the refresh token at a time. */
 export const REFRESH_LOCK_NAME = 'fieldops-refresh'
 
+/** A refresh that takes longer is abandoned (session kept), so it can't hold the lock forever. */
+export const REFRESH_TIMEOUT_MS = 15_000
+
 /** /auth/refresh statuses that mean the refresh token is no good: the session is over. */
 const SESSION_ENDING_STATUSES = new Set([400, 401, 403])
 
@@ -87,6 +90,31 @@ function withRefreshLock<T>(task: () => Promise<T>): Promise<T> {
   return locks.request(REFRESH_LOCK_NAME, task)
 }
 
+/**
+ * Runs `task` with an abort signal and rejects with a TimeoutError after `ms`.
+ * Racing (not only aborting) guarantees the caller is released even if the
+ * underlying request ignores the signal.
+ */
+async function withTimeout<T>(ms: number, task: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  const controller = new AbortController()
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => {
+      const error = new DOMException(
+        `Token refresh timed out after ${String(ms)} ms`,
+        'TimeoutError',
+      )
+      controller.abort(error)
+      reject(error)
+    }, ms)
+  })
+  try {
+    return await Promise.race([task(controller.signal), timeout])
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 async function performRefresh(): Promise<string> {
   const store = getSessionStore()
   // Inside the lock: another tab may have rotated the token while we waited.
@@ -96,16 +124,19 @@ async function performRefresh(): Promise<string> {
     throw new ApiError<ProblemDetails>(401, { status: 401, title: 'Session ended' })
   }
 
-  const response = await send(
-    '/auth/refresh',
-    { method: 'POST', body: JSON.stringify({ refreshToken }) },
-    new Headers({ 'Content-Type': 'application/json' }),
-    null,
-  )
-  // Network errors propagate from send() and keep the session
+  // Network errors and the timeout propagate from here and keep the session
+  const { response, body } = await withTimeout(REFRESH_TIMEOUT_MS, async (signal) => {
+    const res = await send(
+      '/auth/refresh',
+      { method: 'POST', body: JSON.stringify({ refreshToken }), signal },
+      new Headers({ 'Content-Type': 'application/json' }),
+      null,
+    )
+    return { response: res, body: await parseBody(res) }
+  })
 
   if (!response.ok) {
-    const problem = toProblem(response, await parseBody(response))
+    const problem = toProblem(response, body)
     if (SESSION_ENDING_STATUSES.has(response.status)) {
       store.clear()
       throw new ApiError(401, problem)
@@ -114,7 +145,7 @@ async function performRefresh(): Promise<string> {
     throw new ApiError(response.status, problem)
   }
 
-  const tokens = (await response.json()) as TokenResponse
+  const tokens = body as TokenResponse
   store.setTokens(tokens)
   return tokens.accessToken
 }

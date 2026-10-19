@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ApiError } from './api-error'
-import { customFetch, REFRESH_LOCK_NAME } from './fetcher'
+import { customFetch, REFRESH_LOCK_NAME, REFRESH_TIMEOUT_MS } from './fetcher'
 import type { TokenResponse } from './generated/model'
 import { configureSessionStore, type SessionTokenStore } from './session-port'
 
@@ -98,6 +98,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  vi.useRealTimers()
   vi.unstubAllGlobals()
   Reflect.deleteProperty(navigator, 'locks')
 })
@@ -295,6 +296,96 @@ describe('refresh', () => {
     await expect(customFetch('/jobs')).rejects.toThrow(TypeError)
     expect(store.clear).not.toHaveBeenCalled()
     expect(store.state.refreshToken).toBe('refresh-0')
+  })
+})
+
+// --- refresh timeout -----------------------------------------------------------
+
+/** Serialising fake of navigator.locks that reports whether the lock is held. */
+function installSerialisingLocks() {
+  const lock = { held: false }
+  let tail: Promise<unknown> = Promise.resolve()
+  const request = vi.fn((_name: string, task: () => Promise<unknown>) => {
+    const run = tail.then(async () => {
+      lock.held = true
+      try {
+        return await task()
+      } finally {
+        lock.held = false
+      }
+    })
+    tail = run.catch(() => undefined)
+    return run
+  })
+  Object.defineProperty(navigator, 'locks', { value: { request }, configurable: true })
+  return lock
+}
+
+/** /auth/refresh hangs until `hang` is false; protected endpoints accept only access-1. */
+function apiWithHangingRefresh() {
+  const control = { hang: true, signals: [] as (AbortSignal | null | undefined)[] }
+  fetchMock.mockImplementation((input, init) => {
+    const url = input instanceof Request ? input.url : input.toString()
+    calls.push({
+      url,
+      method: init?.method ?? 'GET',
+      headers: new Headers(init?.headers),
+      body: init?.body,
+    })
+    if (url === `${API}/auth/refresh`) {
+      control.signals.push(init?.signal)
+      // Never settles, and deliberately ignores the abort signal
+      return control.hang
+        ? new Promise<Response>(() => undefined)
+        : Promise.resolve(json(tokens(1)))
+    }
+    const ok = new Headers(init?.headers).get('Authorization') === 'Bearer access-1'
+    return Promise.resolve(ok ? json({ ok: true }) : problem(401))
+  })
+  return control
+}
+
+describe('refresh timeout', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+  })
+
+  it('gives up after 15 s, keeps the session and releases the lock', async () => {
+    const lock = installSerialisingLocks()
+    const store = createFakeStore({ accessToken: 'access-expired', refreshToken: 'refresh-0' })
+    const api = apiWithHangingRefresh()
+
+    const hung = customFetch('/jobs').catch((e: unknown) => e)
+    await vi.advanceTimersByTimeAsync(REFRESH_TIMEOUT_MS - 1)
+    expect(lock.held).toBe(true)
+
+    await vi.advanceTimersByTimeAsync(1)
+    const error = await hung
+
+    expect(error).toBeInstanceOf(DOMException)
+    expect((error as DOMException).name).toBe('TimeoutError')
+    expect(lock.held).toBe(false)
+    expect(api.signals[0]?.aborted).toBe(true)
+    expect(store.clear).not.toHaveBeenCalled()
+    expect(store.state.refreshToken).toBe('refresh-0')
+
+    // The lock is free again: the next refresh goes through
+    api.hang = false
+    await expect(customFetch('/jobs')).resolves.toEqual({ ok: true })
+    expect(refreshCalls()).toHaveLength(2)
+  })
+
+  it('also frees the in-tab single flight when Web Locks is unavailable', async () => {
+    createFakeStore({ accessToken: 'access-expired', refreshToken: 'refresh-0' })
+    const api = apiWithHangingRefresh()
+
+    const hung = customFetch('/jobs').catch((e: unknown) => e)
+    await vi.advanceTimersByTimeAsync(REFRESH_TIMEOUT_MS)
+    expect((await hung) as DOMException).toMatchObject({ name: 'TimeoutError' })
+
+    api.hang = false
+    await expect(customFetch('/jobs')).resolves.toEqual({ ok: true })
+    expect(refreshCalls()).toHaveLength(2)
   })
 })
 
