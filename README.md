@@ -11,6 +11,19 @@ npm run dev          # http://localhost:5173, mock API (MSW) on by default
 
 Copy `.env.example` to `.env.local` to point at a real API (`VITE_API_MOCK=false`).
 
+## Mock API
+
+With `VITE_API_MOCK=true` (the default in development) MSW serves the API from `src/shared/api/mocks`, following `openapi/openapi.json`. Data lives in `localStorage` (`fieldops.mockdb.v1`) and is reseeded every day, with dates relative to today. Run `window.__fieldopsResetMock()` in the browser console to reseed now; this also clears sessions and login locks.
+
+Two fictional tenants, password `demo` for everyone:
+
+| Tenant                                     | Owner                  | Dispatcher              | Technicians                            |
+| ------------------------------------------ | ---------------------- | ----------------------- | -------------------------------------- |
+| Alarmko d.o.o. (alarm installer, Zagreb)   | `vlasnik@alarmko.test` | `dispecer@alarmko.test` | `ivan@`, `luka@`, `petra@alarmko.test` |
+| Bura klima d.o.o. (HVAC / plumbing, Split) | `vlasnik@bura.test`    | `dispecer@bura.test`    | `ante@`, `mia@bura.test`               |
+
+`ana@demo.test` is a dispatcher in both tenants (for tenant switching). Open questions about the contract are in `docs/backend-questions.md`.
+
 ## Scripts
 
 | script                 | what it does                                                 |
