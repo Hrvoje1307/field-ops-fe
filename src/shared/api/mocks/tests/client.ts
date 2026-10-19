@@ -8,10 +8,13 @@ import type { TokenResponse } from '@/shared/api/generated/model'
 
 import { getDb } from '../db'
 import type { TenantData } from '../db/rows'
-import type { HttpMethod } from '../lib/openapi'
+import { matchPathTemplate, type HttpMethod } from '../lib/openapi'
 import { contractViolations } from './contract'
 
 export const API_URL = 'http://localhost/api/v1'
+
+/** `METHOD /template` of every call made through `api()` in the current test file. */
+export const calledOperations = new Set<string>()
 export const PASSWORD = 'demo'
 
 export interface ApiResponse<T = unknown> {
@@ -42,6 +45,9 @@ export async function api<T = unknown>(
   })
   const text = await response.text()
   const parsed: unknown = text ? JSON.parse(text) : undefined
+  calledOperations.add(
+    `${method.toUpperCase()} ${matchPathTemplate(new URL(path, API_URL).pathname) ?? path}`,
+  )
 
   const violations = contractViolations(
     method,
