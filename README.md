@@ -13,14 +13,15 @@ Copy `.env.example` to `.env.local` to point at a real API (`VITE_API_MOCK=false
 
 ## Scripts
 
-| script                 | what it does                                                |
-| ---------------------- | ----------------------------------------------------------- |
-| `npm run dev`          | Vite dev server                                             |
-| `npm run build`        | typecheck + production build to `dist/`                     |
-| `npm run lint`         | ESLint (incl. FSD boundaries) + Prettier check              |
-| `npm run typecheck`    | `tsc -b`                                                    |
-| `npm test`             | Vitest unit/component tests                                 |
-| `npm run test:e2e`     | Playwright (run `npx playwright install chromium` once)     |
-| `npm run api:generate` | regenerate the client from `openapi/openapi.json` via Orval |
+| script                 | what it does                                                 |
+| ---------------------- | ------------------------------------------------------------ |
+| `npm run dev`          | Vite dev server                                              |
+| `npm run build`        | typecheck + production build to `dist/`                      |
+| `npm run lint`         | ESLint (incl. FSD boundaries) + Prettier check               |
+| `npm run typecheck`    | `tsc -b`                                                     |
+| `npm test`             | Vitest unit/component tests                                  |
+| `npm run test:e2e`     | Playwright (run `npx playwright install chromium` once)      |
+| `npm run api:generate` | regenerate the client from `openapi/openapi.json` via Orval  |
+| `npm run api:check`    | fail if the committed client differs from a fresh generation |
 
-The generated client (`src/shared/api/generated`) is gitignored; `dev`, `build`, `lint`, `typecheck` and `test` regenerate it first.
+The generated client (`src/shared/api/generated`) is committed. After changing `openapi/openapi.json`, run `npm run api:generate` and commit the result; CI runs `npm run api:check` and fails on drift.

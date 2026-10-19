@@ -7,21 +7,17 @@
     "node": ">=22.18"
   },
   "scripts": {
-    "predev": "npm run api:generate",
     "dev": "vite",
-    "prebuild": "npm run api:generate",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "prelint": "npm run api:generate",
     "lint": "eslint . --max-warnings=0 && prettier --check .",
-    "pretypecheck": "npm run api:generate",
     "typecheck": "tsc -b",
-    "pretest": "npm run api:generate",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "format": "prettier --write .",
     "api:generate": "orval --config ./orval.config.ts",
+    "api:check": "npm run api:generate && git diff --exit-code -- src/shared/api/generated && test -z \"$(git status --porcelain -- src/shared/api/generated)\"",
     "postinstall": "msw init"
   },
   "msw": {
