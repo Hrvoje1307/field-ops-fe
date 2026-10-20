@@ -4,6 +4,7 @@ import type { JobStatus } from '@/shared/api/generated/model'
 import { addDays, todayInTimeZone } from '@/shared/lib/datetime'
 
 import { getDb, resetMockDb } from '../db'
+import type { MockDb } from '../db/rows'
 import { MOCK_DB_STORAGE_KEY } from '../db/storage'
 import { TRANSITIONS } from '../lib/job-machine'
 import { buildSeed } from '../seed'
@@ -116,6 +117,21 @@ describe('persistence', () => {
       seedDate?: string
     }
     expect(stored.seedDate).toBe(getDb().seedDate)
+  })
+
+  it('reloads when another tab saved the database (storage event)', () => {
+    getDb()
+    // Another tab changes a client name and saves
+    const stored = JSON.parse(localStorage.getItem(MOCK_DB_STORAGE_KEY) ?? '{}') as MockDb
+    const tenantId = Object.keys(stored.tenants)[0] ?? ''
+    const client = stored.tenants[tenantId]?.clients[0]
+    if (client) client.name = 'Promijenjeno u drugoj kartici'
+    localStorage.setItem(MOCK_DB_STORAGE_KEY, JSON.stringify(stored))
+    window.dispatchEvent(
+      new StorageEvent('storage', { key: MOCK_DB_STORAGE_KEY, storageArea: localStorage }),
+    )
+
+    expect(getDb().tenants[tenantId]?.clients[0]?.name).toBe('Promijenjeno u drugoj kartici')
   })
 
   it('reseeds when the stored seed date is not today', () => {

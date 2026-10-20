@@ -2,7 +2,7 @@ import { todayInTimeZone } from '@/shared/lib/datetime'
 
 import { buildSeed } from '../seed'
 import type { MockDb, TenantData } from './rows'
-import { loadDb, storeDb } from './storage'
+import { loadDb, MOCK_DB_STORAGE_KEY, storeDb } from './storage'
 
 /** Both seeded tenants are Croatian; the seed day is decided in their zone. */
 const SEED_TIME_ZONE = 'Europe/Zagreb'
@@ -10,6 +10,14 @@ const SEED_TIME_ZONE = 'Europe/Zagreb'
 let db: MockDb | null = null
 
 const today = () => todayInTimeZone(SEED_TIME_ZONE)
+
+// Every tab runs its own copy of the mock: when another tab saves, reload ours on the
+// next request (last write wins), so sessions and data stay consistent across tabs.
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', (event) => {
+    if (event.key === MOCK_DB_STORAGE_KEY || event.key === null) db = null
+  })
+}
 
 /**
  * The mock database. Restored from localStorage and reseeded when the stored

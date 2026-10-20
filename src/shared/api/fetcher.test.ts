@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { ApiError } from './api-error'
+import { ApiError, parseRetryAfter } from './api-error'
 import { customFetch, REFRESH_LOCK_NAME, REFRESH_TIMEOUT_MS } from './fetcher'
 import type { TokenResponse } from './generated/model'
 import { configureSessionStore, type SessionTokenStore } from './session-port'
@@ -278,6 +278,18 @@ describe('refresh', () => {
     expect((error as ApiError).status).toBe(401)
   })
 
+  it('tells revoked access apart from an expired session', async () => {
+    const store = createFakeStore({ accessToken: 'access-expired', refreshToken: 'refresh-0' })
+    apiWithValidTokens([], () => problem(401, { code: 'auth.access_revoked' }))
+    await customFetch('/me').catch(() => undefined)
+    expect(store.clear).toHaveBeenCalledWith('revoked')
+
+    const other = createFakeStore({ accessToken: 'access-expired', refreshToken: 'refresh-0' })
+    apiWithValidTokens([], () => problem(401, { code: 'auth.refresh_token_reused' }))
+    await customFetch('/me').catch(() => undefined)
+    expect(other.clear).toHaveBeenCalledWith('expired')
+  })
+
   it('keeps the session and rethrows when /auth/refresh fails with a 5xx', async () => {
     const store = createFakeStore({ accessToken: 'access-expired', refreshToken: 'refresh-0' })
     apiWithValidTokens([], () => problem(503))
@@ -487,6 +499,41 @@ describe('ApiError', () => {
     expect(error.status).toBe(502)
     expect(error.problem).toEqual({ status: 502, title: 'Bad Gateway' })
     expect(error.fieldErrors).toEqual({})
+  })
+})
+
+describe('Retry-After', () => {
+  beforeEach(() => {
+    createFakeStore({ accessToken: null, refreshToken: null })
+  })
+
+  it('is exposed as seconds on the ApiError', async () => {
+    respondWith(() => {
+      const response = problem(429)
+      response.headers.set('Retry-After', '600')
+      return response
+    })
+    const error = (await customFetch('/auth/login', { method: 'POST' }).catch(
+      (e: unknown) => e,
+    )) as ApiError
+    expect(error.status).toBe(429)
+    expect(error.retryAfter).toBe(600)
+  })
+
+  it('is null when the header is missing (e.g. not exposed via CORS)', async () => {
+    respondWith(() => problem(429))
+    const error = (await customFetch('/auth/login', { method: 'POST' }).catch(
+      (e: unknown) => e,
+    )) as ApiError
+    expect(error.retryAfter).toBeNull()
+  })
+
+  it('accepts delay-seconds and HTTP dates', () => {
+    const now = Date.parse('2026-10-20T10:00:00Z')
+    expect(parseRetryAfter('120', now)).toBe(120)
+    expect(parseRetryAfter('Tue, 20 Oct 2026 10:05:00 GMT', now)).toBe(300)
+    expect(parseRetryAfter('soon', now)).toBeNull()
+    expect(parseRetryAfter(null, now)).toBeNull()
   })
 })
 

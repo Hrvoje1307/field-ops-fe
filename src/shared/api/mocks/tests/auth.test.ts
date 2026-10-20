@@ -115,7 +115,20 @@ describe('access token', () => {
     const user = db.users.find((u) => u.email === USERS.luka)
     const membership = db.memberships.find((m) => m.userId === user?.id)
     if (membership) membership.isActive = false
-    expect((await session.get('/me')).status).toBe(401)
+    const response = await session.get<ProblemDetails>('/me')
+    expect(response.status).toBe(401)
+    expect(response.body.code).toBe('auth.access_revoked')
+  })
+
+  it('refuses to refresh a deactivated membership with auth.access_revoked', async () => {
+    const tokens = (await login(USERS.luka)).body
+    const db = getDb()
+    const user = db.users.find((u) => u.email === USERS.luka)
+    const membership = db.memberships.find((m) => m.userId === user?.id)
+    if (membership) membership.isActive = false
+    const response = await refresh(tokens.refreshToken)
+    expect(response.status).toBe(401)
+    expect(response.body.code).toBe('auth.access_revoked')
   })
 })
 

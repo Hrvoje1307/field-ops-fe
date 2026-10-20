@@ -1,6 +1,8 @@
 import type { Role, TokenResponse } from '@/shared/api/generated/model'
 import { toIsoInstant } from '@/shared/lib/datetime'
 
+import { ACCESS_REVOKED_CODE } from '@/shared/api/session-port'
+
 import type { MembershipRow, MockDb, TenantData, UserRow } from '../db/rows'
 import { newId, newToken } from './ids'
 import { tooManyRequests, unauthorized } from './problems'
@@ -123,7 +125,8 @@ export function authenticate(request: Request, db: MockDb): AuthContext {
   const user = db.users.find((u) => u.id === claims.sub)
   const membership = user && activeMembership(db, user.id, claims.tenant_id)
   const t = db.tenants[claims.tenant_id]
-  if (!user || !membership || !t) throw unauthorized('auth.invalid_token')
+  // The user or their membership is gone: a distinct code so the app can say so
+  if (!user || !membership || !t) throw unauthorized(ACCESS_REVOKED_CODE)
 
   return {
     user,
@@ -155,7 +158,7 @@ export function rotateRefreshToken(db: MockDb, token: string): TokenResponse {
   }
   if (Date.parse(row.expiresAt) <= Date.now()) throw unauthorized('auth.refresh_token_expired')
   const user = db.users.find((u) => u.id === row.userId)
-  if (!user || !activeMembership(db, user.id, row.tenantId)) throw unauthorized('auth.not_a_member')
+  if (!user || !activeMembership(db, user.id, row.tenantId)) throw unauthorized(ACCESS_REVOKED_CODE)
 
   row.usedAt = toIsoInstant(Date.now())
   return issueTokens(db, user, row.tenantId, row.familyId)

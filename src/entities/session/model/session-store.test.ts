@@ -2,7 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { TokenResponse } from '@/shared/api/generated/model'
 
-import { createSessionStore, REFRESH_TOKEN_KEY, type SessionStore } from './session-store'
+import {
+  createSessionStore,
+  REFRESH_TOKEN_KEY,
+  type SessionStore,
+  TENANT_KEY,
+} from './session-store'
 
 const TOKENS: TokenResponse = {
   accessToken: 'access-1',
@@ -43,23 +48,30 @@ describe('session store', () => {
     expect(store.getAccessToken()).toBe('access-1')
     expect(store.getRefreshToken()).toBe('refresh-1')
     expect(localStorage.getItem(REFRESH_TOKEN_KEY)).toBe('refresh-1')
+    expect(localStorage.getItem(TENANT_KEY)).toBe(TOKENS.tenantId)
     // Nothing else is persisted (no access token)
-    expect(localStorage).toHaveLength(1)
+    expect(localStorage).toHaveLength(2)
     expect(store.getSnapshot()).toEqual({
       isAuthenticated: true,
       role: 'technician',
       tenantId: TOKENS.tenantId,
+      endReason: null,
     })
   })
 
-  it('restores only the refresh token after a reload', () => {
+  it('restores the refresh token and tenant (not the access token) after a reload', () => {
     create().setTokens(TOKENS)
 
     const reloaded = create()
 
     expect(reloaded.getRefreshToken()).toBe('refresh-1')
     expect(reloaded.getAccessToken()).toBeNull()
-    expect(reloaded.getSnapshot()).toEqual({ isAuthenticated: true, role: null, tenantId: null })
+    expect(reloaded.getSnapshot()).toEqual({
+      isAuthenticated: true,
+      role: null,
+      tenantId: TOKENS.tenantId,
+      endReason: null,
+    })
   })
 
   it('clear() wipes memory and storage', () => {
@@ -71,7 +83,17 @@ describe('session store', () => {
     expect(store.getAccessToken()).toBeNull()
     expect(store.getRefreshToken()).toBeNull()
     expect(localStorage.getItem(REFRESH_TOKEN_KEY)).toBeNull()
-    expect(store.getSnapshot().isAuthenticated).toBe(false)
+    expect(localStorage.getItem(TENANT_KEY)).toBeNull()
+    expect(store.getSnapshot()).toMatchObject({ isAuthenticated: false, endReason: 'signed_out' })
+  })
+
+  it('records why the session ended, and forgets it on the next sign-in', () => {
+    const store = create()
+    store.setTokens(TOKENS)
+    store.clear('revoked')
+    expect(store.getSnapshot().endReason).toBe('revoked')
+    store.setTokens(TOKENS)
+    expect(store.getSnapshot().endReason).toBeNull()
   })
 
   it('notifies subscribers and keeps the snapshot stable between changes', () => {
@@ -177,8 +199,34 @@ describe('other tabs', () => {
 
     expect(store.getAccessToken()).toBeNull()
     expect(store.getRefreshToken()).toBeNull()
-    expect(store.getSnapshot()).toEqual({ isAuthenticated: false, role: null, tenantId: null })
+    expect(store.getSnapshot()).toEqual({
+      isAuthenticated: false,
+      role: null,
+      tenantId: null,
+      endReason: 'other_tab',
+    })
     expect(listener).toHaveBeenCalledTimes(1)
+  })
+
+  it('follows a tenant switch made in another tab', () => {
+    const store = create()
+    store.setTokens(TOKENS)
+    const listener = vi.fn()
+    store.subscribe(listener)
+
+    // The other tab writes the new refresh token, then the new tenant
+    storageEventFromOtherTab(REFRESH_TOKEN_KEY, 'refresh-2')
+    storageEventFromOtherTab(TENANT_KEY, 'tenant-b')
+
+    expect(store.getSnapshot()).toMatchObject({
+      isAuthenticated: true,
+      tenantId: 'tenant-b',
+      role: null,
+    })
+    // The old tenant's access token is dropped; the next request refreshes into tenant B
+    expect(store.getAccessToken()).toBeNull()
+    expect(store.getRefreshToken()).toBe('refresh-2')
+    expect(listener).toHaveBeenCalledTimes(2)
   })
 
   it('ignores storage events for other keys', () => {

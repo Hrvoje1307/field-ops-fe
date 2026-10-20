@@ -1,8 +1,8 @@
 import { env } from '@/shared/config/env'
 
-import { ApiError } from './api-error'
+import { ApiError, parseRetryAfter } from './api-error'
 import type { ProblemDetails, TokenResponse } from './generated/model'
-import { getSessionStore } from './session-port'
+import { ACCESS_REVOKED_CODE, getSessionStore } from './session-port'
 
 // Orval looks for these two declarations by their literal text, so keep them as `export type`.
 export type ErrorType<TError> = ApiError<TError>
@@ -66,7 +66,11 @@ function toProblem(response: Response, body: unknown): ProblemDetails {
 
 async function parseOrThrow<T>(response: Response): Promise<T> {
   const body = await parseBody(response)
-  if (!response.ok) throw new ApiError(response.status, toProblem(response, body))
+  if (!response.ok) {
+    throw new ApiError(response.status, toProblem(response, body), {
+      retryAfter: parseRetryAfter(response.headers.get('Retry-After')),
+    })
+  }
   return body as T
 }
 
@@ -138,7 +142,7 @@ async function performRefresh(): Promise<string> {
   if (!response.ok) {
     const problem = toProblem(response, body)
     if (SESSION_ENDING_STATUSES.has(response.status)) {
-      store.clear()
+      store.clear(problem.code === ACCESS_REVOKED_CODE ? 'revoked' : 'expired')
       throw new ApiError(401, problem)
     }
     // 5xx and other failures: keep the session, the caller can retry
