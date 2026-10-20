@@ -164,3 +164,31 @@ Codes are preferable because we want an `en` locale later.
 **Mock does:** the frontend and the mock derive the country from the locale's region (`hr-HR` → `HR`, `en-US` → `US`). They use it to read national numbers in contact input and the phone lookup.
 
 **We propose:** add an explicit `country` (ISO 3166-1 alpha-2) to `Tenant`/`TenantUpdate`. Locale and country can differ, e.g. an English-speaking UI for a Croatian company.
+
+## 16. Expose `Retry-After` to the browser (CORS)
+
+**Spec says:** the `TooManyRequests` response (429 on `/auth/login`) declares a `Retry-After` header.
+
+**Mock does:** sends `Retry-After` in seconds. The frontend shows "Previše neuspjelih pokušaja. Pokušajte ponovno za N min.", and falls back to "Previše pokušaja, pokušajte malo kasnije." when the header is missing.
+
+**We propose:** the API is on another origin than the frontend, so the browser only lets JavaScript read `Retry-After` if CORS responses include `Access-Control-Expose-Headers: Retry-After`. Please add it, next to allowing `Authorization` and `Idempotency-Key` in `Access-Control-Allow-Headers`.
+
+## 17. Technician role label as a tenant setting
+
+**Spec says:** `Role` is a fixed enum (`owner`, `dispatcher`, `technician`); `TenantSettings` has no labels.
+
+**Mock does:** the frontend labels the role from i18n: "Vlasnik", "Dispečer", "Monter".
+
+**We propose:** add a tenant setting such as `tenant.settings.technicianLabel`. "Monter" fits installers but not cleaning or HVAC companies; they'd say "serviser", "djelatnik" and so on. The frontend keeps "Monter" from i18n as the fallback until the setting exists.
+
+## 18. A stable code for revoked access
+
+**Spec says:** `ProblemDetails.code` is described as a stable machine code, but no codes are listed. Nothing says what `/me`, or any authenticated call, returns once a user or their membership is deactivated.
+
+**Mock does:**
+
+- Returns `401` with `code: "auth.access_revoked"`, both on API calls and on `/auth/refresh`, when the user no longer exists or the membership is inactive.
+- The frontend then clears the session and shows "Vaš pristup je ukinut. Obratite se vlasniku tvrtke." on `/login`. It treats `403` from `/me` the same way.
+- Every other 401 counts as an ended session ("Sesija je istekla").
+
+**We propose:** document `auth.access_revoked` (and the other auth codes the backend uses) in the spec, so the frontend doesn't depend on a convention.

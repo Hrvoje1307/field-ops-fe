@@ -22,9 +22,18 @@ Each step follows the workflow in `CLAUDE.md`: plan first, wait for OK, then bui
   - Open contract questions: `docs/backend-questions.md`.
   - Branch `feat/mock-api`.
 
+- [x] **Step 4: login, session and app shell**
+  - `features/auth`: sign-in (zod form; 401, 429 with the wait time, 400 next to the fields), sign-out, switch-tenant, forgot-password.
+  - `entities/session`: `useMe()`, `/me` and `/tenant` queries; tenant timezone, locale, currency and country provided to the `shared/lib` formatters.
+  - Routes: `/login` (keeps the redirect target), signed-in layout loading `/me`, office and `/field` areas with role guards both ways; revoked access ends on `/login` with a message.
+  - `widgets/app-shell`: office rail and mobile top bar (Danas, Nalozi, Klijenti, user menu with tenant switcher), field header. The screens themselves are placeholders.
+  - Sign-out and tenant switches follow across tabs.
+  - Demo logins in mock mode.
+  - Playwright covers both mock tenants.
+  - Branch `feat/auth-shell`.
+
 ## Next (candidates from `CLAUDE.md`, not yet planned or ordered)
 
-- **Sign in / sign out** (`pages/login`, `features/auth`), with route guards by role: office vs `/field`.
 - **Office:** jobs list, job detail, quick job entry, assign, status changes; clients list and detail; day overview.
 - **Field (technician, phone-first):** field day, field job.
 - **Generic custom-field renderer** for inputs and read-only display.
