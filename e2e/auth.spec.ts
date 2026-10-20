@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, type Page, test } from '@playwright/test'
 
 import {
   API_URL,
@@ -13,6 +13,34 @@ import {
 test.beforeEach(async ({ page }) => {
   await resetMock(page)
 })
+
+/** The owner deactivates a member, through the mock API in this browser. */
+async function deactivateMember(page: Page, ownerEmail: string, memberEmail: string) {
+  await page.evaluate(
+    async ({ api, owner, member }) => {
+      const json = { 'Content-Type': 'application/json' }
+      const login = await fetch(`${api}/auth/login`, {
+        method: 'POST',
+        headers: json,
+        body: JSON.stringify({ email: owner, password: 'demo' }),
+      })
+      const { accessToken } = (await login.json()) as { accessToken: string }
+      const auth = { ...json, Authorization: `Bearer ${accessToken}` }
+      const members = (await (await fetch(`${api}/users`, { headers: auth })).json()) as {
+        userId: string
+        email: string
+        role: string
+      }[]
+      const target = members.find((m) => m.email === member)
+      await fetch(`${api}/users/${target?.userId ?? ''}`, {
+        method: 'PUT',
+        headers: auth,
+        body: JSON.stringify({ role: target?.role, isActive: false }),
+      })
+    },
+    { api: API_URL, owner: ownerEmail, member: memberEmail },
+  )
+}
 
 for (const tenant of TENANTS) {
   test.describe(tenant.name, () => {
@@ -43,6 +71,50 @@ for (const tenant of TENANTS) {
       await expect(page).toHaveURL('/')
       await page.goto('/field')
       await expect(page).toHaveURL('/')
+    })
+
+    test('signing out in one tab signs out the other tabs', async ({ page, context }) => {
+      await signIn(page, tenant.dispatcher)
+      await expectSignedInAs(page, tenant.name)
+
+      const other = await context.newPage()
+      await other.goto('/jobs')
+      await expectSignedInAs(other, tenant.name)
+
+      await openUserMenu(page)
+      await page.getByRole('menuitem', { name: 'Odjavi se' }).click()
+      await expect(page).toHaveURL('/login')
+
+      await expect(other).toHaveURL('/login?redirect=%2Fjobs&reason=signed_out_elsewhere')
+      await expect(other.getByText('Odjavljeni ste u drugom prozoru.')).toBeVisible()
+    })
+
+    test('revoked access ends on /login with a clear message', async ({ page }) => {
+      await signIn(page, tenant.technician)
+      await expect(page).toHaveURL('/field')
+
+      await deactivateMember(page, tenant.owner, tenant.technician)
+
+      await page.reload()
+      await expect(page).toHaveURL('/login?reason=access_revoked')
+      await expect(
+        page.getByText('Vaš pristup je ukinut. Obratite se vlasniku tvrtke.'),
+      ).toBeVisible()
+    })
+
+    test('office top bar and menu work at phone width', async ({ page }) => {
+      await page.setViewportSize({ width: 390, height: 844 })
+      await signIn(page, tenant.dispatcher)
+      await expect(page.getByTestId('tenant-name-mobile')).toHaveText(tenant.name)
+
+      await page.getByRole('button', { name: 'Otvori izbornik' }).click()
+      await page.getByRole('dialog').getByRole('link', { name: 'Nalozi' }).click()
+      await expect(page).toHaveURL('/jobs')
+      await expect(page.getByRole('dialog')).toHaveCount(0)
+      await expect(page.getByRole('heading', { level: 1, name: 'Nalozi' })).toBeVisible()
+
+      await openUserMenu(page)
+      await expect(page.getByRole('menuitem', { name: 'Odjavi se' })).toBeVisible()
     })
   })
 }
@@ -80,22 +152,6 @@ test('own sign-out goes to plain /login', async ({ page }) => {
   await expect(page).toHaveURL('/login?redirect=%2Fjobs')
 })
 
-test('signing out in one tab signs out the other tabs', async ({ page, context }) => {
-  await signIn(page, TENANTS[0].dispatcher)
-  await expectSignedInAs(page, TENANTS[0].name)
-
-  const other = await context.newPage()
-  await other.goto('/jobs')
-  await expectSignedInAs(other, TENANTS[0].name)
-
-  await openUserMenu(page)
-  await page.getByRole('menuitem', { name: 'Odjavi se' }).click()
-  await expect(page).toHaveURL('/login')
-
-  await expect(other).toHaveURL('/login?redirect=%2Fjobs&reason=signed_out_elsewhere')
-  await expect(other.getByText('Odjavljeni ste u drugom prozoru.')).toBeVisible()
-})
-
 test('switching tenant reloads the data and shows the other company', async ({ page }) => {
   await signIn(page, SHARED_DISPATCHER)
   await expectSignedInAs(page, TENANTS[0].name)
@@ -128,37 +184,6 @@ test('a tenant switch in one tab moves the other tab too', async ({ page, contex
   await expectSignedInAs(page, TENANTS[1].name)
 
   await expectSignedInAs(other, TENANTS[1].name)
-})
-
-test('revoked access ends on /login with a clear message', async ({ page }) => {
-  await signIn(page, 'luka@alarmko.test')
-  await expect(page).toHaveURL('/field')
-
-  // The owner deactivates Luka (through the mock API in this browser)
-  await page.evaluate(async (api) => {
-    const json = { 'Content-Type': 'application/json' }
-    const login = await fetch(`${api}/auth/login`, {
-      method: 'POST',
-      headers: json,
-      body: JSON.stringify({ email: 'vlasnik@alarmko.test', password: 'demo' }),
-    })
-    const { accessToken } = (await login.json()) as { accessToken: string }
-    const auth = { ...json, Authorization: `Bearer ${accessToken}` }
-    const members = (await (await fetch(`${api}/users`, { headers: auth })).json()) as {
-      userId: string
-      email: string
-    }[]
-    const luka = members.find((m) => m.email === 'luka@alarmko.test')
-    await fetch(`${api}/users/${luka?.userId ?? ''}`, {
-      method: 'PUT',
-      headers: auth,
-      body: JSON.stringify({ role: 'technician', isActive: false }),
-    })
-  }, API_URL)
-
-  await page.reload()
-  await expect(page).toHaveURL('/login?reason=access_revoked')
-  await expect(page.getByText('Vaš pristup je ukinut. Obratite se vlasniku tvrtke.')).toBeVisible()
 })
 
 test('forgot password always shows the same confirmation', async ({ page }) => {

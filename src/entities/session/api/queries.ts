@@ -1,11 +1,11 @@
-import { queryOptions, useSuspenseQuery } from '@tanstack/react-query'
+import { queryOptions, useQuery, useSuspenseQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 
 import { getGetMeQueryKey, getMe } from '@/shared/api/generated/auth/auth'
 import type { Me } from '@/shared/api/generated/model'
 import { getGetTenantQueryKey, getTenant } from '@/shared/api/generated/tenant/tenant'
 import { countryFromLocale } from '@/shared/lib/phone'
-import type { TenantFormatSettings } from '@/shared/lib/tenant-format'
+import { DEFAULT_TENANT_FORMAT, type TenantFormatSettings } from '@/shared/lib/tenant-format'
 
 const FIVE_MINUTES = 5 * 60_000
 
@@ -30,16 +30,22 @@ export function useMe(): Me {
   return useSuspenseQuery(meQueryOptions()).data
 }
 
-/** Formatting settings of the active tenant, for `TenantFormatProvider`. */
+/**
+ * Formatting settings of the active tenant, for `TenantFormatProvider`.
+ * Falls back to the defaults while `/tenant` is unavailable (it only affects formatting).
+ */
 export function useTenantSettings(): TenantFormatSettings {
-  const { data: tenant } = useSuspenseQuery(tenantQueryOptions())
+  const { data: tenant } = useQuery(tenantQueryOptions())
   return useMemo(
-    () => ({
-      timeZone: tenant.timezone,
-      locale: tenant.locale,
-      currency: tenant.currency,
-      country: countryFromLocale(tenant.locale),
-    }),
-    [tenant.timezone, tenant.locale, tenant.currency],
+    () =>
+      tenant
+        ? {
+            timeZone: tenant.timezone,
+            locale: tenant.locale,
+            currency: tenant.currency,
+            country: countryFromLocale(tenant.locale),
+          }
+        : DEFAULT_TENANT_FORMAT,
+    [tenant],
   )
 }

@@ -72,7 +72,9 @@ export function OfficeShell({ children }: { children: ReactNode }) {
               />
             </SheetContent>
           </Sheet>
-          <p className="min-w-0 flex-1 truncate font-semibold">{me.tenant.name}</p>
+          <p className="min-w-0 flex-1 truncate font-semibold" data-testid="tenant-name-mobile">
+            {me.tenant.name}
+          </p>
           <UserMenu />
         </header>
         <main className="flex-1 p-4 md:p-8">{children}</main>
