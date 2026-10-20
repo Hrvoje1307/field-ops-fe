@@ -14,6 +14,8 @@ import tseslint from 'typescript-eslint'
 //   app → pages → widgets → features → entities → shared   (import downward only)
 //   Sliced layers (pages, widgets, features, entities) are entered only through
 //   their public API (index.ts). app and shared have no slices: free inside.
+//   Features are grouped: features/<group>/<slice> (e.g. features/auth/sign-in);
+//   slices of the same group are still separate slices.
 // ---------------------------------------------------------------------------
 const publicApi = (...types) => ({
   element: { type: types, fileInternalPath: 'index.{ts,tsx}' },
@@ -35,7 +37,12 @@ const fsdBoundaries = {
       { type: 'app', pattern: 'src/app', partialMatch: false },
       { type: 'page', pattern: 'src/pages/*', partialMatch: false, capture: ['slice'] },
       { type: 'widget', pattern: 'src/widgets/*', partialMatch: false, capture: ['slice'] },
-      { type: 'feature', pattern: 'src/features/*', partialMatch: false, capture: ['slice'] },
+      {
+        type: 'feature',
+        pattern: 'src/features/*/*',
+        partialMatch: false,
+        capture: ['group', 'slice'],
+      },
       { type: 'entity', pattern: 'src/entities/*', partialMatch: false, capture: ['slice'] },
       { type: 'shared', pattern: 'src/shared', partialMatch: false },
     ],
@@ -106,6 +113,21 @@ export default defineConfig([
         projectService: true,
         tsconfigRootDir: import.meta.dirname,
       },
+    },
+    rules: {
+      // TanStack Router's redirect() / notFound() are meant to be thrown
+      '@typescript-eslint/only-throw-error': [
+        'error',
+        {
+          allow: [
+            {
+              from: 'package',
+              package: '@tanstack/router-core',
+              name: ['Redirect', 'NotFoundError'],
+            },
+          ],
+        },
+      ],
     },
   },
   {

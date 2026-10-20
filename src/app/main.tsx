@@ -5,12 +5,15 @@ import { createRoot } from 'react-dom/client'
 
 import { App } from './app'
 import { enableMocking } from './providers/mocks'
-import { connectSession } from './providers/session'
+import { queryClient } from './providers/query-client'
+import { connectSession, startSessionWatcher } from './providers/session'
+import { router } from './router'
 
 const rootElement = document.getElementById('root')
 if (!rootElement) throw new Error('Root element #root not found')
 
 connectSession()
+startSessionWatcher(router, queryClient)
 
 void enableMocking()
   .catch((error: unknown) => {
