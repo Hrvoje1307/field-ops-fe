@@ -41,7 +41,7 @@
  * `RoutePlanPublished` (RoutePlanPublishedEvent). Clients invalidate
  * TanStack Query caches on receipt; payloads are intentionally thin.
  *
- * OpenAPI spec version: 0.1.0
+ * OpenAPI spec version: 0.2.0
  */
 import type { CustomFieldValues } from './customFieldValues.ts'
 
@@ -58,7 +58,7 @@ export interface LocationInput {
    */
   country?: string
   /**
-   * From Places autocomplete; if absent
+   * From Places autocomplete; if absent, geocoded in background
    * @nullable
    */
   lat?: number | null
@@ -70,7 +70,7 @@ export interface LocationInput {
    */
   accessNotes?: string | null
   /**
-   * Secret (alarm/gate codes). Encrypted at rest; read back via Location.accessCodes only by allowed roles.
+   * Secret (alarm/gate codes). Write-only: null = keep stored value, "" = remove, text = replace. Encrypted at rest (AES-GCM); read back via Location.accessCodes only by allowed roles.
    * @nullable
    */
   accessCodes?: string | null

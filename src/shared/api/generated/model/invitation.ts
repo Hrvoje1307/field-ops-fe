@@ -41,7 +41,7 @@
  * `RoutePlanPublished` (RoutePlanPublishedEvent). Clients invalidate
  * TanStack Query caches on receipt; payloads are intentionally thin.
  *
- * OpenAPI spec version: 0.1.0
+ * OpenAPI spec version: 0.2.0
  */
 import type { Id } from './id.ts'
 import type { Role } from './role.ts'
@@ -52,4 +52,9 @@ export interface Invitation {
   role: Role
   expiresAt: string
   createdAt: string
+  /**
+   * Only when the server has no SMTP configured, so the office can pass the link on by hand.
+   * @nullable
+   */
+  inviteUrl?: string | null
 }
