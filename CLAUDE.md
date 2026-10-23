@@ -70,6 +70,8 @@ Rules:
 - Access token in memory only; refresh token in localStorage.
 - Tenant comes from the JWT. Never put tenantId in URLs or bodies.
 - Dates: instants are UTC ISO strings; `HH:mm` and `yyyy-MM-dd` are tenant-local. Always format in the tenant's timezone (from `/tenant`), never the browser's.
+- Show addresses from `Location.address` / `JobSummary.location.address` (the API's "street, city"); don't format street and city in the UI.
+- Authenticated documents such as `GET /jobs/{id}/report/print` (HTML) are fetched through the client with the bearer token and opened as a blob URL, never as a plain link (a link would go without the token).
 - Phones are E.164; show them in the tenant country's national format (Croatian for HR tenants), E.164 otherwise.
 - Money is a decimal string; never parse to float for arithmetic.
 - Job status buttons are driven by `allowedTransitions` from the API, not by client-side rules. `completed` only via `/jobs/{id}/complete`.

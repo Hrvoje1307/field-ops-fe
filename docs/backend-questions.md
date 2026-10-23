@@ -2,6 +2,8 @@
 
 Places where `openapi/openapi.json` is ambiguous, incomplete or contradicts `schemas/schema.md`, found while building the mock API (`src/shared/api/mocks`). Each item lists what the spec says, what the mock does today, and what we propose. The mock's behaviour is a placeholder until the backend answers; the frontend is built against the proposal.
 
+**Status, spec 0.2.0 (2026-10-23):** 0.2.0 doesn't resolve any of items 1–18 yet. Its changes are the print endpoint, `Location.address`, `Invitation.inviteUrl`, the `accessCodes` semantics and description fixes. Items 19–21 are new.
+
 ## 1. Two different job status machines
 
 **Spec says:** the OpenAPI description has a transition table. `schemas/schema.md` has a diagram that also allows `scheduled → on_hold`, `en_route → on_hold` and "any open status → cancelled", which would include `en_route → cancelled` and `on_site → cancelled`. The OpenAPI table allows none of these.
@@ -192,3 +194,37 @@ Codes are preferable because we want an `en` locale later.
 - Every other 401 counts as an ended session ("Sesija je istekla").
 
 **We propose:** document `auth.access_revoked` (and the other auth codes the backend uses) in the spec, so the frontend doesn't depend on a convention.
+
+## 19. CORS for the frontend origins
+
+**Spec says:** nothing (CORS isn't part of OpenAPI).
+
+**What the live API does (preflight check, 2026-10-23):**
+
+- **Allowed origins:** `http://localhost:5173` and **any** `https://*.vercel.app` origin, i.e. every Vercel-hosted site, not only ours. Others, e.g. `http://localhost:4173` (`npm run preview`), get no CORS headers.
+- **Credentials:** responses include `Access-Control-Allow-Credentials: true`.
+- **Methods and headers:** the requested method and headers are allowed (`Authorization`, `Idempotency-Key`, `Content-Type` work).
+- **Exposed headers:** only `Idempotent-Replayed`. `Retry-After` is not exposed, see #16.
+
+**We propose:**
+
+- **Origins:** an explicit allowlist: `http://localhost:5173`, `http://localhost:4173`, the production domain, and our project's Vercel preview pattern instead of all of `*.vercel.app`.
+- **Headers:** allow `Authorization`, `Idempotency-Key` and `Content-Type`.
+- **Exposed headers:** `Retry-After` and `Idempotent-Replayed`.
+- **Credentials:** drop `Allow-Credentials` unless cookies are used. The frontend sends a bearer token, so it isn't needed.
+
+## 20. Seeded demo accounts on the server
+
+**Spec says:** nothing.
+
+**Mock does:** seeds two fictional tenants (an alarm installer in Zagreb, an HVAC/plumbing company in Split). It has an owner, a dispatcher and technicians per tenant, plus one dispatcher in both, all with password `demo` (README, "Mock API"). The demo login buttons and the Playwright tests use them.
+
+**We propose:** seed the same accounts (emails, roles, both tenants, the shared dispatcher) on the dev/staging server, plus comparable demo data. Then the app and the Playwright suite can run against the real backend unchanged. Not on production.
+
+## 21. Where `Invitation.inviteUrl` points
+
+**Spec says:** `inviteUrl` (0.2.0) is returned "only when the server has no SMTP configured". It doesn't say which URL it contains. Accepting goes through `POST /auth/invite/accept { token, password, fullName }`.
+
+**Mock does:** returns `<app origin>/invite?token=<token>`.
+
+**We propose:** the link points at the frontend, not the API: `<frontend base URL>/invite?token=<token>`, with the frontend base URL configured per environment on the server. The emailed link should use the same format. The frontend will add the `/invite` page in a later step.
