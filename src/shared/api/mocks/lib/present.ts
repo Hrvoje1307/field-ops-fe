@@ -9,6 +9,7 @@ import type {
   Client,
   ClientSummary,
   Contact,
+  Invitation,
   Job,
   JobReport,
   JobSummary,
@@ -28,6 +29,7 @@ import type {
   ClientRow,
   ContactRow,
   HistoryRow,
+  InvitationRow,
   JobRow,
   LocationRow,
   MembershipRow,
@@ -85,6 +87,23 @@ export function presentMe(db: MockDb, auth: AuthContext): Me {
       const t = db.tenants[m.tenantId]
       return t ? [{ tenant: tenantBrief(t), role: m.role }] : []
     }),
+  }
+}
+
+/**
+ * The mock has no SMTP, so every invitation carries its link (spec 0.2.0) for the
+ * office to pass on. Points at the app's invite page (docs/backend-questions.md #21).
+ */
+export function presentInvitation(row: InvitationRow): Invitation {
+  // No `location` outside a browser (plain Node)
+  const origin = 'location' in globalThis ? globalThis.location.origin : 'http://localhost'
+  return {
+    id: row.id,
+    email: row.email,
+    role: row.role,
+    expiresAt: row.expiresAt,
+    createdAt: row.createdAt,
+    inviteUrl: `${origin}/invite?token=${encodeURIComponent(row.token)}`,
   }
 }
 
@@ -169,6 +188,10 @@ export function presentAsset(t: TenantData, row: AssetRow, viewer: Viewer): Asse
   }
 }
 
+/** Single-line "street, city": Location.address, JobSummary.location.address, ClientSummary.primaryAddress. */
+export const formatAddress = (location: Pick<LocationRow, 'street' | 'city'>) =>
+  `${location.street}, ${location.city}`
+
 export function presentLocation(t: TenantData, row: LocationRow, viewer: Viewer): Location {
   const canSeeSecrets = canSeeLocationSecrets(t, viewer, row.id)
   const location: Location = {
@@ -177,6 +200,7 @@ export function presentLocation(t: TenantData, row: LocationRow, viewer: Viewer)
     label: row.label ?? null,
     street: row.street,
     city: row.city,
+    address: formatAddress(row),
     postalCode: row.postalCode ?? null,
     country: row.country,
     lat: row.lat ?? null,
@@ -219,9 +243,6 @@ export function presentClient(t: TenantData, row: ClientRow, viewer: Viewer): Cl
     updatedAt: row.updatedAt,
   }
 }
-
-export const formatAddress = (location: Pick<LocationRow, 'street' | 'city'>) =>
-  `${location.street}, ${location.city}`
 
 export function presentClientSummary(t: TenantData, row: ClientRow): ClientSummary {
   const primary =

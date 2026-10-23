@@ -1,4 +1,4 @@
-import type { MockDb } from './rows'
+import { MOCK_DB_SCHEMA_VERSION, type MockDb } from './rows'
 
 export const MOCK_DB_STORAGE_KEY = 'fieldops.mockdb.v1'
 
@@ -15,7 +15,7 @@ export function loadDb(): MockDb | null {
     const raw = getStorage()?.getItem(MOCK_DB_STORAGE_KEY)
     if (!raw) return null
     const parsed = JSON.parse(raw) as Partial<MockDb>
-    return parsed.schemaVersion === 1 && typeof parsed.seedDate === 'string'
+    return parsed.schemaVersion === MOCK_DB_SCHEMA_VERSION && typeof parsed.seedDate === 'string'
       ? (parsed as MockDb)
       : null
   } catch {

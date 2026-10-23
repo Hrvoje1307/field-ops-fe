@@ -28,7 +28,10 @@ export function fakeGeocode(street: string, city: string): { lat: number; lng: n
 
 export const tenantCountry = (t: TenantData) => countryFromLocale(t.tenant.locale)
 
-/** LocationInput → stored fields (full replacement; `accessCodes` omitted = keep, null = clear). */
+/**
+ * LocationInput → stored fields (full replacement). `accessCodes` is write-only:
+ * null (or omitted) keeps the stored value, "" removes it, text replaces it.
+ */
 export function applyLocationInput(
   t: TenantData,
   input: LocationInput,
@@ -63,13 +66,9 @@ export function applyLocationInput(
   const coordinates = hasCoordinates
     ? { lat: input.lat ?? null, lng: input.lng ?? null }
     : fakeGeocode(input.street, input.city)
-  const trimmedCodes = input.accessCodes?.trim()
+  const codes = input.accessCodes?.trim()
   const accessCodes =
-    input.accessCodes === undefined
-      ? (previous?.accessCodes ?? null)
-      : trimmedCodes === ''
-        ? null
-        : (trimmedCodes ?? null)
+    codes === undefined ? (previous?.accessCodes ?? null) : codes === '' ? null : codes
 
   return {
     label: input.label ?? null,

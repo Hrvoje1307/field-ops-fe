@@ -444,6 +444,7 @@ export function buildTenant(
     role: inv.role,
     createdAt: at(-inv.daysAgo, '09:00'),
     expiresAt: at(7 - inv.daysAgo, '09:00'),
+    token: `inv_${id().replace(/-/g, '')}`,
     revokedAt: null,
   }))
 

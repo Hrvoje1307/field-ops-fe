@@ -1,4 +1,10 @@
-import type { MockDb, MembershipRow, TenantData, UserRow } from '../db/rows'
+import {
+  MOCK_DB_SCHEMA_VERSION,
+  type MockDb,
+  type MembershipRow,
+  type TenantData,
+  type UserRow,
+} from '../db/rows'
 import { createSeedIdFactory } from '../lib/ids'
 import { alarmkoZagreb } from './alarmko-zagreb'
 import { buildTenant } from './build'
@@ -37,7 +43,7 @@ export function buildSeed(today: string): MockDb {
   }
 
   return {
-    schemaVersion: 1,
+    schemaVersion: MOCK_DB_SCHEMA_VERSION,
     seedDate: today,
     users,
     memberships,

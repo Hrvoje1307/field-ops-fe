@@ -70,7 +70,7 @@ describe('access codes and sensitive custom fields', () => {
     )
   })
 
-  it('are write-only on PUT: omitted keeps them, null clears them', async () => {
+  it('are write-only on PUT: null or omitted keeps them, "" removes, text replaces (0.2.0)', async () => {
     const s = await loginAs(USERS.alarmkoDispatcher)
     const location = (await s.get<Location>(`/locations/${durdevicLocation()}`)).body
     const input = {
@@ -84,16 +84,33 @@ describe('access codes and sensitive custom fields', () => {
       accessNotes: 'Pas je sada u kućici.',
       customFields: location.customFields,
     }
-    const kept = await s.put<Location>(`/locations/${location.id}`, input)
-    expect(kept.body).toMatchObject({
+    const put = (accessCodes?: string | null) =>
+      s.put<Location>(
+        `/locations/${location.id}`,
+        accessCodes === undefined ? input : { ...input, accessCodes },
+      )
+
+    expect((await put(null)).body).toMatchObject({
       accessCodes: 'Kapija 2580',
+      hasAccessCodes: true,
       accessNotes: 'Pas je sada u kućici.',
     })
+    expect((await put()).body).toMatchObject({ accessCodes: 'Kapija 2580', hasAccessCodes: true })
+    expect((await put('Kapija 9999')).body).toMatchObject({ accessCodes: 'Kapija 9999' })
+    expect((await put('')).body).toMatchObject({ accessCodes: null, hasAccessCodes: false })
+    // Whitespace counts as empty
+    await put('Kapija 1111')
+    expect((await put('   ')).body).toMatchObject({ accessCodes: null, hasAccessCodes: false })
+  })
 
-    const cleared = await s.put<Location>(`/locations/${location.id}`, {
-      ...input,
+  it('a new location without codes has none', async () => {
+    const s = await loginAs(USERS.alarmkoDispatcher)
+    const client = tenantBySlug('alarmko').clients[0]?.id ?? ''
+    const created = await s.post<Location>(`/clients/${client}/locations`, {
+      street: 'Ilica 300',
+      city: 'Zagreb',
       accessCodes: null,
     })
-    expect(cleared.body).toMatchObject({ accessCodes: null, hasAccessCodes: false })
+    expect(created.body).toMatchObject({ accessCodes: null, hasAccessCodes: false })
   })
 })

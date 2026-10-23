@@ -9,8 +9,8 @@ import type {
 import { toIsoInstant } from '@/shared/lib/datetime'
 
 import { ALL_ROLES, OFFICE_ROLES, OWNER_ONLY } from '../lib/access'
-import { newId } from '../lib/ids'
-import { presentMember } from '../lib/present'
+import { newId, newToken } from '../lib/ids'
+import { presentInvitation, presentMember } from '../lib/present'
 import {
   conflict,
   created,
@@ -209,13 +209,7 @@ export const tenantHandlers = [
       ok(
         auth.t.invitations
           .filter((i) => !i.revokedAt && Date.parse(i.expiresAt) > Date.now())
-          .map((i) => ({
-            id: i.id,
-            email: i.email,
-            role: i.role,
-            expiresAt: i.expiresAt,
-            createdAt: i.createdAt,
-          })),
+          .map(presentInvitation),
       ),
     { roles: OFFICE_ROLES },
   ),
@@ -243,9 +237,11 @@ export const tenantHandlers = [
         role: body.role,
         createdAt: toIsoInstant(nowMs),
         expiresAt: toIsoInstant(nowMs + 7 * DAY_MS),
+        token: newToken('inv'),
+        revokedAt: null,
       }
-      auth.t.invitations.push({ ...invitation, revokedAt: null })
-      return created(invitation)
+      auth.t.invitations.push(invitation)
+      return created(presentInvitation(invitation))
     },
     { roles: OFFICE_ROLES },
   ),

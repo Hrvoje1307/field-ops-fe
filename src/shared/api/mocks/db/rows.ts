@@ -25,6 +25,12 @@ import type {
   Usage,
 } from '@/shared/api/generated/model'
 
+/**
+ * Bump when the stored shape changes: older data in localStorage is then reseeded
+ * instead of being read with missing fields. (2: invitation tokens, spec 0.2.0)
+ */
+export const MOCK_DB_SCHEMA_VERSION = 2
+
 /** Response types mark timestamps readonly; stored rows are written by the mock. */
 type Mutable<T> = { -readonly [K in keyof T]: T[K] }
 
@@ -82,13 +88,20 @@ export interface IdempotencyRow {
 
 export type TechnicianRow = TechnicianCreate & { id: string }
 
-export type InvitationRow = Invitation & { revokedAt: string | null }
+/** `inviteUrl` is derived from the token when presenting. */
+export type InvitationRow = Omit<Invitation, 'inviteUrl'> & {
+  /** Secret part of the invite link. */
+  token: string
+  revokedAt: string | null
+}
 
 export type ClientRow = Mutable<Omit<Client, 'contacts' | 'locations'>> & SoftDeletable
 
 export type ContactRow = Contact & SoftDeletable & { clientId: string }
 
-export type LocationRow = Mutable<Omit<Location, 'assets' | 'accessCodes' | 'hasAccessCodes'>> &
+export type LocationRow = Mutable<
+  Omit<Location, 'assets' | 'accessCodes' | 'hasAccessCodes' | 'address'>
+> &
   SoftDeletable & {
     /** Secret; only returned to allowed viewers. */
     accessCodes: string | null
@@ -184,7 +197,7 @@ export interface TenantData {
 }
 
 export interface MockDb {
-  schemaVersion: 1
+  schemaVersion: typeof MOCK_DB_SCHEMA_VERSION
   /** Tenant-local date (Europe/Zagreb) the data was seeded for. */
   seedDate: string
   users: UserRow[]
