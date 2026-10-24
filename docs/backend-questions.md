@@ -2,7 +2,7 @@
 
 Places where `openapi/openapi.json` is ambiguous, incomplete or contradicts `schemas/schema.md`, found while building the mock API (`src/shared/api/mocks`). Each item lists what the spec says, what the mock does today, and what we propose. The mock's behaviour is a placeholder until the backend answers; the frontend is built against the proposal.
 
-**Status, spec 0.2.0 (2026-10-23):** 0.2.0 doesn't resolve any of items 1–18 yet. Its changes are the print endpoint, `Location.address`, `Invitation.inviteUrl`, the `accessCodes` semantics and description fixes. Items 19–21 are new; items 22–25 came up while building the custom-field renderer (step 5).
+**Status, spec 0.2.0 (2026-10-23):** 0.2.0 doesn't resolve any of items 1–18 yet. Its changes are the print endpoint, `Location.address`, `Invitation.inviteUrl`, the `accessCodes` semantics and description fixes. Items 19–21 are new; items 22–26 came up while building the custom-field renderer (step 5).
 
 ## 1. Two different job status machines
 
@@ -276,3 +276,11 @@ Note the asymmetry with `LocationInput.accessCodes` (0.2.0), where `null` means 
 **Frontend does:** shows `address`. If it's missing, one helper (`locationAddress` in `entities/location`) joins street and city, so addresses aren't formatted anywhere else.
 
 **We propose:** list `address` under `required` for `Location` (read-only fields can be required in responses). Then the fallback can go.
+
+## 26. Same custom-field key for all asset types and for one type
+
+**Spec says:** `GET /custom-fields?entity=asset&assetTypeId=…` returns the definitions for that asset type. It doesn't say whether a definition with no `assetTypeId` (all asset types) and one for the given type may share a `key`, or which one applies if they do.
+
+**Frontend does:** keeps one definition per key; the one for the specific asset type wins (`prepareDefinitions` in `entities/custom-field`). The mock data has such a pair, and asking for that type returns both.
+
+**We propose:** either forbid duplicate keys within an entity (400 when creating the definition), or document that the type-specific definition overrides the general one and return only that one.
