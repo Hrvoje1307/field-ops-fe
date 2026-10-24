@@ -30,7 +30,7 @@ export const locationHandlers = [
     ({ auth, body, params }) => {
       const client = getRow(auth.t.clients, params.id)
       const errors = new FieldErrors()
-      const fields = applyLocationInput(auth.t, body, errors, { path: '', viewer: viewerOf(auth) })
+      const fields = applyLocationInput(auth.t, body, errors, { path: '' })
       errors.throwIfAny()
       const now = toIsoInstant(Date.now())
       const location: LocationRow = {
@@ -63,7 +63,6 @@ export const locationHandlers = [
       const errors = new FieldErrors()
       const fields = applyLocationInput(auth.t, body, errors, {
         path: '',
-        viewer: viewerOf(auth),
         previous: location,
       })
       errors.throwIfAny()

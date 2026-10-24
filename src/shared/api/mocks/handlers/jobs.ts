@@ -13,13 +13,11 @@ import type { JobRow, TenantData } from '../db/rows'
 import type { AuthContext } from '../lib/auth'
 import {
   ALL_ROLES,
-  canSeeJobSecrets,
   findRow,
   getVisibleJob,
   isAssigned,
   OFFICE_ROLES,
   viewerOf,
-  type Viewer,
 } from '../lib/access'
 import { validateCustomFields } from '../lib/custom-fields'
 import { newId } from '../lib/ids'
@@ -84,13 +82,7 @@ function checkVersion(job: JobRow, version: number | undefined): void {
 }
 
 /** Relations and custom fields of a JobCreate/JobUpdate body; collects 400 errors. */
-function validateJobInput(
-  t: TenantData,
-  body: JobCreate,
-  errors: FieldErrors,
-  viewer: Viewer,
-  previous?: JobRow,
-) {
+function validateJobInput(t: TenantData, body: JobCreate, errors: FieldErrors, previous?: JobRow) {
   const client = findRow(t.clients, body.clientId)
   if (!client) errors.add('clientId', MESSAGES.notFound)
   const location = findRow(t.locations, body.locationId)
@@ -111,7 +103,6 @@ function validateJobInput(
   const customFields = validateCustomFields(t, 'job', body.customFields, errors, {
     path: 'customFields',
     previous: previous?.customFields,
-    canSeeSensitive: previous ? canSeeJobSecrets(t, viewer, previous) : true,
   })
   return { jobType, customFields }
 }
@@ -215,7 +206,7 @@ export const jobHandlers = [
     ({ db, auth, body }) => {
       const t = auth.t
       const errors = new FieldErrors()
-      const { jobType, customFields } = validateJobInput(t, body, errors, viewerOf(auth))
+      const { jobType, customFields } = validateJobInput(t, body, errors)
       errors.throwIfAny()
       if (!jobType) throw notFound()
 
@@ -311,7 +302,7 @@ export const jobHandlers = [
         if (job.status === 'invoiced')
           throw conflict('job.not_editable', 'Invoiced jobs can no longer be edited.')
         const errors = new FieldErrors()
-        const { customFields } = validateJobInput(t, body, errors, viewer, job)
+        const { customFields } = validateJobInput(t, body, errors, job)
         errors.throwIfAny()
         Object.assign(job, next, { customFields, internalNote: body.internalNote ?? null })
       }

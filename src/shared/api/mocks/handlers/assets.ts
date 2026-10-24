@@ -2,27 +2,14 @@ import type { AssetInput, AssetTypeInput } from '@/shared/api/generated/model'
 import { toIsoInstant } from '@/shared/lib/datetime'
 
 import type { AssetRow, TenantData } from '../db/rows'
-import {
-  ALL_ROLES,
-  canSeeLocationSecrets,
-  getRow,
-  OFFICE_ROLES,
-  viewerOf,
-  type Viewer,
-} from '../lib/access'
+import { ALL_ROLES, getRow, OFFICE_ROLES, viewerOf } from '../lib/access'
 import { validateCustomFields } from '../lib/custom-fields'
 import { newId } from '../lib/ids'
 import { presentAsset } from '../lib/present'
 import { conflict, created, FieldErrors, MESSAGES, noContent, notFound, ok } from '../lib/problems'
 import { route } from '../lib/route'
 
-function assetFields(
-  t: TenantData,
-  body: AssetInput,
-  viewer: Viewer,
-  locationId: string,
-  previous?: AssetRow,
-) {
+function assetFields(t: TenantData, body: AssetInput, previous?: AssetRow) {
   const errors = new FieldErrors()
   if (!t.assetTypes.some((a) => a.id === body.assetTypeId))
     errors.add('assetTypeId', MESSAGES.notFound)
@@ -30,7 +17,6 @@ function assetFields(
     path: 'customFields',
     assetTypeId: body.assetTypeId,
     previous: previous?.customFields,
-    canSeeSensitive: canSeeLocationSecrets(t, viewer, locationId),
   })
   errors.throwIfAny()
   return {
@@ -65,7 +51,7 @@ export const assetHandlers = [
     '/locations/{id}/assets',
     ({ auth, body, params }) => {
       const location = getRow(auth.t.locations, params.id)
-      const fields = assetFields(auth.t, body, viewerOf(auth), location.id)
+      const fields = assetFields(auth.t, body)
       const now = toIsoInstant(Date.now())
       const asset: AssetRow = {
         id: newId(),
@@ -94,7 +80,7 @@ export const assetHandlers = [
     '/assets/{id}',
     ({ auth, body, params }) => {
       const asset = getRow(auth.t.assets, params.id)
-      const fields = assetFields(auth.t, body, viewerOf(auth), asset.locationId, asset)
+      const fields = assetFields(auth.t, body, asset)
       Object.assign(asset, fields, { updatedAt: toIsoInstant(Date.now()) })
       return ok(presentAsset(auth.t, asset, viewerOf(auth)))
     },

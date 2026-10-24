@@ -8,7 +8,7 @@ import { normalizePhone } from '@/shared/lib/phone'
 import { toIsoInstant } from '@/shared/lib/datetime'
 
 import type { ClientRow, LocationRow, TenantData } from '../db/rows'
-import { canSeeClientSecrets, getRow, isOpenStatus, OFFICE_ROLES, viewerOf } from '../lib/access'
+import { getRow, isOpenStatus, OFFICE_ROLES, viewerOf } from '../lib/access'
 import { validateCustomFields } from '../lib/custom-fields'
 import { newId } from '../lib/ids'
 import { applyContacts, applyLocationInput, tenantCountry } from '../lib/inputs'
@@ -104,11 +104,10 @@ export const clientHandlers = [
 
       const customFields = validateCustomFields(t, 'client', body.customFields, errors, {
         path: 'customFields',
-        canSeeSensitive: true,
       })
       const { upserts: contacts } = applyContacts(t, clientId, body.contacts, errors)
       const firstLocation = body.firstLocation
-        ? applyLocationInput(t, body.firstLocation, errors, { path: 'firstLocation', viewer })
+        ? applyLocationInput(t, body.firstLocation, errors, { path: 'firstLocation' })
         : null
       errors.throwIfAny()
 
@@ -165,7 +164,6 @@ export const clientHandlers = [
       const customFields = validateCustomFields(t, 'client', body.customFields, errors, {
         path: 'customFields',
         previous: client.customFields,
-        canSeeSensitive: canSeeClientSecrets(t, viewer, client.id),
       })
       const { upserts, removedIds } = applyContacts(t, client.id, body.contacts, errors)
       errors.throwIfAny()

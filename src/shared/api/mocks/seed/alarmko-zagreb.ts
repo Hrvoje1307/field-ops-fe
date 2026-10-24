@@ -96,6 +96,7 @@ export const alarmkoZagreb: TenantSeed = {
         { value: '24_7', label: '24/7 dojavni centar' },
       ],
     },
+    { entity: 'client', key: 'billing_note', label: 'Napomena za račun', type: 'textarea' },
     {
       entity: 'location',
       key: 'alarm_code',
@@ -111,6 +112,19 @@ export const alarmkoZagreb: TenantSeed = {
       assetType: 'Alarmna centrala',
       required: true,
     },
+    { entity: 'asset', key: 'last_service', label: 'Zadnji servis', type: 'date' },
+    {
+      entity: 'job',
+      key: 'systems',
+      label: 'Sustavi na objektu',
+      type: 'multiselect',
+      options: [
+        { value: 'intrusion', label: 'Protuprovala' },
+        { value: 'cctv', label: 'Videonadzor' },
+        { value: 'access', label: 'Kontrola pristupa' },
+      ],
+    },
+    { entity: 'job', key: 'client_key', label: 'Ključ preuzet od klijenta', type: 'checkbox' },
   ],
   clients: [
     {
@@ -145,7 +159,7 @@ export const alarmkoZagreb: TenantSeed = {
               serialNo: 'PX-6000-11873',
               installedYearsAgo: 4,
               warrantyYears: 2,
-              customFields: { zones: 12 },
+              customFields: { zones: 12, last_service: '2026-05-12' },
             },
           ],
         },
@@ -379,10 +393,20 @@ export const alarmkoZagreb: TenantSeed = {
       type: 'person',
       name: 'Ana Čulić',
       createdDaysAgo: 90,
-      customFields: { monitoring_contract: 'none' },
+      customFields: {
+        monitoring_contract: 'none',
+        billing_note: 'Račun slati poštom na kućnu adresu.\nPlaćanje u dvije rate.',
+      },
       contacts: [{ name: 'Ana Čulić', phone: '+385912100010' }],
       locations: [
-        { street: 'Vrbik 7', city: 'Zagreb', postalCode: '10000', lat: 45.8008, lng: 15.9899 },
+        {
+          street: 'Vrbik 7',
+          city: 'Zagreb',
+          postalCode: '10000',
+          lat: 45.8008,
+          lng: 15.9899,
+          customFields: { alarm_code: '8642' },
+        },
       ],
     },
     {
@@ -620,6 +644,7 @@ export const alarmkoZagreb: TenantSeed = {
       time: '08:00',
       techs: ['alarmko.ivan', 'alarmko.luka'],
       priority: 'high',
+      customFields: { systems: ['access'], client_key: false },
     },
     {
       client: 'durdevic',
@@ -630,6 +655,7 @@ export const alarmkoZagreb: TenantSeed = {
       day: 0,
       time: '09:00',
       techs: ['alarmko.petra'],
+      customFields: { systems: ['intrusion', 'cctv'], client_key: true },
     },
     {
       client: 'brzi-kotac',
