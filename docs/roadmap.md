@@ -32,11 +32,20 @@ Each step follows the workflow in `CLAUDE.md`: plan first, wait for OK, then bui
   - Playwright covers both mock tenants.
   - Branch `feat/auth-shell`.
 
+- [x] **Step 5: core entities and custom-field renderer**
+  - `entities/job`: StatusBadge, PriorityMark, JobNumber, JobTypeTag, query options, `invalidateJobData`.
+  - `entities/client`, `location` (API address, maps link, access notes, masked access codes), `technician` (chips in their colour), `job-type`, `asset`.
+  - `entities/custom-field`: one input renderer and one read-only renderer for every field type, driven by `/custom-fields`; zod schema built at runtime; sensitive fields masked (unrevealed left out, revealed and cleared sends `null`); removed options kept with a warning until changed; 400 errors land on the right input.
+  - `shared/lib`: relative day (Danas/Sutra/Jučer), duration and number in the tenant format.
+  - Mock: each tenant uses every field type and a sensitive field; omitted sensitive fields keep their value.
+  - Dev preview `/dev/custom-fields` (mock mode only), Playwright for both tenants.
+  - Backend questions #22–#25.
+  - Branch `feat/core-entities`.
+
 ## Next
 
 Each step adds the mock handlers its screens need, as `CLAUDE.md` requires.
 
-- [ ] **Step 5: core entities and custom-field renderer**
 - [ ] **Step 6: office jobs: list and detail, status changes**
 - [ ] **Step 7: quick job entry**
 - [ ] **Step 8: clients: list, detail, edit client/location/asset**

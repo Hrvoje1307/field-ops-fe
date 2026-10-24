@@ -24,6 +24,10 @@ Two fictional tenants, password `demo` for everyone:
 
 `ana@demo.test` is a dispatcher in both tenants (for tenant switching). Open questions about the contract are in `docs/backend-questions.md`.
 
+Developer previews (mock mode only, sign in first):
+
+- `/dev/custom-fields`: the active tenant's custom fields for each entity and asset type, in edit and read mode, starting from real mock values. Nothing is sent.
+
 ## Scripts
 
 | script                 | what it does                                                 |
