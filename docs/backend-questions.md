@@ -2,7 +2,7 @@
 
 Places where `openapi/openapi.json` is ambiguous, incomplete or contradicts `schemas/schema.md`, found while building the mock API (`src/shared/api/mocks`). Each item lists what the spec says, what the mock does today, and what we propose. The mock's behaviour is a placeholder until the backend answers; the frontend is built against the proposal.
 
-**Status, spec 0.2.0 (2026-10-23):** 0.2.0 doesn't resolve any of items 1–18 yet. Its changes are the print endpoint, `Location.address`, `Invitation.inviteUrl`, the `accessCodes` semantics and description fixes. Items 19–21 are new; items 22–26 came up while building the custom-field renderer (step 5).
+**Status, spec 0.2.0 (2026-10-23):** 0.2.0 doesn't resolve any of items 1–18 yet. Its changes are the print endpoint, `Location.address`, `Invitation.inviteUrl`, the `accessCodes` semantics and description fixes. Items 19–21 are new; items 22–26 came up while building the custom-field renderer (step 5), item 27 with the office job screens (step 6).
 
 ## 1. Two different job status machines
 
@@ -284,3 +284,13 @@ Note the asymmetry with `LocationInput.accessCodes` (0.2.0), where `null` means 
 **Frontend does:** keeps one definition per key; the one for the specific asset type wins (`prepareDefinitions` in `entities/custom-field`). The mock data has such a pair, and asking for that type returns both.
 
 **We propose:** either forbid duplicate keys within an entity (400 when creating the definition), or document that the type-specific definition overrides the general one and return only that one.
+
+## 27. What a transition to `new` clears
+
+**Spec says:** the status table allows `scheduled`, `confirmed`, `on_hold`, `completed` and `cancelled` → `new`. It doesn't say what happens to the job's date and technicians. `POST /jobs/{id}/assign` says an empty `technicianIds` "moves a scheduled job back to `new`", and `DispatchBoard.unassigned` is "Status new (any date)", so a `new` job may keep a date.
+
+**Mock does:** `/transition` to `new` clears `scheduledDate`, `scheduledStart` and all technicians (back to the queue, or reopened).
+
+**Frontend does:** asks for confirmation ("Nalog … vraća se među nove naloge.") without saying what is cleared, and shows the job as the server returns it.
+
+**We propose:** document it on `/transition`. Either `→ new` clears date and technicians (then we'll say so in the confirmation), or it keeps them and only the status changes.

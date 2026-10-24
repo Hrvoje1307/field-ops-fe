@@ -57,3 +57,8 @@ export function parseRetryAfter(value: string | null, now: number = Date.now()):
 export function isClientError(error: unknown): error is ApiError<unknown> {
   return error instanceof ApiError && error.status >= 400 && error.status < 500
 }
+
+/** 409: a stale `version`, or the resource changed state in the meantime. */
+export function isConflict(error: unknown): error is ApiError<unknown> {
+  return error instanceof ApiError && error.status === 409
+}

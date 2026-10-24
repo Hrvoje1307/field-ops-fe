@@ -39,14 +39,23 @@ Each step follows the workflow in `CLAUDE.md`: plan first, wait for OK, then bui
   - `shared/lib`: relative day (Danas/Sutra/Jučer), duration and number in the tenant format.
   - Mock: each tenant uses every field type and a sensitive field; omitted sensitive fields keep their value.
   - Dev preview `/dev/custom-fields` (mock mode only), Playwright for both tenants.
-  - Backend questions #22–#25.
+  - Backend questions #22–#26.
+  - Afterwards: the preview is left out of non-mock builds entirely; vendor chunks for react, tanstack and radix.
   - Branch `feat/core-entities`.
+
+- [x] **Step 6: office jobs: list and detail, status changes**
+  - `/jobs`: filters in the URL (status presets, scheduled date relative to the tenant's today, job type and technician from the API, priority, search, sort), paging, loading/empty/error states; table on desktop, cards on phones.
+  - `/jobs/$jobId`: header, StatusTrack, schedule, client contacts, location (maps, access notes, access codes masked until revealed, location fields), equipment with its fields, the job's own fields read-only, status history.
+  - `features/job/change-status`: menu from `allowedTransitions` (without `completed`, which goes through `/complete` in step 12); dialog with a required reason for cancel and on hold, confirmation for back to new and invoiced; 400 on the note next to it; any 409 refetches and keeps the dialog with the note; retries reuse the idempotency key.
+  - `entities/job`: StatusTrack, note rule from the contract, one 409 handler for every job write.
+  - `widgets/job-history`.
+  - Backend question #27.
+  - Branch `feat/office-jobs`.
 
 ## Next
 
 Each step adds the mock handlers its screens need, as `CLAUDE.md` requires.
 
-- [ ] **Step 6: office jobs: list and detail, status changes**
 - [ ] **Step 7: quick job entry**
 - [ ] **Step 8: clients: list, detail, edit client/location/asset**
 - [ ] **Step 9: day overview and manual scheduling**

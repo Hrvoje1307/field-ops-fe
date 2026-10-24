@@ -11,6 +11,12 @@ import {
 } from '@/shared/api/generated/jobs/jobs'
 import type { GetMyJobsParams, ListJobsParams } from '@/shared/api/generated/model'
 
+/**
+ * A job page opened right after its route loader fetched doesn't fetch again. Changes
+ * invalidate these queries, which refetches them whatever their age.
+ */
+const DETAIL_STALE_MS = 5_000
+
 /** Query options for jobs; keys come from the generated client so its hooks share the cache. */
 export const jobQueries = {
   list: (params?: ListJobsParams) =>
@@ -22,11 +28,13 @@ export const jobQueries = {
     queryOptions({
       queryKey: getGetJobQueryKey(id),
       queryFn: ({ signal }) => getJob(id, { signal }),
+      staleTime: DETAIL_STALE_MS,
     }),
   history: (id: string) =>
     queryOptions({
       queryKey: getGetJobHistoryQueryKey(id),
       queryFn: ({ signal }) => getJobHistory(id, { signal }),
+      staleTime: DETAIL_STALE_MS,
     }),
   /** The signed-in technician's day. */
   myDay: (params: GetMyJobsParams) =>

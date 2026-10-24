@@ -81,3 +81,36 @@ export async function apiGet<T extends unknown[]>(
     { api: API_URL, email, password: PASSWORD, paths },
   )) as T
 }
+
+/**
+ * A POST to the mock API from the page, as `email` with a session of their own:
+ * someone else changing data behind the UI's back.
+ */
+export async function apiPost(
+  page: Page,
+  email: string,
+  path: string,
+  body: unknown,
+): Promise<{ status: number; body: unknown }> {
+  return page.evaluate(
+    async ({ api, email, password, path, body }) => {
+      const login = await fetch(`${api}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
+      const { accessToken } = (await login.json()) as { accessToken: string }
+      const response = await fetch(`${api}${path}`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+          'Idempotency-Key': crypto.randomUUID(),
+        },
+        body: JSON.stringify(body),
+      })
+      return { status: response.status, body: (await response.json()) as unknown }
+    },
+    { api: API_URL, email, password: PASSWORD, path, body },
+  )
+}
