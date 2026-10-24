@@ -43,51 +43,15 @@
  *
  * OpenAPI spec version: 0.2.0
  */
-import { useMutation, useQuery } from '@tanstack/react-query'
 import type {
-  DataTag,
-  DefinedInitialDataOptions,
-  DefinedUseQueryResult,
-  MutationFunction,
-  QueryClient,
-  QueryFunction,
-  QueryKey,
-  UndefinedInitialDataOptions,
-  UseMutationOptions,
-  UseMutationResult,
-  UseQueryOptions,
-  UseQueryResult,
-} from '@tanstack/react-query'
-
-import type {
-  ConflictResponse,
   DispatchBoard,
   GetDispatchBoardParams,
   OptimizeRoutesBody,
-  ProblemDetails,
   RoutePlan,
   UpdateRoutePlanBody,
 } from '../model'
 
 import { customFetch } from '../../fetcher.ts'
-import type { ErrorType, BodyType } from '../../fetcher.ts'
-
-type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1]
-
-const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKey: K } => {
-  const result = { queryKey } as T & { queryKey: K }
-  for (const key of Object.keys(query)) {
-    // The explicit queryKey always wins, matching the previous
-    // `{ ...query, queryKey }` spread where it was set last.
-    if (key === 'queryKey') continue
-    Object.defineProperty(result, key, {
-      enumerable: true,
-      configurable: true,
-      get: () => (query as Record<string, unknown>)[key],
-    })
-  }
-  return result
-}
 
 export const getGetDispatchBoardUrl = (params: GetDispatchBoardParams) => {
   const normalizedParams = new URLSearchParams()
@@ -111,107 +75,6 @@ export const getDispatchBoard = async (
     ...options,
     method: 'GET',
   })
-}
-
-export const getGetDispatchBoardQueryKey = (params?: GetDispatchBoardParams) => {
-  return [`/dispatch/board`, ...(params ? [params] : [])] as const
-}
-
-export const getGetDispatchBoardQueryOptions = <
-  TData = Awaited<ReturnType<typeof getDispatchBoard>>,
-  TError = ErrorType<unknown>,
->(
-  params: GetDispatchBoardParams,
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getDispatchBoard>>, TError, TData>>
-    request?: SecondParameter<typeof customFetch>
-  },
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {}
-
-  const queryKey = queryOptions?.queryKey ?? getGetDispatchBoardQueryKey(params)
-
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof getDispatchBoard>>> = ({ signal }) =>
-    getDispatchBoard(params, { signal, ...requestOptions })
-
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof getDispatchBoard>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type GetDispatchBoardQueryResult = NonNullable<Awaited<ReturnType<typeof getDispatchBoard>>>
-export type GetDispatchBoardQueryError = ErrorType<unknown>
-
-export function useGetDispatchBoard<
-  TData = Awaited<ReturnType<typeof getDispatchBoard>>,
-  TError = ErrorType<unknown>,
->(
-  params: GetDispatchBoardParams,
-  options: {
-    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof getDispatchBoard>>, TError, TData>> &
-      Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getDispatchBoard>>,
-          TError,
-          Awaited<ReturnType<typeof getDispatchBoard>>
-        >,
-        'initialData'
-      >
-    request?: SecondParameter<typeof customFetch>
-  },
-  queryClient?: QueryClient,
-): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useGetDispatchBoard<
-  TData = Awaited<ReturnType<typeof getDispatchBoard>>,
-  TError = ErrorType<unknown>,
->(
-  params: GetDispatchBoardParams,
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getDispatchBoard>>, TError, TData>> &
-      Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getDispatchBoard>>,
-          TError,
-          Awaited<ReturnType<typeof getDispatchBoard>>
-        >,
-        'initialData'
-      >
-    request?: SecondParameter<typeof customFetch>
-  },
-  queryClient?: QueryClient,
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useGetDispatchBoard<
-  TData = Awaited<ReturnType<typeof getDispatchBoard>>,
-  TError = ErrorType<unknown>,
->(
-  params: GetDispatchBoardParams,
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getDispatchBoard>>, TError, TData>>
-    request?: SecondParameter<typeof customFetch>
-  },
-  queryClient?: QueryClient,
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-
-export function useGetDispatchBoard<
-  TData = Awaited<ReturnType<typeof getDispatchBoard>>,
-  TError = ErrorType<unknown>,
->(
-  params: GetDispatchBoardParams,
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getDispatchBoard>>, TError, TData>>
-    request?: SecondParameter<typeof customFetch>
-  },
-  queryClient?: QueryClient,
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getGetDispatchBoardQueryOptions(params, options)
-
-  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
-    queryKey: DataTag<QueryKey, TData, TError>
-  }
-
-  return withQueryKey(query, queryOptions.queryKey)
 }
 
 export const getOptimizeRoutesUrl = () => {
@@ -255,68 +118,6 @@ export const optimizeRoutes = async (
   })
 }
 
-export const getOptimizeRoutesMutationKey = () => ['optimizeRoutes'] as const
-
-export const getOptimizeRoutesMutationOptions = <
-  TError = ErrorType<ProblemDetails>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof optimizeRoutes>>,
-    TError,
-    OptimizeRoutesMutationVariables,
-    TContext
-  >
-  request?: SecondParameter<typeof customFetch>
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof optimizeRoutes>>,
-  TError,
-  OptimizeRoutesMutationVariables,
-  TContext
-> => {
-  const mutationKey = getOptimizeRoutesMutationKey()
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined }
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof optimizeRoutes>>,
-    OptimizeRoutesMutationVariables
-  > = (props) => {
-    const { data } = props ?? {}
-
-    return optimizeRoutes(data, requestOptions)
-  }
-
-  return { mutationFn, ...mutationOptions }
-}
-
-export type OptimizeRoutesMutationResult = NonNullable<Awaited<ReturnType<typeof optimizeRoutes>>>
-export type OptimizeRoutesMutationBody = BodyType<OptimizeRoutesBody>
-export type OptimizeRoutesMutationError = ErrorType<ProblemDetails>
-export type OptimizeRoutesMutationVariables = { data: BodyType<OptimizeRoutesBody> }
-
-export const useOptimizeRoutes = <TError = ErrorType<ProblemDetails>, TContext = unknown>(
-  options?: {
-    mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof optimizeRoutes>>,
-      TError,
-      OptimizeRoutesMutationVariables,
-      TContext
-    >
-    request?: SecondParameter<typeof customFetch>
-  },
-  queryClient?: QueryClient,
-): UseMutationResult<
-  Awaited<ReturnType<typeof optimizeRoutes>>,
-  TError,
-  OptimizeRoutesMutationVariables,
-  TContext
-> => {
-  return useMutation(getOptimizeRoutesMutationOptions(options), queryClient)
-}
 export const getGetRoutePlanUrl = (id: string) => {
   return `/route-plans/${id}`
 }
@@ -329,110 +130,6 @@ export const getRoutePlan = async (
     ...options,
     method: 'GET',
   })
-}
-
-export const getGetRoutePlanQueryKey = (id: string) => {
-  return [`/route-plans/${id}`] as const
-}
-
-export const getGetRoutePlanQueryOptions = <
-  TData = Awaited<ReturnType<typeof getRoutePlan>>,
-  TError = ErrorType<unknown>,
->(
-  id: string,
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getRoutePlan>>, TError, TData>>
-    request?: SecondParameter<typeof customFetch>
-  },
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {}
-
-  const queryKey = queryOptions?.queryKey ?? getGetRoutePlanQueryKey(id)
-
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof getRoutePlan>>> = ({ signal }) =>
-    getRoutePlan(id, { signal, ...requestOptions })
-
-  return {
-    queryKey,
-    queryFn,
-    enabled: id !== null && id !== undefined,
-    ...queryOptions,
-  } as UseQueryOptions<Awaited<ReturnType<typeof getRoutePlan>>, TError, TData> & {
-    queryKey: DataTag<QueryKey, TData, TError>
-  }
-}
-
-export type GetRoutePlanQueryResult = NonNullable<Awaited<ReturnType<typeof getRoutePlan>>>
-export type GetRoutePlanQueryError = ErrorType<unknown>
-
-export function useGetRoutePlan<
-  TData = Awaited<ReturnType<typeof getRoutePlan>>,
-  TError = ErrorType<unknown>,
->(
-  id: string,
-  options: {
-    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof getRoutePlan>>, TError, TData>> &
-      Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getRoutePlan>>,
-          TError,
-          Awaited<ReturnType<typeof getRoutePlan>>
-        >,
-        'initialData'
-      >
-    request?: SecondParameter<typeof customFetch>
-  },
-  queryClient?: QueryClient,
-): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useGetRoutePlan<
-  TData = Awaited<ReturnType<typeof getRoutePlan>>,
-  TError = ErrorType<unknown>,
->(
-  id: string,
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getRoutePlan>>, TError, TData>> &
-      Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getRoutePlan>>,
-          TError,
-          Awaited<ReturnType<typeof getRoutePlan>>
-        >,
-        'initialData'
-      >
-    request?: SecondParameter<typeof customFetch>
-  },
-  queryClient?: QueryClient,
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useGetRoutePlan<
-  TData = Awaited<ReturnType<typeof getRoutePlan>>,
-  TError = ErrorType<unknown>,
->(
-  id: string,
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getRoutePlan>>, TError, TData>>
-    request?: SecondParameter<typeof customFetch>
-  },
-  queryClient?: QueryClient,
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-
-export function useGetRoutePlan<
-  TData = Awaited<ReturnType<typeof getRoutePlan>>,
-  TError = ErrorType<unknown>,
->(
-  id: string,
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof getRoutePlan>>, TError, TData>>
-    request?: SecondParameter<typeof customFetch>
-  },
-  queryClient?: QueryClient,
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getGetRoutePlanQueryOptions(id, options)
-
-  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
-    queryKey: DataTag<QueryKey, TData, TError>
-  }
-
-  return withQueryKey(query, queryOptions.queryKey)
 }
 
 export const getUpdateRoutePlanUrl = (id: string) => {
@@ -474,68 +171,6 @@ export const updateRoutePlan = async (
   })
 }
 
-export const getUpdateRoutePlanMutationKey = () => ['updateRoutePlan'] as const
-
-export const getUpdateRoutePlanMutationOptions = <
-  TError = ErrorType<ProblemDetails>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof updateRoutePlan>>,
-    TError,
-    UpdateRoutePlanMutationVariables,
-    TContext
-  >
-  request?: SecondParameter<typeof customFetch>
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof updateRoutePlan>>,
-  TError,
-  UpdateRoutePlanMutationVariables,
-  TContext
-> => {
-  const mutationKey = getUpdateRoutePlanMutationKey()
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined }
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof updateRoutePlan>>,
-    UpdateRoutePlanMutationVariables
-  > = (props) => {
-    const { id, data } = props ?? {}
-
-    return updateRoutePlan(id, data, requestOptions)
-  }
-
-  return { mutationFn, ...mutationOptions }
-}
-
-export type UpdateRoutePlanMutationResult = NonNullable<Awaited<ReturnType<typeof updateRoutePlan>>>
-export type UpdateRoutePlanMutationBody = BodyType<UpdateRoutePlanBody>
-export type UpdateRoutePlanMutationError = ErrorType<ProblemDetails>
-export type UpdateRoutePlanMutationVariables = { id: string; data: BodyType<UpdateRoutePlanBody> }
-
-export const useUpdateRoutePlan = <TError = ErrorType<ProblemDetails>, TContext = unknown>(
-  options?: {
-    mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof updateRoutePlan>>,
-      TError,
-      UpdateRoutePlanMutationVariables,
-      TContext
-    >
-    request?: SecondParameter<typeof customFetch>
-  },
-  queryClient?: QueryClient,
-): UseMutationResult<
-  Awaited<ReturnType<typeof updateRoutePlan>>,
-  TError,
-  UpdateRoutePlanMutationVariables,
-  TContext
-> => {
-  return useMutation(getUpdateRoutePlanMutationOptions(options), queryClient)
-}
 export const getPublishRoutePlanUrl = (id: string) => {
   return `/route-plans/${id}/publish`
 }
@@ -553,69 +188,4 @@ export const publishRoutePlan = async (
     ...options,
     method: 'POST',
   })
-}
-
-export const getPublishRoutePlanMutationKey = () => ['publishRoutePlan'] as const
-
-export const getPublishRoutePlanMutationOptions = <
-  TError = ErrorType<ConflictResponse>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof publishRoutePlan>>,
-    TError,
-    PublishRoutePlanMutationVariables,
-    TContext
-  >
-  request?: SecondParameter<typeof customFetch>
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof publishRoutePlan>>,
-  TError,
-  PublishRoutePlanMutationVariables,
-  TContext
-> => {
-  const mutationKey = getPublishRoutePlanMutationKey()
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined }
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof publishRoutePlan>>,
-    PublishRoutePlanMutationVariables
-  > = (props) => {
-    const { id } = props ?? {}
-
-    return publishRoutePlan(id, requestOptions)
-  }
-
-  return { mutationFn, ...mutationOptions }
-}
-
-export type PublishRoutePlanMutationResult = NonNullable<
-  Awaited<ReturnType<typeof publishRoutePlan>>
->
-
-export type PublishRoutePlanMutationError = ErrorType<ConflictResponse>
-export type PublishRoutePlanMutationVariables = { id: string }
-
-export const usePublishRoutePlan = <TError = ErrorType<ConflictResponse>, TContext = unknown>(
-  options?: {
-    mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof publishRoutePlan>>,
-      TError,
-      PublishRoutePlanMutationVariables,
-      TContext
-    >
-    request?: SecondParameter<typeof customFetch>
-  },
-  queryClient?: QueryClient,
-): UseMutationResult<
-  Awaited<ReturnType<typeof publishRoutePlan>>,
-  TError,
-  PublishRoutePlanMutationVariables,
-  TContext
-> => {
-  return useMutation(getPublishRoutePlanMutationOptions(options), queryClient)
 }

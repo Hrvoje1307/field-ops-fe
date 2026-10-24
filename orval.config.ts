@@ -10,12 +10,13 @@ export default defineConfig({
       mode: 'tags-split',
       target: './src/shared/api/generated',
       schemas: './src/shared/api/generated/model',
-      client: 'react-query',
-      httpClient: 'fetch',
+      // Plain request functions, no React Query hooks: queries and mutations are
+      // written in features with the entity request functions (entities/<area>/api.ts)
+      client: 'fetch',
       // Wipes generated/ on every run; fetcher.ts lives outside it
       clean: true,
       formatter: 'prettier',
-      // Keeps the optional Idempotency-Key header in hook signatures
+      // Keeps the optional Idempotency-Key header in the function signatures
       headers: true,
       // The root tsconfig only holds references
       tsconfig: './tsconfig.app.json',
@@ -27,9 +28,6 @@ export default defineConfig({
         // Return the body (T), not { data, status, headers }
         fetch: {
           includeHttpResponseReturnType: false,
-        },
-        query: {
-          version: 5,
         },
       },
     },
