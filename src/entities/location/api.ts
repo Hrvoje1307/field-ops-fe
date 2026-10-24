@@ -30,3 +30,13 @@ export async function createLocation(
     idempotencyKey,
   })
 }
+
+/** Full replacement. Access codes: `null` keeps them, `""` removes them, text replaces. */
+export async function updateLocation(id: string, body: LocationInput, idempotencyKey?: string) {
+  return apiFetch<Location>(path`/locations/${id}`, { method: 'PUT', json: body, idempotencyKey })
+}
+
+/** Soft delete; 409 while the location has open jobs. */
+export async function deleteLocation(id: string) {
+  return apiFetch<undefined>(path`/locations/${id}`, { method: 'DELETE' })
+}

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 
-import { applyFieldErrors } from './form-errors'
+import { applyFieldErrors, applyServerFieldErrors, dottedPath } from './form-errors'
 
 describe('applyFieldErrors', () => {
   it('puts messages on the fields with the same path and returns the rest', () => {
@@ -30,5 +30,27 @@ describe('applyFieldErrors', () => {
       { shouldFocus: false },
     )
     expect(unmatched).toEqual(['Polje ne postoji.'])
+  })
+})
+
+describe('applyServerFieldErrors', () => {
+  it('converts bracket indexes and only takes paths the form has', () => {
+    const set: Record<string, string> = {}
+    const setError = ((path: string, error: { message: string }) => {
+      set[path] = error.message
+    }) as never
+    const values = {
+      name: '',
+      contacts: [{ phone: '' }, { phone: '' }],
+      customFields: { s: { masked: true } },
+    }
+    const unmatched = applyServerFieldErrors(
+      setError,
+      { 'contacts[1].phone': ['Neispravan broj.'], 'customFields.s': ['Obavezno.'], other: ['X'] },
+      values,
+    )
+    expect(set).toEqual({ 'contacts.1.phone': 'Neispravan broj.', 'customFields.s': 'Obavezno.' })
+    expect(unmatched).toEqual(['X'])
+    expect(dottedPath('firstLocation.customFields.a')).toBe('firstLocation.customFields.a')
   })
 })

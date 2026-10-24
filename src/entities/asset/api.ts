@@ -1,5 +1,5 @@
 import { apiFetch, path } from '@/shared/api/api-fetch'
-import type { Asset, AssetType } from '@/shared/api/generated/model'
+import type { Asset, AssetInput, AssetType } from '@/shared/api/generated/model'
 
 export const assetKeys = {
   all: ['assets'] as const,
@@ -23,4 +23,23 @@ export async function listLocationAssets(locationId: string, signal?: AbortSigna
 
 export async function listAssetTypes(signal?: AbortSignal) {
   return apiFetch<AssetType[]>('/asset-types', { signal })
+}
+
+// --- POST / PUT / DELETE (used as mutationFn) --------------------------------
+
+export async function createAsset(locationId: string, body: AssetInput, idempotencyKey?: string) {
+  return apiFetch<Asset>(path`/locations/${locationId}/assets`, {
+    method: 'POST',
+    json: body,
+    idempotencyKey,
+  })
+}
+
+/** Full replacement; the custom fields are those of `assetTypeId`. */
+export async function updateAsset(id: string, body: AssetInput, idempotencyKey?: string) {
+  return apiFetch<Asset>(path`/assets/${id}`, { method: 'PUT', json: body, idempotencyKey })
+}
+
+export async function deleteAsset(id: string) {
+  return apiFetch<undefined>(path`/assets/${id}`, { method: 'DELETE' })
 }

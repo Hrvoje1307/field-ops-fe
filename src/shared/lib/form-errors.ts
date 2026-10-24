@@ -30,3 +30,35 @@ export function applyFieldErrors<T extends FieldValues>(
   }
   return unmatched
 }
+
+/** `contacts[1].phone` → `contacts.1.phone` (the API writes indexes in brackets). */
+export function dottedPath(path: string): string {
+  return path.replace(/\[(\d+)\]/g, '.$1')
+}
+
+/** Every path in a form's values, nested objects and arrays included (`contacts.0.phone`). */
+export function valuePaths(values: unknown, prefix = ''): string[] {
+  if (typeof values !== 'object' || values === null) return []
+  return Object.entries(values).flatMap(([key, value]) => {
+    const path = prefix ? `${prefix}.${key}` : key
+    return [path, ...valuePaths(value, path)]
+  })
+}
+
+/**
+ * Puts a 400's field errors on the form fields whose path matches (API paths with
+ * brackets converted, optionally under `prefix`). Returns the messages no field took.
+ */
+export function applyServerFieldErrors<T extends FieldValues>(
+  setError: UseFormSetError<T>,
+  fieldErrors: Record<string, string[]>,
+  values: unknown,
+  prefix = '',
+): string[] {
+  const errors: Record<string, string[]> = {}
+  for (const [path, messages] of Object.entries(fieldErrors)) {
+    const target = prefix ? `${prefix}.${dottedPath(path)}` : dottedPath(path)
+    errors[target] = [...(errors[target] ?? []), ...messages]
+  }
+  return applyFieldErrors(setError, errors, valuePaths(values))
+}
