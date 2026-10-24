@@ -3,9 +3,11 @@ import { describe, expect, it } from 'vitest'
 import {
   addDays,
   dateInTimeZone,
+  daysBetween,
   formatDate,
   formatDateTime,
   formatTime,
+  isPlainDate,
   timeInTimeZone,
   todayInTimeZone,
   zonedDateTimeToInstant,
@@ -131,5 +133,30 @@ describe('formatting with tenant settings', () => {
     expect(
       formatDate('2026-11-01', ZAGREB, { year: 'numeric', month: '2-digit', day: '2-digit' }),
     ).toMatch(/^01\. ?11\. ?2026\.$/)
+  })
+})
+
+describe('daysBetween', () => {
+  it('counts calendar days, across month, year and DST changes', () => {
+    expect(daysBetween('2026-10-24', '2026-10-24')).toBe(0)
+    expect(daysBetween('2026-10-24', '2026-10-25')).toBe(1)
+    expect(daysBetween('2026-10-25', '2026-10-24')).toBe(-1)
+    // Zagreb and New York change clocks on these weekends; plain dates don't care
+    expect(daysBetween('2026-10-24', '2026-11-02')).toBe(9)
+    expect(daysBetween('2026-03-07', '2026-03-09')).toBe(2)
+    expect(daysBetween('2026-12-31', '2027-01-01')).toBe(1)
+  })
+})
+
+describe('isPlainDate', () => {
+  it('accepts real yyyy-MM-dd dates only', () => {
+    expect(isPlainDate('2026-10-24')).toBe(true)
+    expect(isPlainDate('2028-02-29')).toBe(true)
+    expect(isPlainDate('2026-02-29')).toBe(false)
+    expect(isPlainDate('2026-02-30')).toBe(false)
+    expect(isPlainDate('2026-13-01')).toBe(false)
+    expect(isPlainDate('24.10.2026.')).toBe(false)
+    expect(isPlainDate('2026-10-24T00:00:00Z')).toBe(false)
+    expect(isPlainDate(20261024)).toBe(false)
   })
 })

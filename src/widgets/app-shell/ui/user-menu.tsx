@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useMe } from '@/entities/session'
 import { SignOutMenuItem } from '@/features/auth/sign-out'
 import { TenantSwitcher } from '@/features/auth/switch-tenant'
+import { initials } from '@/shared/lib/initials'
 import { Avatar, AvatarFallback } from '@/shared/ui/avatar'
 import { Button } from '@/shared/ui/button'
 import {
@@ -12,15 +13,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/shared/ui/dropdown-menu'
-
-function initials(fullName: string): string {
-  return fullName
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part.charAt(0).toUpperCase())
-    .join('')
-}
 
 /** Name, role and tenant; tenant switcher (several memberships) and sign-out. */
 export function UserMenu({
