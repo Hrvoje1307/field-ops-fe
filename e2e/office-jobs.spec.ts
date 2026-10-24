@@ -1,6 +1,6 @@
 import { expect, type Page, test } from '@playwright/test'
 
-import { apiGet, apiPost, resetMock, signIn, TENANTS } from './support'
+import { apiGet, apiPost, expectSignedInAs, resetMock, signIn, TENANTS } from './support'
 
 /** The fields of the contract this test reads (kept minimal on purpose). */
 interface JobSummary {
@@ -47,9 +47,11 @@ test.beforeEach(async ({ page }) => {
   await resetMock(page)
 })
 
-async function signInToOffice(page: Page, email: string) {
+/** Signed in and the office shell rendered, so no post-login navigation is still running. */
+async function signInToOffice(page: Page, email: string, tenantName: string) {
   await signIn(page, email)
   await expect(page).toHaveURL('/')
+  await expectSignedInAs(page, tenantName)
 }
 
 /** Every job of the tenant, in full (the detail has allowedTransitions and version). */
@@ -72,7 +74,7 @@ const headerStatus = (page: Page) => page.locator('main header [data-status]')
 for (const tenant of TENANTS) {
   test.describe(tenant.name, () => {
     test('lists open jobs, filters, searches and opens a job', async ({ page }) => {
-      await signInToOffice(page, tenant.dispatcher)
+      await signInToOffice(page, tenant.dispatcher, tenant.name)
       const [open, jobTypes, cancelled] = await apiGet<[JobPage, Named[], JobPage]>(
         page,
         tenant.dispatcher,
@@ -110,7 +112,7 @@ for (const tenant of TENANTS) {
     })
 
     test('detail: the job’s own fields, and access codes only on request', async ({ page }) => {
-      await signInToOffice(page, tenant.dispatcher)
+      await signInToOffice(page, tenant.dispatcher, tenant.name)
       const jobs = await allJobs(page, tenant.dispatcher)
       const job = jobs.find((candidate) => candidate.locationDetail?.accessCodes)
       const codes = job?.locationDetail?.accessCodes
@@ -138,7 +140,7 @@ for (const tenant of TENANTS) {
     })
 
     test('cancel asks for a reason; track, history and menu follow', async ({ page }) => {
-      await signInToOffice(page, tenant.dispatcher)
+      await signInToOffice(page, tenant.dispatcher, tenant.name)
       const jobs = await allJobs(page, tenant.dispatcher)
       const job = jobs.find((candidate) => candidate.allowedTransitions.includes('cancelled'))
       if (!job) throw new Error('Seed needs a job that can be cancelled')
@@ -178,7 +180,7 @@ for (const tenant of TENANTS) {
     })
 
     test('409: a change made elsewhere is picked up and the user can retry', async ({ page }) => {
-      await signInToOffice(page, tenant.dispatcher)
+      await signInToOffice(page, tenant.dispatcher, tenant.name)
       const jobs = await allJobs(page, tenant.dispatcher)
       const job = jobs.find(
         (candidate) =>
@@ -219,6 +221,7 @@ for (const tenant of TENANTS) {
     test('a technician cannot open an office job page', async ({ page }) => {
       await signIn(page, tenant.technician)
       await expect(page).toHaveURL('/field')
+      await expectSignedInAs(page, tenant.name)
       const [list] = await apiGet<[JobPage]>(page, tenant.dispatcher, ['/jobs?pageSize=1'])
       await page.goto(`/jobs/${list.items[0]?.id ?? 'missing'}`)
       await expect(page).toHaveURL('/field')
