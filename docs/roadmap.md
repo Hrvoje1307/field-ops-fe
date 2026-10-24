@@ -32,15 +32,26 @@ Each step follows the workflow in `CLAUDE.md`: plan first, wait for OK, then bui
   - Playwright covers both mock tenants.
   - Branch `feat/auth-shell`.
 
-## Next (candidates from `CLAUDE.md`, not yet planned or ordered)
+## Next
 
-- **Office:** jobs list, job detail, quick job entry, assign, status changes; clients list and detail; day overview.
-- **Field (technician, phone-first):** field day, field job.
-- **Generic custom-field renderer** for inputs and read-only display.
-- **Remaining mock endpoints:** each comes with the screen that needs it, as `CLAUDE.md` requires. Not mocked yet:
-  - invite/accept and password reset;
-  - client import;
-  - catalog items, message templates and checklist templates;
-  - the rest of Field (report, materials, checklist, signature, complete);
-  - Dispatch, Attachments, Messages, Public and Reports.
-- **Later phase:** PWA / offline.
+Each step adds the mock handlers its screens need, as `CLAUDE.md` requires.
+
+- [ ] **Step 5: core entities and custom-field renderer**
+- [ ] **Step 6: office jobs: list and detail, status changes**
+- [ ] **Step 7: quick job entry**
+- [ ] **Step 8: clients: list, detail, edit client/location/asset**
+- [ ] **Step 9: day overview and manual scheduling**
+- [ ] **Step 10: field day and field job on the phone**
+- [ ] **Step 11: dispatch board (drag and drop, route plans)**
+- [ ] **Step 12: field report, photos, signature, complete, print**
+- [ ] **Step 13: tenant settings**
+- [ ] **Step 14: live updates (SignalR)**
+- [ ] **Step 15: public appointment page and client messages**
+
+## Separate
+
+- [ ] **Step 4 against the real backend:** sign-in, session and app shell on the live API. Blocked on seeded demo accounts (`docs/backend-questions.md` #20).
+
+## Later phase
+
+- PWA / offline.
