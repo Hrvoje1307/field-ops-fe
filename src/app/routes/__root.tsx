@@ -22,7 +22,8 @@ function RootLayout() {
     <>
       <Outlet />
       <Toaster />
-      {import.meta.env.DEV && (
+      {/* Dev only; off in Playwright runs, where they would cover buttons */}
+      {import.meta.env.DEV && import.meta.env.VITE_DEVTOOLS !== 'false' && (
         <>
           <TanStackRouterDevtools position="bottom-right" />
           <ReactQueryDevtools buttonPosition="bottom-left" />
