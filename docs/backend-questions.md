@@ -2,7 +2,7 @@
 
 Places where `openapi/openapi.json` is ambiguous, incomplete or contradicts `schemas/schema.md`, found while building the mock API (`src/shared/api/mocks`). Each item lists what the spec says, what the mock does today, and what we propose. The mock's behaviour is a placeholder until the backend answers; the frontend is built against the proposal.
 
-**Status, spec 0.2.0 (2026-10-23):** 0.2.0 doesn't resolve any of items 1–18 yet. Its changes are the print endpoint, `Location.address`, `Invitation.inviteUrl`, the `accessCodes` semantics and description fixes. Items 19–21 are new.
+**Status, spec 0.2.0 (2026-10-23):** 0.2.0 doesn't resolve any of items 1–18 yet. Its changes are the print endpoint, `Location.address`, `Invitation.inviteUrl`, the `accessCodes` semantics and description fixes. Items 19–21 are new; items 22–26 came up while building the custom-field renderer (step 5).
 
 ## 1. Two different job status machines
 
@@ -228,3 +228,59 @@ Codes are preferable because we want an `en` locale later.
 **Mock does:** returns `<app origin>/invite?token=<token>`.
 
 **We propose:** the link points at the frontend, not the API: `<frontend base URL>/invite?token=<token>`, with the frontend base URL configured per environment on the server. The emailed link should use the same format. The frontend will add the `/invite` page in a later step.
+
+## 22. Hidden vs. empty sensitive custom fields
+
+**Spec says:** `CustomFieldValues`: "Sensitive fields are returned only to owners/dispatchers and assigned technicians; otherwise omitted." `Location` has `hasAccessCodes` for the same situation with access codes; custom fields have nothing like it.
+
+**Mock does:** leaves hidden sensitive keys out, as the spec says.
+
+**Frontend does:** shows "—" (not set) for a sensitive field without a value. For a viewer who may not see it, that may be wrong: the value exists but is hidden.
+
+**We propose:** list the keys that were withheld, e.g. `hiddenCustomFields: ["entry_code"]` next to `customFields` on Client, Location, Asset and Job. The UI can then show "hidden" instead of "not set".
+
+## 23. `customFields` on PUT: replace, keep or clear
+
+**Spec says:** nothing about how `customFields` on PUT (clients, locations, assets, jobs) relates to the stored values.
+
+**Mock does:**
+
+- The object replaces the stored one: a non-sensitive key that is left out is cleared.
+- An omitted **sensitive** key keeps its stored value, for every caller.
+- `null` or `""` clears a value, sensitive or not.
+
+**Frontend does:**
+
+- Leaves empty fields out of the request.
+- Leaves out a masked sensitive field the user never revealed, so the server keeps it.
+- Sends `null` for a sensitive field the user revealed and then emptied: **clearing a sensitive field needs an explicit `null`**, because leaving it out means "keep".
+
+Note the asymmetry with `LocationInput.accessCodes` (0.2.0), where `null` means "keep" and `""` means "remove". For sensitive custom fields, leaving the key out means "keep" and `null` means "clear".
+
+**We propose:** document exactly these rules in the spec (or tell us the server's, and we follow them).
+
+## 24. What `required` means for a checkbox
+
+**Spec says:** `CustomFieldDefinitionInput.required` is a boolean for every type, including `checkbox`.
+
+**Mock does:** a required checkbox only needs a value: `false` counts as filled.
+
+**Frontend does:** the same. A checkbox always sends `true` or `false`, so a required checkbox never blocks saving.
+
+**We propose:** confirm this, or say that a required checkbox must be ticked (e.g. a confirmation). In that case the frontend will require `true`.
+
+## 25. Make `Location.address` required in responses
+
+**Spec says:** `Location.address` (0.2.0) is `readOnly` and optional. `JobSummary.location.address` is required.
+
+**Frontend does:** shows `address`. If it's missing, one helper (`locationAddress` in `entities/location`) joins street and city, so addresses aren't formatted anywhere else.
+
+**We propose:** list `address` under `required` for `Location` (read-only fields can be required in responses). Then the fallback can go.
+
+## 26. Same custom-field key for all asset types and for one type
+
+**Spec says:** `GET /custom-fields?entity=asset&assetTypeId=…` returns the definitions for that asset type. It doesn't say whether a definition with no `assetTypeId` (all asset types) and one for the given type may share a `key`, or which one applies if they do.
+
+**Frontend does:** keeps one definition per key; the one for the specific asset type wins (`prepareDefinitions` in `entities/custom-field`). The mock data has such a pair, and asking for that type returns both.
+
+**We propose:** either forbid duplicate keys within an entity (400 when creating the definition), or document that the type-specific definition overrides the general one and return only that one.

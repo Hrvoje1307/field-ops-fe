@@ -27,9 +27,10 @@ import type {
 
 /**
  * Bump when the stored shape changes: older data in localStorage is then reseeded
- * instead of being read with missing fields. (2: invitation tokens, spec 0.2.0)
+ * instead of being read with missing fields. (2: invitation tokens, spec 0.2.0;
+ * 3: custom fields of every type in both tenants)
  */
-export const MOCK_DB_SCHEMA_VERSION = 2
+export const MOCK_DB_SCHEMA_VERSION = 3
 
 /** Response types mark timestamps readonly; stored rows are written by the mock. */
 type Mutable<T> = { -readonly [K in keyof T]: T[K] }

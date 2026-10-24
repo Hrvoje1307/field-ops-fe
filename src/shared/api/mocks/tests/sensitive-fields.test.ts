@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import type { Job, Location, TechnicianDay } from '@/shared/api/generated/model'
+import type { Asset, Job, Location, TechnicianDay } from '@/shared/api/generated/model'
 import { todayInTimeZone } from '@/shared/lib/datetime'
 
 import { resetMockDb } from '../db'
@@ -101,6 +101,37 @@ describe('access codes and sensitive custom fields', () => {
     // Whitespace counts as empty
     await put('Kapija 1111')
     expect((await put('   ')).body).toMatchObject({ accessCodes: null, hasAccessCodes: false })
+  })
+
+  it('sensitive custom fields on PUT: omitted keeps them (office too), null or "" clears, text replaces', async () => {
+    const s = await loginAs(USERS.alarmkoDispatcher)
+    const location = (await s.get<Location>(`/locations/${durdevicLocation()}`)).body
+    const put = async (customFields: Record<string, unknown>) =>
+      (
+        await s.put<Location>(`/locations/${location.id}`, {
+          street: location.street,
+          city: location.city,
+          customFields,
+        })
+      ).body.customFields
+
+    // A masked field the user never revealed is left out of the request
+    expect(await put({})).toEqual({ alarm_code: '1357' })
+    expect(await put({ alarm_code: '2468' })).toEqual({ alarm_code: '2468' })
+    expect(await put({ alarm_code: null })).toEqual({})
+    await put({ alarm_code: '1111' })
+    expect(await put({ alarm_code: '' })).toEqual({})
+  })
+
+  it('other custom fields are replaced as a whole: an omitted key is cleared', async () => {
+    const s = await loginAs(USERS.buraDispatcher)
+    const asset = tenantBySlug('bura-klima').assets.find((a) => a.serialNo === 'GR-PL35-40981')
+    expect(asset?.customFields).toMatchObject({ power_kw: 3.5 })
+    const updated = await s.put<Asset>(`/assets/${asset?.id ?? ''}`, {
+      assetTypeId: asset?.assetTypeId,
+      customFields: { refrigerant: 'R32' },
+    })
+    expect(updated.body.customFields).toEqual({ refrigerant: 'R32' })
   })
 
   it('a new location without codes has none', async () => {

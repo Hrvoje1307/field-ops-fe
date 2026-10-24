@@ -80,6 +80,16 @@ function parsePlainDate(date: string): [number, number, number] {
   return [Number(match[1]), Number(match[2]), Number(match[3])]
 }
 
+/** A real calendar date written as `yyyy-MM-dd` (`2026-02-30` is not). */
+export function isPlainDate(value: unknown): value is string {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+  const [year, month, day] = parsePlainDate(value)
+  const date = new Date(Date.UTC(year, month - 1, day))
+  return (
+    date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day
+  )
+}
+
 function parseTimeOfDay(time: string): [number, number] {
   const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(time)
   if (!match) throw new RangeError(`Invalid time of day: ${time}`)
@@ -108,6 +118,15 @@ export function addDays(date: string, days: number): string {
   const [year, month, day] = parsePlainDate(date)
   const shifted = new Date(Date.UTC(year, month - 1, day) + days * DAY_MS)
   return shifted.toISOString().slice(0, 10)
+}
+
+/** Whole days from one plain date to another (negative when `to` is earlier). */
+export function daysBetween(from: string, to: string): number {
+  const [fromYear, fromMonth, fromDay] = parsePlainDate(from)
+  const [toYear, toMonth, toDay] = parsePlainDate(to)
+  return (
+    (Date.UTC(toYear, toMonth - 1, toDay) - Date.UTC(fromYear, fromMonth - 1, fromDay)) / DAY_MS
+  )
 }
 
 /**

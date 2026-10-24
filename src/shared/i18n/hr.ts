@@ -3,6 +3,21 @@ export const hr = {
     close: 'Zatvori',
     loading: 'Učitavanje…',
     appName: 'FieldOps',
+    yes: 'Da',
+    no: 'Ne',
+    notSet: 'Nije upisano',
+    relativeDay: {
+      today: 'Danas',
+      tomorrow: 'Sutra',
+      yesterday: 'Jučer',
+    },
+    sensitive: {
+      masked: 'Skrivena vrijednost',
+      show: 'Prikaži',
+      hide: 'Sakrij',
+      showLabel: 'Prikaži: {{label}}',
+      hideLabel: 'Sakrij: {{label}}',
+    },
   },
   /** Platform-wide roles. The technician label should become a tenant setting (docs/backend-questions.md #17). */
   roles: {
@@ -54,6 +69,57 @@ export const hr = {
     switchTenant: {
       label: 'Tvrtka',
       failed: 'Promjena tvrtke nije uspjela. Pokušajte ponovno.',
+    },
+  },
+  /** Platform-wide job enums from the contract. */
+  job: {
+    status: {
+      new: 'Novi',
+      scheduled: 'Zakazan',
+      confirmed: 'Potvrđen',
+      en_route: 'Na putu',
+      on_site: 'Na lokaciji',
+      on_hold: 'Na čekanju',
+      completed: 'Završen',
+      invoiced: 'Fakturiran',
+      cancelled: 'Otkazan',
+    },
+    priority: {
+      low: 'Nizak prioritet',
+      normal: 'Normalan prioritet',
+      high: 'Visok prioritet',
+      urgent: 'Hitno',
+    },
+  },
+  technician: {
+    lead: 'Voditelj',
+  },
+  location: {
+    openInMaps: 'Otvori u kartama',
+    directions: 'Navigacija',
+    accessNotes: 'Napomene za pristup',
+    accessCodes: 'Pristupne šifre',
+    accessCodesHidden: 'Pristupne šifre su skrivene.',
+  },
+  asset: {
+    serialNo: 'Ser. br. {{serialNo}}',
+  },
+  customField: {
+    entity: {
+      client: 'Klijent',
+      location: 'Lokacija',
+      asset: 'Oprema',
+      job: 'Nalog',
+    },
+    choose: 'Odaberite…',
+    noSelection: 'Bez odabira',
+    required: 'obavezno',
+    errors: {
+      required: 'Obavezno polje.',
+      number: 'Upišite broj.',
+      date: 'Upišite ispravan datum.',
+      option: 'Odaberite jednu od ponuđenih vrijednosti.',
+      removedOption: 'Vrijednost „{{value}}” više nije ponuđena. Odaberite novu.',
     },
   },
   shell: {

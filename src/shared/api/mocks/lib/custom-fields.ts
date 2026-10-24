@@ -68,17 +68,19 @@ interface ValidateOptions {
   assetTypeId?: string | null
   /** Stored values (on update). */
   previous?: CustomFieldValues
-  /** False when the caller can't see sensitive values: those are kept as stored. */
-  canSeeSensitive: boolean
 }
 
-/** Values checked against their definitions (type, required, options); returns what to store. */
+/**
+ * Values checked against their definitions (type, required, options); returns what to store.
+ * The object replaces the stored one, except sensitive fields: an omitted sensitive key keeps
+ * the stored value (the client never revealed it, or can't see it); `null` or `""` clears it.
+ */
 export function validateCustomFields(
   t: TenantData,
   entity: CustomFieldEntity,
   values: CustomFieldValues | undefined,
   errors: FieldErrors,
-  { path, assetTypeId, previous, canSeeSensitive }: ValidateOptions,
+  { path, assetTypeId, previous }: ValidateOptions,
 ): CustomFieldValues {
   const definitions = definitionsFor(t, entity, assetTypeId)
   const input = values ?? {}
@@ -90,12 +92,7 @@ export function validateCustomFields(
 
   for (const definition of definitions) {
     const value = input[definition.key]
-    if (
-      value === undefined &&
-      definition.isSensitive &&
-      !canSeeSensitive &&
-      previous?.[definition.key] !== undefined
-    ) {
+    if (value === undefined && definition.isSensitive && previous?.[definition.key] !== undefined) {
       result[definition.key] = previous[definition.key]
       continue
     }

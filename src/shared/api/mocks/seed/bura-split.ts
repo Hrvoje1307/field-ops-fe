@@ -125,7 +125,28 @@ export const buraSplit: TenantSeed = {
       type: 'date',
       assetType: 'Split klima',
     },
+    { entity: 'asset', key: 'install_note', label: 'Napomena o ugradnji', type: 'textarea' },
     { entity: 'job', key: 'roof_access', label: 'Potreban pristup krovu', type: 'checkbox' },
+    {
+      entity: 'client',
+      key: 'preferred_days',
+      label: 'Preferirani dani dolaska',
+      type: 'multiselect',
+      options: [
+        { value: 'mon', label: 'Ponedjeljak' },
+        { value: 'tue', label: 'Utorak' },
+        { value: 'wed', label: 'Srijeda' },
+        { value: 'thu', label: 'Četvrtak' },
+        { value: 'fri', label: 'Petak' },
+      ],
+    },
+    {
+      entity: 'location',
+      key: 'entry_code',
+      label: 'Kod ulaza u zgradu',
+      type: 'text',
+      isSensitive: true,
+    },
   ],
   clients: [
     {
@@ -282,6 +303,7 @@ export const buraSplit: TenantSeed = {
       type: 'person',
       name: 'Ante Božić',
       createdDaysAgo: 200,
+      customFields: { preferred_days: ['tue', 'thu'] },
       contacts: [{ name: 'Ante Božić', phone: '+385982100005' }],
       locations: [
         {
@@ -290,6 +312,7 @@ export const buraSplit: TenantSeed = {
           postalCode: '21000',
           lat: 43.5196,
           lng: 16.4585,
+          customFields: { entry_code: '4415#' },
           assets: [
             {
               key: 'bozic-ac',
@@ -299,7 +322,12 @@ export const buraSplit: TenantSeed = {
               serialNo: 'GR-PL35-40981',
               installedYearsAgo: 2,
               warrantyYears: 3,
-              customFields: { refrigerant: 'R32', power_kw: 3.5, last_fgas_check: '2026-04-02' },
+              customFields: {
+                refrigerant: 'R32',
+                power_kw: 3.5,
+                last_fgas_check: '2026-04-02',
+                install_note: 'Vanjska jedinica na balkonu.\nKondenzat odveden u slivnik.',
+              },
             },
           ],
         },

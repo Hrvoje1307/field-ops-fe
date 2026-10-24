@@ -2,7 +2,6 @@ import type { ContactInput, LocationInput } from '@/shared/api/generated/model'
 import { countryFromLocale, normalizePhone } from '@/shared/lib/phone'
 
 import type { ContactRow, LocationRow, TenantData } from '../db/rows'
-import { canSeeLocationSecrets, type Viewer } from './access'
 import { validateCustomFields } from './custom-fields'
 import { newId } from './ids'
 import { type FieldErrors, MESSAGES } from './problems'
@@ -36,7 +35,7 @@ export function applyLocationInput(
   t: TenantData,
   input: LocationInput,
   errors: FieldErrors,
-  { path, viewer, previous }: { path: string; viewer: Viewer; previous?: LocationRow },
+  { path, previous }: { path: string; previous?: LocationRow },
 ): Pick<
   LocationRow,
   | 'label'
@@ -84,7 +83,6 @@ export function applyLocationInput(
     customFields: validateCustomFields(t, 'location', input.customFields, errors, {
       path: `${prefix}customFields`,
       previous: previous?.customFields,
-      canSeeSensitive: previous ? canSeeLocationSecrets(t, viewer, previous.id) : true,
     }),
   }
 }
