@@ -3,6 +3,7 @@ import type { QueryClient, QueryKey } from '@tanstack/react-query'
 import { apiFetch, path } from '@/shared/api/api-fetch'
 import type {
   Job,
+  JobCreate,
   JobSummaryPage,
   ListJobsParams,
   StatusHistoryEntry,
@@ -34,6 +35,11 @@ export async function getJobHistory(id: string, signal?: AbortSignal) {
 }
 
 // --- POST / PUT / DELETE (used as mutationFn) --------------------------------
+
+/** Status starts as `new`; duration and crew size default to the job type's. */
+export async function createJob(body: JobCreate, idempotencyKey?: string) {
+  return apiFetch<Job>('/jobs', { method: 'POST', json: body, idempotencyKey })
+}
 
 /** Moves the job along the status machine. `completed` goes through `/complete`. */
 export async function transitionJob(id: string, body: TransitionRequest, idempotencyKey?: string) {
