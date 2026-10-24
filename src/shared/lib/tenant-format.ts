@@ -1,7 +1,14 @@
 import { createContext, useContext, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { daysBetween, formatDate, formatDateTime, formatTime, todayInTimeZone } from './datetime'
+import {
+  dateInTimeZone,
+  daysBetween,
+  formatDate,
+  formatDateTime,
+  formatTime,
+  todayInTimeZone,
+} from './datetime'
 import { formatDuration } from './duration'
 import { formatMoney, type MoneyString } from './money'
 import { formatNumber } from './number'
@@ -37,6 +44,8 @@ export interface TenantFormat extends TenantFormatSettings {
    * `Jučer`, otherwise weekday and date (`uto, 27. 10.`).
    */
   formatRelativeDay: (date: string) => string
+  /** Instant as relative day and time in the tenant zone: `Danas u 08:30`. */
+  formatRelativeDateTime: (instant: string) => string
   /** Minutes: `45 min`, `1 h 30 min`. */
   formatDuration: (minutes: number) => string
   formatNumber: (value: number) => string
@@ -51,25 +60,30 @@ export interface TenantFormat extends TenantFormatSettings {
 export function useTenantFormat(): TenantFormat {
   const settings = useContext(TenantFormatContext)
   const { t } = useTranslation()
-  return useMemo(
-    () => ({
+  return useMemo(() => {
+    const relativeDay = (date: string) => {
+      const offset = daysBetween(todayInTimeZone(settings.timeZone), date)
+      if (offset === 0) return t('common.relativeDay.today')
+      if (offset === 1) return t('common.relativeDay.tomorrow')
+      if (offset === -1) return t('common.relativeDay.yesterday')
+      return formatDate(date, settings, { weekday: 'short', day: 'numeric', month: 'numeric' })
+    }
+    return {
       ...settings,
       formatDate: (date, options) => formatDate(date, settings, options),
       formatTime: (instant) => formatTime(instant, settings),
       formatDateTime: (instant, options) => formatDateTime(instant, settings, options),
-      formatRelativeDay: (date) => {
-        const offset = daysBetween(todayInTimeZone(settings.timeZone), date)
-        if (offset === 0) return t('common.relativeDay.today')
-        if (offset === 1) return t('common.relativeDay.tomorrow')
-        if (offset === -1) return t('common.relativeDay.yesterday')
-        return formatDate(date, settings, { weekday: 'short', day: 'numeric', month: 'numeric' })
-      },
+      formatRelativeDay: relativeDay,
+      formatRelativeDateTime: (instant) =>
+        t('common.dayAtTime', {
+          day: relativeDay(dateInTimeZone(instant, settings.timeZone)),
+          time: formatTime(instant, settings),
+        }),
       formatDuration: (minutes) => formatDuration(minutes, settings.locale),
       formatNumber: (value) => formatNumber(value, settings.locale),
       formatPhone: (e164) => formatPhone(e164, settings.country),
       formatMoney: (amount) => formatMoney(amount, settings),
       today: () => todayInTimeZone(settings.timeZone),
-    }),
-    [settings, t],
-  )
+    }
+  }, [settings, t])
 }

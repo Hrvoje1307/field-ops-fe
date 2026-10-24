@@ -80,6 +80,15 @@ describe('relative day, duration and number', () => {
     expect(zagreb.formatRelativeDay('2026-10-24')).toBe('Jučer')
   })
 
+  it('formats an instant as relative day and time in the tenant zone', () => {
+    vi.useFakeTimers({ now: new Date('2026-10-25T02:30:00Z'), toFake: ['Date'] })
+    expect(formatFor(NEW_YORK).formatRelativeDateTime('2026-10-24T22:30:00Z')).toBe('Danas u 18:30')
+    expect(formatFor(undefined).formatRelativeDateTime('2026-10-24T22:30:00Z')).toBe(
+      'Danas u 00:30',
+    )
+    expect(formatFor(NEW_YORK).formatRelativeDateTime('2026-10-23T12:00:00Z')).toBe('Jučer u 08:00')
+  })
+
   it('works across the DST change and shows other days with the weekday', () => {
     // New York falls back on 2026-11-01
     vi.useFakeTimers({ now: new Date('2026-10-31T23:30:00-04:00'), toFake: ['Date'] })
