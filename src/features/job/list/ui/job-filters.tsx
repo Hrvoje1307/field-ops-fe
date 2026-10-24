@@ -3,8 +3,8 @@ import { SearchIcon } from 'lucide-react'
 import { useEffect, useEffectEvent, useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { jobTypeQueries } from '@/entities/job-type'
-import { technicianQueries } from '@/entities/technician'
+import { JOB_TYPES_STALE_TIME, jobTypeKeys, listJobTypes } from '@/entities/job-type'
+import { listTechnicians, TECHNICIAN_STALE_TIME, technicianKeys } from '@/entities/technician'
 import { Priority } from '@/shared/api/generated/model'
 import { Button } from '@/shared/ui/button'
 import { Field, FieldLabel } from '@/shared/ui/field'
@@ -24,6 +24,8 @@ import {
 export type SearchChange = (patch: Partial<JobsSearch>, options?: { replace?: boolean }) => void
 
 const SEARCH_DELAY_MS = 300
+/** Jobs of technicians who left can still be found. */
+const TECHNICIAN_PARAMS = { includeInactive: true }
 const PRIORITIES = [Priority.urgent, Priority.high, Priority.normal, Priority.low]
 
 /** Filters and sort of the job list; every change goes to the URL and back to page 1. */
@@ -36,8 +38,20 @@ export function JobFilters({
 }) {
   const { t } = useTranslation()
   const ids = useId()
-  const jobTypes = useQuery(jobTypeQueries.list())
-  const technicians = useQuery(technicianQueries.list({ includeInactive: true }))
+  const jobTypes = useQuery({
+    queryKey: jobTypeKeys.all,
+    queryFn: async ({ signal }) => {
+      return listJobTypes(signal)
+    },
+    staleTime: JOB_TYPES_STALE_TIME,
+  })
+  const technicians = useQuery({
+    queryKey: technicianKeys.list(TECHNICIAN_PARAMS),
+    queryFn: async ({ signal }) => {
+      return listTechnicians(TECHNICIAN_PARAMS, signal)
+    },
+    staleTime: TECHNICIAN_STALE_TIME,
+  })
   const filter = (patch: Partial<JobsSearch>) => {
     onSearchChange({ ...patch, page: 1 })
   }

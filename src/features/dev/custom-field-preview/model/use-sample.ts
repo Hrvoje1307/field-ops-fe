@@ -1,9 +1,18 @@
 import { useQuery } from '@tanstack/react-query'
 
-import { clientQueries } from '@/entities/client'
+import { CLIENT_STALE_TIME, clientKeys, getClient, listClients } from '@/entities/client'
 import type { CustomFieldScope, CustomFieldValues } from '@/entities/custom-field'
-import { jobQueries } from '@/entities/job'
+import {
+  getJob,
+  JOB_DETAIL_STALE_TIME,
+  JOB_LIST_STALE_TIME,
+  jobKeys,
+  listJobs,
+} from '@/entities/job'
 import { locationAddress } from '@/entities/location'
+
+/** Just the first record. */
+const FIRST = { pageSize: 1 }
 
 export interface Sample {
   /** Which record the values come from. */
@@ -18,18 +27,40 @@ export interface Sample {
  */
 export function useSample(scope: CustomFieldScope): { pending: boolean; sample: Sample | null } {
   const fromClient = scope.entity !== 'job'
-  const clients = useQuery({ ...clientQueries.list({ pageSize: 1 }), enabled: fromClient })
-  const clientId = clients.data?.items[0]?.id
+  const clients = useQuery({
+    queryKey: clientKeys.list(FIRST),
+    queryFn: async ({ signal }) => {
+      return listClients(FIRST, signal)
+    },
+    staleTime: CLIENT_STALE_TIME,
+    enabled: fromClient,
+  })
+  const clientId = clients.data?.items[0]?.id ?? ''
   const client = useQuery({
-    ...clientQueries.detail(clientId ?? ''),
-    enabled: fromClient && clientId !== undefined,
+    queryKey: clientKeys.detail(clientId),
+    queryFn: async ({ signal }) => {
+      return getClient(clientId, signal)
+    },
+    staleTime: CLIENT_STALE_TIME,
+    enabled: fromClient && clientId !== '',
   })
 
-  const jobs = useQuery({ ...jobQueries.list({ pageSize: 1 }), enabled: !fromClient })
-  const jobId = jobs.data?.items[0]?.id
+  const jobs = useQuery({
+    queryKey: jobKeys.list(FIRST),
+    queryFn: async ({ signal }) => {
+      return listJobs(FIRST, signal)
+    },
+    staleTime: JOB_LIST_STALE_TIME,
+    enabled: !fromClient,
+  })
+  const jobId = jobs.data?.items[0]?.id ?? ''
   const job = useQuery({
-    ...jobQueries.detail(jobId ?? ''),
-    enabled: !fromClient && jobId !== undefined,
+    queryKey: jobKeys.detail(jobId),
+    queryFn: async ({ signal }) => {
+      return getJob(jobId, signal)
+    },
+    staleTime: JOB_DETAIL_STALE_TIME,
+    enabled: !fromClient && jobId !== '',
   })
 
   const list = fromClient ? clients : jobs

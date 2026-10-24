@@ -8,11 +8,20 @@ export type {
   ListJobsParams,
   Priority,
   StatusHistoryEntry,
+  TransitionRequest,
 } from '@/shared/api/generated/model'
+export {
+  getJob,
+  getJobHistory,
+  invalidateJobData,
+  isJobDataKey,
+  jobKeys,
+  listJobs,
+  transitionJob,
+} from './api'
 export { NOTE_REQUIRED_STATUSES, transitionNeedsNote } from './config/transitions'
+export { JOB_DETAIL_STALE_TIME, JOB_HISTORY_STALE_TIME, JOB_LIST_STALE_TIME } from './const'
 export { handleJobConflict } from './model/conflict'
-export { invalidateJobData, isJobDataKey } from './model/invalidate'
-export { jobQueries } from './model/queries'
 export {
   type OffTrackStatus,
   type StatusTrackModel,

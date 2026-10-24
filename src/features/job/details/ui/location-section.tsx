@@ -1,9 +1,9 @@
 import { useTranslation } from 'react-i18next'
 
-import { CustomFieldValuesFor } from '@/entities/custom-field'
 import type { Job } from '@/entities/job'
 import { AccessCodes, AccessNotes, MapsLink } from '@/entities/location'
 
+import { CustomFieldValuesFor } from './custom-field-values-for'
 import { Fact, Facts, Section } from './section'
 
 /**

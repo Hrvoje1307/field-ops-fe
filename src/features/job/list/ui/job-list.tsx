@@ -1,7 +1,7 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 
-import { jobQueries } from '@/entities/job'
+import { JOB_LIST_STALE_TIME, jobKeys, listJobs } from '@/entities/job'
 import { useTenantFormat } from '@/shared/lib/tenant-format'
 import { Alert, AlertAction, AlertDescription } from '@/shared/ui/alert'
 import { Button } from '@/shared/ui/button'
@@ -17,8 +17,8 @@ import {
 import { JobFilters, type SearchChange } from './job-filters'
 import { JobsTable } from './jobs-table'
 
-/** Office job list: filters in the URL, one page of jobs, newest first by default. */
-export function JobsListPage({
+/** Job list with filters (kept in the URL by the caller), paging and states. */
+export function JobList({
   search,
   onSearchChange,
 }: {
@@ -27,8 +27,13 @@ export function JobsListPage({
 }) {
   const { t } = useTranslation()
   const { today } = useTenantFormat()
+  const params = toListJobsParams(search, today())
   const jobs = useQuery({
-    ...jobQueries.list(toListJobsParams(search, today())),
+    queryKey: jobKeys.list(params),
+    queryFn: async ({ signal }) => {
+      return listJobs(params, signal)
+    },
+    staleTime: JOB_LIST_STALE_TIME,
     // Keep the rows on screen while the next filter or page loads
     placeholderData: keepPreviousData,
   })
@@ -36,7 +41,6 @@ export function JobsListPage({
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold tracking-tight">{t('job.list.title')}</h1>
       <JobFilters search={search} onSearchChange={onSearchChange} />
 
       {jobs.isPending ? (

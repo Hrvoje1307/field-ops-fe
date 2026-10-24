@@ -7,7 +7,7 @@ import { server } from '@/shared/api/mocks/node'
 import { TenantFormatProvider } from '@/shared/lib/tenant-format-provider'
 
 import { jobsSearchSchema } from '../model/search'
-import { JobsListPage } from './jobs-list-page'
+import { JobList } from './job-list'
 
 const NEW_YORK = {
   timeZone: 'America/New_York',
@@ -20,7 +20,7 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
-describe('JobsListPage', () => {
+describe('JobList', () => {
   it('resolves "today" in the tenant zone, not the browser zone', async () => {
     // Already the 25th in UTC and Zagreb, still the 24th in New York
     vi.useFakeTimers({ now: new Date('2026-10-25T02:30:00Z'), toFake: ['Date'] })
@@ -37,7 +37,7 @@ describe('JobsListPage', () => {
     render(
       <QueryClientProvider client={queryClient}>
         <TenantFormatProvider settings={NEW_YORK}>
-          <JobsListPage
+          <JobList
             search={jobsSearchSchema.parse({ date: 'today' })}
             onSearchChange={() => undefined}
           />

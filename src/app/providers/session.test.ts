@@ -1,7 +1,7 @@
 import { QueryClient } from '@tanstack/react-query'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { sessionStore } from '@/entities/session'
+import { sessionStore } from '@/entities/auth'
 import type { TokenResponse } from '@/shared/api/generated/model'
 
 import type { router as appRouter } from '../router'

@@ -1,6 +1,6 @@
 import { type ReactNode } from 'react'
 
-import { useMe } from '@/entities/session'
+import { useMe } from '@/entities/auth'
 import { useTenantFormat } from '@/shared/lib/tenant-format'
 
 import { UserMenu } from './user-menu'

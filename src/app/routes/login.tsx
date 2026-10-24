@@ -1,7 +1,7 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
 import { z } from 'zod'
 
-import { LOGIN_REASONS, safeRedirect, sessionStore } from '@/entities/session'
+import { LOGIN_REASONS, safeRedirect, sessionStore } from '@/entities/auth'
 import { LoginPage } from '@/pages/login'
 
 const searchSchema = z.object({

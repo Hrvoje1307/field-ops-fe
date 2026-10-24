@@ -1,10 +1,17 @@
-import { useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronDownIcon } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
-import { handleJobConflict, type Job, type JobStatus } from '@/entities/job'
+import {
+  getJob,
+  handleJobConflict,
+  JOB_DETAIL_STALE_TIME,
+  type Job,
+  jobKeys,
+  type JobStatus,
+} from '@/entities/job'
 import { isConflict } from '@/shared/api/api-error'
 import { Button } from '@/shared/ui/button'
 import {
@@ -21,9 +28,21 @@ import { TransitionDialog } from './transition-dialog'
 
 /**
  * "Promijeni status": one entry per change the API allows the current user now
- * (`Job.allowedTransitions`). No menu when there is none.
+ * (`Job.allowedTransitions`). No menu when there is none. Reads the job itself, so
+ * after a change or a 409 it shows the job as the server has it.
  */
-export function StatusMenu({
+export function StatusMenu({ jobId }: { jobId: string }) {
+  const { data: job } = useQuery({
+    queryKey: jobKeys.detail(jobId),
+    queryFn: async ({ signal }) => {
+      return getJob(jobId, signal)
+    },
+    staleTime: JOB_DETAIL_STALE_TIME,
+  })
+  return job ? <JobStatusMenu job={job} /> : null
+}
+
+function JobStatusMenu({
   job,
 }: {
   job: Pick<Job, 'id' | 'number' | 'version' | 'allowedTransitions'>

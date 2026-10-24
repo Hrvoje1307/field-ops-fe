@@ -1,12 +1,16 @@
+import { useQuery } from '@tanstack/react-query'
 import { type ReactNode, useId } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import type { CustomFieldValues } from '@/shared/api/generated/model'
+import {
+  CUSTOM_FIELDS_STALE_TIME,
+  customFieldKeys,
+  type CustomFieldScope,
+  type CustomFieldValues,
+  CustomFieldValuesView,
+  listCustomFieldDefinitions,
+} from '@/entities/custom-field'
 import { Skeleton } from '@/shared/ui/skeleton'
-
-import { useCustomFieldDefinitions } from '../model/queries'
-import type { CustomFieldScope } from '../model/types'
-import { CustomFieldValuesView } from './custom-field-values-view'
 
 /**
  * Read-only custom fields of one record, with the tenant's definitions for `scope`
@@ -26,7 +30,13 @@ export function CustomFieldValuesFor({
 }) {
   const { t } = useTranslation()
   const titleId = useId()
-  const definitions = useCustomFieldDefinitions(scope)
+  const definitions = useQuery({
+    queryKey: customFieldKeys.list(scope),
+    queryFn: async ({ signal }) => {
+      return listCustomFieldDefinitions(scope, signal)
+    },
+    staleTime: CUSTOM_FIELDS_STALE_TIME,
+  })
   const Wrapper = title ? 'section' : 'div'
   const heading = title ? (
     <h2 id={titleId} className="font-semibold">

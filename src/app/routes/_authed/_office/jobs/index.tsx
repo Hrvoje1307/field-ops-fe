@@ -1,11 +1,7 @@
 import { createFileRoute, stripSearchParams } from '@tanstack/react-router'
 
-import {
-  JOBS_SEARCH_DEFAULTS,
-  JobsListPage,
-  type JobsSearchChange,
-  jobsSearchSchema,
-} from '@/pages/jobs-list'
+import { JOBS_SEARCH_DEFAULTS, type JobsSearchChange, jobsSearchSchema } from '@/features/job/list'
+import { JobsListPage } from '@/pages/jobs-list'
 
 export const Route = createFileRoute('/_authed/_office/jobs/')({
   validateSearch: jobsSearchSchema,

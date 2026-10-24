@@ -1,8 +1,8 @@
 import { useTranslation } from 'react-i18next'
 
 import { type Asset, AssetSummary } from '@/entities/asset'
-import { CustomFieldValuesFor } from '@/entities/custom-field'
 
+import { CustomFieldValuesFor } from './custom-field-values-for'
 import { Section } from './section'
 
 /** The equipment the job is for, with the fields of its type, read-only. */

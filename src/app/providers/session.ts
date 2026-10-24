@@ -1,6 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query'
 
-import { loginSearchFor, sessionStore } from '@/entities/session'
+import { loginSearchFor, sessionStore } from '@/entities/auth'
 import { configureSessionStore } from '@/shared/api/session-port'
 
 import type { router as appRouter } from '../router'

@@ -5,18 +5,20 @@ import { FormProvider, useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
 
-import { assetTypeQueries } from '@/entities/asset'
+import { ASSET_TYPES_STALE_TIME, assetTypeKeys, listAssetTypes } from '@/entities/asset'
 import {
   buildCustomFieldsSchema,
+  CUSTOM_FIELDS_STALE_TIME,
   type CustomFieldDefinition,
   customFieldFormValues,
   CustomFieldInputs,
+  customFieldKeys,
   type CustomFieldScope,
   type CustomFieldValues,
   CustomFieldValuesView,
-  useCustomFieldDefinitions,
+  listCustomFieldDefinitions,
 } from '@/entities/custom-field'
-import { useMe } from '@/entities/session'
+import { useMe } from '@/entities/auth'
 import { useTenantFormat } from '@/shared/lib/tenant-format'
 import { Alert, AlertDescription } from '@/shared/ui/alert'
 import { Button } from '@/shared/ui/button'
@@ -41,11 +43,11 @@ function scopeOf(choice: string): CustomFieldScope {
  * Developer preview (mock mode only): the active tenant's custom fields for each
  * entity, in edit and read mode. Nothing is sent to the server.
  */
-export function CustomFieldsPreviewPage() {
+export function CustomFieldsPreview() {
   const { t } = useTranslation(PREVIEW_NS)
   const me = useMe()
   return (
-    <main className="mx-auto max-w-5xl space-y-6 px-4 py-6 md:px-8 md:py-10">
+    <div className="space-y-6">
       <header className="space-y-1">
         <p className="text-sm text-muted-foreground" data-testid="tenant-name">
           {me.tenant.name}
@@ -55,7 +57,7 @@ export function CustomFieldsPreviewPage() {
       </header>
       {/* A tenant switch starts over: asset types and fields differ per tenant */}
       <Preview key={me.tenant.id} />
-    </main>
+    </div>
   )
 }
 
@@ -63,7 +65,13 @@ function Preview() {
   const { t } = useTranslation(PREVIEW_NS)
   const { t: tApp } = useTranslation()
   const id = useId()
-  const assetTypes = useQuery(assetTypeQueries.list())
+  const assetTypes = useQuery({
+    queryKey: assetTypeKeys.all,
+    queryFn: async ({ signal }) => {
+      return listAssetTypes(signal)
+    },
+    staleTime: ASSET_TYPES_STALE_TIME,
+  })
   const [choice, setChoice] = useState('client')
   const scope = scopeOf(choice)
 
@@ -101,17 +109,23 @@ function Preview() {
 function ScopePreview({ scope }: { scope: CustomFieldScope }) {
   const { t } = useTranslation(PREVIEW_NS)
   const { t: tApp } = useTranslation()
-  const definitions = useCustomFieldDefinitions(scope)
+  const definitionsQuery = useQuery({
+    queryKey: customFieldKeys.list(scope),
+    queryFn: async ({ signal }) => {
+      return listCustomFieldDefinitions(scope, signal)
+    },
+    staleTime: CUSTOM_FIELDS_STALE_TIME,
+  })
   const { pending, sample } = useSample(scope)
 
-  if (definitions.isError) {
+  if (definitionsQuery.isError) {
     return (
       <Alert variant="destructive">
         <AlertDescription>{t('loadFailed')}</AlertDescription>
       </Alert>
     )
   }
-  if (definitions.isPending || pending) {
+  if (definitionsQuery.isPending || pending) {
     return (
       <div className="grid gap-6 md:grid-cols-2" aria-busy="true">
         <span className="sr-only">{tApp('common.loading')}</span>
@@ -120,10 +134,10 @@ function ScopePreview({ scope }: { scope: CustomFieldScope }) {
       </div>
     )
   }
-  if (definitions.data.length === 0) {
+  if (definitionsQuery.data.length === 0) {
     return <p className="text-sm text-muted-foreground">{t('noFields')}</p>
   }
-  return <PreviewForm definitions={definitions.data} sample={sample} />
+  return <PreviewForm definitions={definitionsQuery.data} sample={sample} />
 }
 
 function PreviewForm({

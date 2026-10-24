@@ -3,8 +3,7 @@ import { isRedirect } from '@tanstack/react-router'
 import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it } from 'vitest'
 
-import { sessionStore } from '@/entities/session'
-import { login } from '@/shared/api/generated/auth/auth'
+import { login, sessionStore } from '@/entities/auth'
 import { resetMockDb } from '@/shared/api/mocks/db'
 import { server } from '@/shared/api/mocks/node'
 

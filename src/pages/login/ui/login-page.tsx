@@ -3,7 +3,7 @@ import { Link, useNavigate } from '@tanstack/react-router'
 import { Suspense } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { type LoginReason, roleHome, safeRedirect } from '@/entities/session'
+import { type LoginReason, roleHome, safeRedirect } from '@/entities/auth'
 import { DemoLogins, SignInForm } from '@/features/auth/sign-in'
 import { Alert, AlertDescription } from '@/shared/ui/alert'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card'

@@ -1,40 +1,56 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ArrowLeftIcon } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { CustomFieldValuesFor } from '@/entities/custom-field'
 import {
+  getJob,
+  getJobHistory,
+  JOB_DETAIL_STALE_TIME,
+  JOB_HISTORY_STALE_TIME,
   type Job,
-  jobQueries,
+  jobKeys,
   JobNumber,
   JobTypeTag,
   PriorityMark,
   StatusBadge,
   StatusTrack,
 } from '@/entities/job'
-import { StatusMenu } from '@/features/job/change-status'
 import { ApiError } from '@/shared/api/api-error'
 import { useTenantFormat } from '@/shared/lib/tenant-format'
 import { Alert, AlertAction, AlertDescription } from '@/shared/ui/alert'
 import { Button } from '@/shared/ui/button'
 import { Skeleton } from '@/shared/ui/skeleton'
-import { JobHistory } from '@/widgets/job-history'
 
 import { AssetSection } from './asset-section'
 import { ClientSection } from './client-section'
+import { CustomFieldValuesFor } from './custom-field-values-for'
 import { JobNotFound } from './job-not-found'
 import { LocationSection } from './location-section'
 import { ScheduleSection } from './schedule-section'
 import { Section } from './section'
 
+interface Slots {
+  /** Next to the title, e.g. the status menu. */
+  actions?: ReactNode
+  /** The status history, under the job's fields. */
+  history?: ReactNode
+}
+
 /**
- * One job for the office: status and its changes, schedule, client, location (with
- * access codes), equipment, the job's own fields and the status history.
+ * One job for the office: status track, schedule, client, location (with access
+ * codes), equipment and the job's own fields. Actions and history come in as slots.
  */
-export function JobDetailPage({ jobId }: { jobId: string }) {
+export function JobDetails({ jobId, actions, history }: { jobId: string } & Slots) {
   const { t } = useTranslation()
-  const job = useQuery(jobQueries.detail(jobId))
+  const job = useQuery({
+    queryKey: jobKeys.detail(jobId),
+    queryFn: async ({ signal }) => {
+      return getJob(jobId, signal)
+    },
+    staleTime: JOB_DETAIL_STALE_TIME,
+  })
 
   if (job.isPending) {
     return (
@@ -59,14 +75,20 @@ export function JobDetailPage({ jobId }: { jobId: string }) {
       </Alert>
     )
   }
-  return <JobDetail job={job.data} />
+  return <JobDetail job={job.data} actions={actions} history={history} />
 }
 
-function JobDetail({ job }: { job: Job }) {
+function JobDetail({ job, actions, history }: { job: Job } & Slots) {
   const { t } = useTranslation()
   const { formatRelativeDateTime } = useTenantFormat()
-  // Shares the cache with the history widget below
-  const history = useQuery(jobQueries.history(job.id))
+  // The track shows when each step was reached
+  const statusHistory = useQuery({
+    queryKey: jobKeys.history(job.id),
+    queryFn: async ({ signal }) => {
+      return getJobHistory(job.id, signal)
+    },
+    staleTime: JOB_HISTORY_STALE_TIME,
+  })
   const reason =
     job.status === 'on_hold'
       ? job.onHoldReason
@@ -97,11 +119,11 @@ function JobDetail({ job }: { job: Job }) {
             <span>{t('job.detail.created', { when: formatRelativeDateTime(job.createdAt) })}</span>
           </div>
         </div>
-        <StatusMenu job={job} />
+        {actions}
       </header>
 
       <div className="rounded-xl border p-4">
-        <StatusTrack status={job.status} history={history.data} reason={reason} />
+        <StatusTrack status={job.status} history={statusHistory.data} reason={reason} />
       </div>
 
       {job.rescheduleRequested && (
@@ -134,9 +156,7 @@ function JobDetail({ job }: { job: Job }) {
             title={t('job.detail.customFields')}
             className="space-y-3 rounded-xl border p-4"
           />
-          <Section title={t('job.history.title')}>
-            <JobHistory jobId={job.id} />
-          </Section>
+          {history && <Section title={t('job.history.title')}>{history}</Section>}
         </div>
         <div className="min-w-0 space-y-6">
           <ScheduleSection job={job} />

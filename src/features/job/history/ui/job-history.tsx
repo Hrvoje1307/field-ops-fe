@@ -2,7 +2,13 @@ import { useQuery } from '@tanstack/react-query'
 import { cn } from 'cn'
 import { useTranslation } from 'react-i18next'
 
-import { jobQueries, type StatusHistoryEntry, StatusBadge } from '@/entities/job'
+import {
+  getJobHistory,
+  JOB_HISTORY_STALE_TIME,
+  jobKeys,
+  type StatusHistoryEntry,
+  StatusBadge,
+} from '@/entities/job'
 import { useTenantFormat } from '@/shared/lib/tenant-format'
 import { Alert, AlertAction, AlertDescription } from '@/shared/ui/alert'
 import { Button } from '@/shared/ui/button'
@@ -11,7 +17,13 @@ import { Skeleton } from '@/shared/ui/skeleton'
 /** The job's status changes, newest first: who, when, and the note. */
 export function JobHistory({ jobId, className }: { jobId: string; className?: string }) {
   const { t } = useTranslation()
-  const history = useQuery(jobQueries.history(jobId))
+  const history = useQuery({
+    queryKey: jobKeys.history(jobId),
+    queryFn: async ({ signal }) => {
+      return getJobHistory(jobId, signal)
+    },
+    staleTime: JOB_HISTORY_STALE_TIME,
+  })
 
   if (history.isPending) {
     return (
