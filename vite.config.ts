@@ -22,6 +22,21 @@ export default defineConfig({
       '@': fileURLToPath(new URL('./src', import.meta.url)),
     },
   },
+  build: {
+    rolldownOptions: {
+      output: {
+        // Vendor libraries in their own chunks: they change less often than app code, so
+        // browsers keep them cached across deploys. (Rolldown's form of Rollup's manualChunks.)
+        codeSplitting: {
+          groups: [
+            { name: 'react', test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
+            { name: 'tanstack', test: /node_modules[\\/]@tanstack[\\/]/ },
+            { name: 'radix', test: /node_modules[\\/](radix-ui|@radix-ui)[\\/]/ },
+          ],
+        },
+      },
+    },
+  },
   test: {
     environment: 'jsdom',
     setupFiles: ['./src/shared/lib/test/setup.ts'],
