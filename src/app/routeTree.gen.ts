@@ -19,6 +19,7 @@ import { Route as AuthedOfficeClientsRouteImport } from './routes/_authed/_offic
 import { Route as AuthedFieldIndexRouteImport } from './routes/_authed/field/index'
 import { Route as AuthedOfficeJobsIndexRouteImport } from './routes/_authed/_office/jobs/index'
 import { Route as AuthedOfficeJobsJobIdRouteImport } from './routes/_authed/_office/jobs/$jobId'
+import { Route as AuthedOfficeJobsNewRouteImport } from './routes/_authed/_office/jobs/new'
 
 const AuthedRoute = AuthedRouteImport.update({
   id: '/_authed',
@@ -68,6 +69,11 @@ const AuthedOfficeJobsJobIdRoute = AuthedOfficeJobsJobIdRouteImport.update({
   path: '/jobs/$jobId',
   getParentRoute: () => AuthedOfficeRoute,
 } as any)
+const AuthedOfficeJobsNewRoute = AuthedOfficeJobsNewRouteImport.update({
+  id: '/jobs/new',
+  path: '/jobs/new',
+  getParentRoute: () => AuthedOfficeRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthedOfficeIndexRoute
@@ -77,6 +83,7 @@ export interface FileRoutesByFullPath {
   '/clients': typeof AuthedOfficeClientsRoute
   '/field/': typeof AuthedFieldIndexRoute
   '/jobs/$jobId': typeof AuthedOfficeJobsJobIdRoute
+  '/jobs/new': typeof AuthedOfficeJobsNewRoute
   '/jobs/': typeof AuthedOfficeJobsIndexRoute
 }
 export interface FileRoutesByTo {
@@ -86,6 +93,7 @@ export interface FileRoutesByTo {
   '/clients': typeof AuthedOfficeClientsRoute
   '/field': typeof AuthedFieldIndexRoute
   '/jobs/$jobId': typeof AuthedOfficeJobsJobIdRoute
+  '/jobs/new': typeof AuthedOfficeJobsNewRoute
   '/jobs': typeof AuthedOfficeJobsIndexRoute
 }
 export interface FileRoutesById {
@@ -99,6 +107,7 @@ export interface FileRoutesById {
   '/_authed/_office/': typeof AuthedOfficeIndexRoute
   '/_authed/field/': typeof AuthedFieldIndexRoute
   '/_authed/_office/jobs/$jobId': typeof AuthedOfficeJobsJobIdRoute
+  '/_authed/_office/jobs/new': typeof AuthedOfficeJobsNewRoute
   '/_authed/_office/jobs/': typeof AuthedOfficeJobsIndexRoute
 }
 export interface FileRouteTypes {
@@ -111,6 +120,7 @@ export interface FileRouteTypes {
     | '/clients'
     | '/field/'
     | '/jobs/$jobId'
+    | '/jobs/new'
     | '/jobs/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -120,6 +130,7 @@ export interface FileRouteTypes {
     | '/clients'
     | '/field'
     | '/jobs/$jobId'
+    | '/jobs/new'
     | '/jobs'
   id:
     | '__root__'
@@ -132,6 +143,7 @@ export interface FileRouteTypes {
     | '/_authed/_office/'
     | '/_authed/field/'
     | '/_authed/_office/jobs/$jobId'
+    | '/_authed/_office/jobs/new'
     | '/_authed/_office/jobs/'
   fileRoutesById: FileRoutesById
 }
@@ -213,6 +225,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedOfficeJobsJobIdRouteImport
       parentRoute: typeof AuthedOfficeRoute
     }
+    '/_authed/_office/jobs/new': {
+      id: '/_authed/_office/jobs/new'
+      path: '/jobs/new'
+      fullPath: '/jobs/new'
+      preLoaderRoute: typeof AuthedOfficeJobsNewRouteImport
+      parentRoute: typeof AuthedOfficeRoute
+    }
   }
 }
 
@@ -220,6 +239,7 @@ interface AuthedOfficeRouteChildren {
   AuthedOfficeClientsRoute: typeof AuthedOfficeClientsRoute
   AuthedOfficeIndexRoute: typeof AuthedOfficeIndexRoute
   AuthedOfficeJobsJobIdRoute: typeof AuthedOfficeJobsJobIdRoute
+  AuthedOfficeJobsNewRoute: typeof AuthedOfficeJobsNewRoute
   AuthedOfficeJobsIndexRoute: typeof AuthedOfficeJobsIndexRoute
 }
 
@@ -227,6 +247,7 @@ const AuthedOfficeRouteChildren: AuthedOfficeRouteChildren = {
   AuthedOfficeClientsRoute: AuthedOfficeClientsRoute,
   AuthedOfficeIndexRoute: AuthedOfficeIndexRoute,
   AuthedOfficeJobsJobIdRoute: AuthedOfficeJobsJobIdRoute,
+  AuthedOfficeJobsNewRoute: AuthedOfficeJobsNewRoute,
   AuthedOfficeJobsIndexRoute: AuthedOfficeJobsIndexRoute,
 }
 

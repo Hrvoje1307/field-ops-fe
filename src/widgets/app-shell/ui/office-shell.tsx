@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { MenuIcon } from 'lucide-react'
+import { MenuIcon, PlusIcon } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
@@ -30,6 +30,19 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   )
 }
 
+/** The office's most frequent action: a new job, e.g. while the client is on the phone. */
+function NewJobButton({ onNavigate }: { onNavigate?: () => void }) {
+  const { t } = useTranslation()
+  return (
+    <Button asChild className="w-full justify-start">
+      <Link to="/jobs/new" onClick={onNavigate}>
+        <PlusIcon aria-hidden="true" />
+        {t('shell.newJob')}
+      </Link>
+    </Button>
+  )
+}
+
 /** Office layout: left rail on desktop, top bar with a slide-in menu on small screens. */
 export function OfficeShell({ children }: { children: ReactNode }) {
   const { t } = useTranslation()
@@ -47,7 +60,10 @@ export function OfficeShell({ children }: { children: ReactNode }) {
             {me.tenant.name}
           </p>
         </div>
-        <NavLinks />
+        <div className="space-y-4">
+          <NewJobButton />
+          <NavLinks />
+        </div>
         <div className="mt-auto">
           <UserMenu showName align="start" />
         </div>
@@ -65,6 +81,13 @@ export function OfficeShell({ children }: { children: ReactNode }) {
               <SheetHeader className="px-3">
                 <SheetTitle>{me.tenant.name}</SheetTitle>
               </SheetHeader>
+              <div className="space-y-4 px-3">
+                <NewJobButton
+                  onNavigate={() => {
+                    setMenuOpen(false)
+                  }}
+                />
+              </div>
               <NavLinks
                 onNavigate={() => {
                   setMenuOpen(false)
