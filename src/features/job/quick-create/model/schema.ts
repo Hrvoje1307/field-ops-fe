@@ -130,13 +130,13 @@ interface FormOptions {
   locale: string
 }
 
-/** Nothing picked yet; a new job from the phone with normal priority. */
+/** Nothing picked yet (or the given client); a new job from the phone, normal priority. */
 export function emptyQuickJob(
   definitions: QuickJobDefinitions,
-  { locale }: FormOptions,
+  { locale, clientId = '' }: FormOptions & { clientId?: string },
 ): QuickJobFormValues {
   return {
-    client: { kind: 'existing', clientId: '' },
+    client: { kind: 'existing', clientId },
     location: { kind: 'existing', locationId: '' },
     assetId: '',
     job: {

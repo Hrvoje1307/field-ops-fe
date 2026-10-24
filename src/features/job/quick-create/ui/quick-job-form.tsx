@@ -55,7 +55,11 @@ function useDefinitions(scope: CustomFieldScope) {
  * Quick job entry for the office, e.g. while the client is on the phone: find or
  * enter the client, pick or enter the location, describe the job, save.
  */
-export function QuickJobForm() {
+export function QuickJobForm({
+  clientId,
+}: {
+  /** Start with this client chosen. */ clientId?: string
+}) {
   const { t } = useTranslation()
   const client = useDefinitions(SCOPES.client)
   const location = useDefinitions(SCOPES.location)
@@ -107,22 +111,26 @@ export function QuickJobForm() {
       </div>
     )
   }
-  return <Form definitions={definitions} jobTypes={activeJobTypes(jobTypes.data)} />
+  return (
+    <Form definitions={definitions} jobTypes={activeJobTypes(jobTypes.data)} clientId={clientId} />
+  )
 }
 
 function Form({
   definitions,
   jobTypes,
+  clientId,
 }: {
   definitions: QuickJobDefinitions
   jobTypes: readonly JobType[]
+  clientId: string | undefined
 }) {
   const { t } = useTranslation()
   const { locale, country } = useTenantFormat()
   const schema = useMemo(() => buildQuickJobSchema(definitions), [definitions])
   const form = useForm<QuickJobFormValues, unknown, QuickJobValues>({
     resolver: zodResolver(schema),
-    defaultValues: emptyQuickJob(definitions, { locale }),
+    defaultValues: emptyQuickJob(definitions, { locale, clientId }),
   })
   const save = useSaveQuickJob({ form, definitions, country })
   const submit = form.handleSubmit(save)

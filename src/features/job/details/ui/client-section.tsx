@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 
 import { ContactLine } from '@/entities/client'
@@ -14,7 +15,13 @@ export function ClientSection({ job }: { job: Job }) {
 
   return (
     <Section title={t('job.detail.client')}>
-      <p className="font-medium">{job.client.name}</p>
+      <Link
+        to="/clients/$clientId"
+        params={{ clientId: job.client.id }}
+        className="font-medium underline-offset-4 hover:underline"
+      >
+        {job.client.name}
+      </Link>
       {contacts.length > 0 ? (
         <ul className="space-y-2">
           {contacts.map((contact) => (

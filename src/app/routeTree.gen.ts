@@ -15,8 +15,10 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthedOfficeRouteImport } from './routes/_authed/_office'
 import { Route as AuthedFieldRouteImport } from './routes/_authed/field'
 import { Route as AuthedOfficeIndexRouteImport } from './routes/_authed/_office/index'
-import { Route as AuthedOfficeClientsRouteImport } from './routes/_authed/_office/clients'
 import { Route as AuthedFieldIndexRouteImport } from './routes/_authed/field/index'
+import { Route as AuthedOfficeClientsIndexRouteImport } from './routes/_authed/_office/clients/index'
+import { Route as AuthedOfficeClientsClientIdRouteImport } from './routes/_authed/_office/clients/$clientId'
+import { Route as AuthedOfficeClientsNewRouteImport } from './routes/_authed/_office/clients/new'
 import { Route as AuthedOfficeJobsIndexRouteImport } from './routes/_authed/_office/jobs/index'
 import { Route as AuthedOfficeJobsJobIdRouteImport } from './routes/_authed/_office/jobs/$jobId'
 import { Route as AuthedOfficeJobsNewRouteImport } from './routes/_authed/_office/jobs/new'
@@ -49,15 +51,27 @@ const AuthedOfficeIndexRoute = AuthedOfficeIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AuthedOfficeRoute,
 } as any)
-const AuthedOfficeClientsRoute = AuthedOfficeClientsRouteImport.update({
-  id: '/clients',
-  path: '/clients',
-  getParentRoute: () => AuthedOfficeRoute,
-} as any)
 const AuthedFieldIndexRoute = AuthedFieldIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AuthedFieldRoute,
+} as any)
+const AuthedOfficeClientsIndexRoute =
+  AuthedOfficeClientsIndexRouteImport.update({
+    id: '/clients/',
+    path: '/clients/',
+    getParentRoute: () => AuthedOfficeRoute,
+  } as any)
+const AuthedOfficeClientsClientIdRoute =
+  AuthedOfficeClientsClientIdRouteImport.update({
+    id: '/clients/$clientId',
+    path: '/clients/$clientId',
+    getParentRoute: () => AuthedOfficeRoute,
+  } as any)
+const AuthedOfficeClientsNewRoute = AuthedOfficeClientsNewRouteImport.update({
+  id: '/clients/new',
+  path: '/clients/new',
+  getParentRoute: () => AuthedOfficeRoute,
 } as any)
 const AuthedOfficeJobsIndexRoute = AuthedOfficeJobsIndexRouteImport.update({
   id: '/jobs/',
@@ -80,20 +94,24 @@ export interface FileRoutesByFullPath {
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/field': typeof AuthedFieldRouteWithChildren
-  '/clients': typeof AuthedOfficeClientsRoute
   '/field/': typeof AuthedFieldIndexRoute
+  '/clients/$clientId': typeof AuthedOfficeClientsClientIdRoute
+  '/clients/new': typeof AuthedOfficeClientsNewRoute
   '/jobs/$jobId': typeof AuthedOfficeJobsJobIdRoute
   '/jobs/new': typeof AuthedOfficeJobsNewRoute
+  '/clients/': typeof AuthedOfficeClientsIndexRoute
   '/jobs/': typeof AuthedOfficeJobsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof AuthedOfficeIndexRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
-  '/clients': typeof AuthedOfficeClientsRoute
   '/field': typeof AuthedFieldIndexRoute
+  '/clients/$clientId': typeof AuthedOfficeClientsClientIdRoute
+  '/clients/new': typeof AuthedOfficeClientsNewRoute
   '/jobs/$jobId': typeof AuthedOfficeJobsJobIdRoute
   '/jobs/new': typeof AuthedOfficeJobsNewRoute
+  '/clients': typeof AuthedOfficeClientsIndexRoute
   '/jobs': typeof AuthedOfficeJobsIndexRoute
 }
 export interface FileRoutesById {
@@ -103,11 +121,13 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_authed/_office': typeof AuthedOfficeRouteWithChildren
   '/_authed/field': typeof AuthedFieldRouteWithChildren
-  '/_authed/_office/clients': typeof AuthedOfficeClientsRoute
   '/_authed/_office/': typeof AuthedOfficeIndexRoute
   '/_authed/field/': typeof AuthedFieldIndexRoute
+  '/_authed/_office/clients/$clientId': typeof AuthedOfficeClientsClientIdRoute
+  '/_authed/_office/clients/new': typeof AuthedOfficeClientsNewRoute
   '/_authed/_office/jobs/$jobId': typeof AuthedOfficeJobsJobIdRoute
   '/_authed/_office/jobs/new': typeof AuthedOfficeJobsNewRoute
+  '/_authed/_office/clients/': typeof AuthedOfficeClientsIndexRoute
   '/_authed/_office/jobs/': typeof AuthedOfficeJobsIndexRoute
 }
 export interface FileRouteTypes {
@@ -117,20 +137,24 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/login'
     | '/field'
-    | '/clients'
     | '/field/'
+    | '/clients/$clientId'
+    | '/clients/new'
     | '/jobs/$jobId'
     | '/jobs/new'
+    | '/clients/'
     | '/jobs/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/forgot-password'
     | '/login'
-    | '/clients'
     | '/field'
+    | '/clients/$clientId'
+    | '/clients/new'
     | '/jobs/$jobId'
     | '/jobs/new'
+    | '/clients'
     | '/jobs'
   id:
     | '__root__'
@@ -139,11 +163,13 @@ export interface FileRouteTypes {
     | '/login'
     | '/_authed/_office'
     | '/_authed/field'
-    | '/_authed/_office/clients'
     | '/_authed/_office/'
     | '/_authed/field/'
+    | '/_authed/_office/clients/$clientId'
+    | '/_authed/_office/clients/new'
     | '/_authed/_office/jobs/$jobId'
     | '/_authed/_office/jobs/new'
+    | '/_authed/_office/clients/'
     | '/_authed/_office/jobs/'
   fileRoutesById: FileRoutesById
 }
@@ -197,19 +223,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedOfficeIndexRouteImport
       parentRoute: typeof AuthedOfficeRoute
     }
-    '/_authed/_office/clients': {
-      id: '/_authed/_office/clients'
-      path: '/clients'
-      fullPath: '/clients'
-      preLoaderRoute: typeof AuthedOfficeClientsRouteImport
-      parentRoute: typeof AuthedOfficeRoute
-    }
     '/_authed/field/': {
       id: '/_authed/field/'
       path: '/'
       fullPath: '/field/'
       preLoaderRoute: typeof AuthedFieldIndexRouteImport
       parentRoute: typeof AuthedFieldRoute
+    }
+    '/_authed/_office/clients/': {
+      id: '/_authed/_office/clients/'
+      path: '/clients'
+      fullPath: '/clients/'
+      preLoaderRoute: typeof AuthedOfficeClientsIndexRouteImport
+      parentRoute: typeof AuthedOfficeRoute
+    }
+    '/_authed/_office/clients/$clientId': {
+      id: '/_authed/_office/clients/$clientId'
+      path: '/clients/$clientId'
+      fullPath: '/clients/$clientId'
+      preLoaderRoute: typeof AuthedOfficeClientsClientIdRouteImport
+      parentRoute: typeof AuthedOfficeRoute
+    }
+    '/_authed/_office/clients/new': {
+      id: '/_authed/_office/clients/new'
+      path: '/clients/new'
+      fullPath: '/clients/new'
+      preLoaderRoute: typeof AuthedOfficeClientsNewRouteImport
+      parentRoute: typeof AuthedOfficeRoute
     }
     '/_authed/_office/jobs/': {
       id: '/_authed/_office/jobs/'
@@ -236,18 +276,22 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthedOfficeRouteChildren {
-  AuthedOfficeClientsRoute: typeof AuthedOfficeClientsRoute
   AuthedOfficeIndexRoute: typeof AuthedOfficeIndexRoute
+  AuthedOfficeClientsClientIdRoute: typeof AuthedOfficeClientsClientIdRoute
+  AuthedOfficeClientsNewRoute: typeof AuthedOfficeClientsNewRoute
   AuthedOfficeJobsJobIdRoute: typeof AuthedOfficeJobsJobIdRoute
   AuthedOfficeJobsNewRoute: typeof AuthedOfficeJobsNewRoute
+  AuthedOfficeClientsIndexRoute: typeof AuthedOfficeClientsIndexRoute
   AuthedOfficeJobsIndexRoute: typeof AuthedOfficeJobsIndexRoute
 }
 
 const AuthedOfficeRouteChildren: AuthedOfficeRouteChildren = {
-  AuthedOfficeClientsRoute: AuthedOfficeClientsRoute,
   AuthedOfficeIndexRoute: AuthedOfficeIndexRoute,
+  AuthedOfficeClientsClientIdRoute: AuthedOfficeClientsClientIdRoute,
+  AuthedOfficeClientsNewRoute: AuthedOfficeClientsNewRoute,
   AuthedOfficeJobsJobIdRoute: AuthedOfficeJobsJobIdRoute,
   AuthedOfficeJobsNewRoute: AuthedOfficeJobsNewRoute,
+  AuthedOfficeClientsIndexRoute: AuthedOfficeClientsIndexRoute,
   AuthedOfficeJobsIndexRoute: AuthedOfficeJobsIndexRoute,
 }
 
