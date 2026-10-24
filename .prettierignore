@@ -1,0 +1,13 @@
+dist
+coverage
+playwright-report
+test-results
+.tanstack
+.vitest
+package-lock.json
+public/mockServiceWorker.js
+src/app/routeTree.gen.ts
+src/shared/api/generated
+# Contract and DB docs are owned by the backend
+openapi
+schemas

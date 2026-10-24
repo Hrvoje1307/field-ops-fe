@@ -1,0 +1,39 @@
+# Dependencies
+node_modules
+
+# Build output
+dist
+dist-ssr
+*.local
+
+# Env (only .env.example and .env.development are committed)
+.env.local
+.env.*.local
+
+# Tool caches
+.tanstack
+.vitest
+*.tsbuildinfo
+
+# Test output
+coverage
+playwright-report
+test-results
+blob-report
+playwright/.cache
+
+# Logs
+logs
+*.log
+npm-debug.log*
+
+# Editor / OS
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
