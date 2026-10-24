@@ -2,7 +2,7 @@
 
 Places where `openapi/openapi.json` is ambiguous, incomplete or contradicts `schemas/schema.md`, found while building the mock API (`src/shared/api/mocks`). Each item lists what the spec says, what the mock does today, and what we propose. The mock's behaviour is a placeholder until the backend answers; the frontend is built against the proposal.
 
-**Status, spec 0.2.0 (2026-10-23):** 0.2.0 doesn't resolve any of items 1–18 yet. Its changes are the print endpoint, `Location.address`, `Invitation.inviteUrl`, the `accessCodes` semantics and description fixes. Items 19–21 are new; items 22–26 came up while building the custom-field renderer (step 5), item 27 with the office job screens (step 6).
+**Status, spec 0.2.0 (2026-10-23):** 0.2.0 doesn't resolve any of items 1–18 yet. Its changes are the print endpoint, `Location.address`, `Invitation.inviteUrl`, the `accessCodes` semantics and description fixes. Items 19–21 are new; items 22–26 came up while building the custom-field renderer (step 5), item 27 with the office job screens (step 6), item 28 with the client screens (step 8).
 
 ## 1. Two different job status machines
 
@@ -294,3 +294,13 @@ Note the asymmetry with `LocationInput.accessCodes` (0.2.0), where `null` means 
 **Frontend does:** asks for confirmation ("Nalog … vraća se među nove naloge.") without saying what is cleared, and shows the job as the server returns it.
 
 **We propose:** document it on `/transition`. Either `→ new` clears date and technicians (then we'll say so in the confirmation), or it keeps them and only the status changes.
+
+## 28. Deleting equipment that open jobs refer to
+
+**Spec says:** `DELETE /assets/{id}` answers only `204`. `DELETE /locations/{id}` and `DELETE /clients/{id}` answer `409` while there are open jobs. Nothing says what happens to jobs whose `assetId` points at deleted equipment.
+
+**Mock does:** soft-deletes the equipment; jobs keep their `assetId` and still show it.
+
+**Frontend does:** asks for confirmation, then deletes; job pages keep showing what the API returns.
+
+**We propose:** either `409` while open jobs refer to the equipment (like locations), or document that jobs keep the reference and keep returning the deleted equipment in `Job.asset`.

@@ -48,8 +48,8 @@ Rules:
 src/
   app/        providers, router setup, global styles, route files (src/app/routes)
   pages/      one slice per screen, a group of widgets: jobs-list, job-detail, clients-list, client-detail, day-overview, field-day, field-job, login
-  widgets/    groups of features: app-shell (office rail, field header), job-detail, technician-day-column, job-queue
-  features/   components that call the backend, grouped: auth/sign-in, auth/sign-out, job/list, job/details, job/history, job/change-status, job/quick-create, client/create
+  widgets/    groups of features: app-shell (office rail, field header), job-detail, client-detail, technician-day-column, job-queue
+  features/   components that call the backend, grouped: auth/sign-in, auth/sign-out, job/list, job/details, job/history, job/change-status, job/quick-create, job/client-jobs, client/list, client/details, client/create, client/edit, location/edit, asset/edit
   entities/   one folder per API area: auth, tenant, job, client, location, asset, technician, job-type, custom-field (query keys, request functions, cache times; presentational UI like StatusBadge; model helpers)
   shared/     UI and helpers that never call the backend: api (fetcher, apiFetch, generated types, mocks), ui (shadcn components), lib (datetime, phone, cn), i18n, config (env)
 ```

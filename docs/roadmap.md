@@ -67,11 +67,19 @@ Each step follows the workflow in `CLAUDE.md`: plan first, wait for OK, then bui
   - No new mock handlers were needed. Playwright for both tenants.
   - Branch `feat/quick-job-entry`.
 
+- [x] **Step 8: clients: list, detail, edit client/location/asset**
+  - `/clients`: search (name, phone, OIB, address), person/company filter and sort in the URL, open jobs per client, paging and states.
+  - `/clients/$clientId`: contacts, the client's fields, each location (maps, access notes, access codes masked until revealed, location fields) with its equipment and the equipment's type fields; the client's latest jobs and "Novi nalog" (`/jobs/new?clientId=`, client chosen). Job pages link to the client.
+  - Editing in side panels: the client (contacts added, removed, one primary; sent with `version`, a 409 keeps the panel and refetches), locations (access codes kept unless revealed: emptied removes, text replaces; the location keeps its own country), equipment (the chosen type's fields). Deleting asks first; open jobs block it with the API's 409.
+  - `/clients/new`: a client without a job, with an optional first location.
+  - Entities: client/location/asset update and delete requests and form models; `ClientProfileFields`, `ContactsFields`, `AccessCodesField`, `AssetFields`. Shared: `FormSheet`, `ConfirmDialog`, `reportSaveError`.
+  - No new mock handlers were needed. Backend question #28. Playwright for both tenants.
+  - Devtools are off in Playwright runs (`VITE_DEVTOOLS=false`), where they covered buttons.
+
 ## Next
 
 Each step adds the mock handlers its screens need, as `CLAUDE.md` requires.
 
-- [ ] **Step 8: clients: list, detail, edit client/location/asset**
 - [ ] **Step 9: day overview and manual scheduling**
 - [ ] **Step 10: field day and field job on the phone**
 - [ ] **Step 11: dispatch board (drag and drop, route plans)**
