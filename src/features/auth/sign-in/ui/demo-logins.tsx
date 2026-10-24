@@ -35,7 +35,7 @@ export function DemoLogins({ onSignedIn }: { onSignedIn: (tokens: TokenResponse)
                   disabled={signIn.isPending}
                   onClick={() => {
                     signIn.mutate(
-                      { data: { email: account.email, password: DEMO_PASSWORD } },
+                      { email: account.email, password: DEMO_PASSWORD },
                       { onSuccess: onSignedIn },
                     )
                   }}

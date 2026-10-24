@@ -55,7 +55,7 @@ function respondWith(handler: (call: RecordedCall) => Response | Promise<Respons
 const refreshCalls = () => calls.filter((c) => c.url === `${API}/auth/refresh`)
 const bearer = (call: RecordedCall | undefined) => call?.headers.get('Authorization') ?? null
 
-/** In-memory stand-in for entities/session (shared can't import it). */
+/** In-memory stand-in for entities/auth (shared can't import it). */
 function createFakeStore(initial: { accessToken?: string | null; refreshToken?: string | null }) {
   const state = {
     accessToken: initial.accessToken ?? null,

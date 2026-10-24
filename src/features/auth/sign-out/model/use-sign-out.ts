@@ -1,8 +1,7 @@
 import { useNavigate } from '@tanstack/react-router'
 import { useCallback } from 'react'
 
-import { sessionStore } from '@/entities/session'
-import { logout } from '@/shared/api/generated/auth/auth'
+import { logout, sessionStore } from '@/entities/auth'
 
 /**
  * Signs out here: revokes the refresh token family on the server (best effort,

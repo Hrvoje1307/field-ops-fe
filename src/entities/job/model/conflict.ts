@@ -3,7 +3,7 @@ import { toast } from 'sonner'
 
 import { i18n } from '@/shared/i18n'
 
-import { invalidateJobData } from './invalidate'
+import { invalidateJobData } from '../api'
 
 /**
  * Any 409 from a job write (stale `version`, status changed in the meantime…): tell the

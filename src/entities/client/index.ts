@@ -6,5 +6,6 @@ export type {
   Contact,
   ListClientsParams,
 } from '@/shared/api/generated/model'
-export { clientQueries } from './model/queries'
+export { clientKeys, getClient, listClients, lookupClientByPhone } from './api'
+export { CLIENT_STALE_TIME } from './const'
 export { ContactLine } from './ui/contact-line'

@@ -41,4 +41,4 @@ Developer previews (mock mode only, sign in first). They are registered in `src/
 | `npm run api:generate` | regenerate the client from `openapi/openapi.json` via Orval  |
 | `npm run api:check`    | fail if the committed client differs from a fresh generation |
 
-The generated client (`src/shared/api/generated`) is committed. After changing `openapi/openapi.json`, run `npm run api:generate` and commit the result; CI runs `npm run api:check` and fails on drift.
+The generated code (`src/shared/api/generated`; the app uses its types, requests are written in `entities/<area>/api.ts`) is committed. After changing `openapi/openapi.json`, run `npm run api:generate` and commit the result; CI runs `npm run api:check` and fails on drift.

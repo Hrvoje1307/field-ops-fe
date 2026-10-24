@@ -1,10 +1,15 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import type { TFunction } from 'i18next'
 
-import { invalidateJobData, type Job, type JobStatus, jobQueries } from '@/entities/job'
+import {
+  invalidateJobData,
+  type Job,
+  jobKeys,
+  type JobStatus,
+  transitionJob,
+  type TransitionRequest,
+} from '@/entities/job'
 import { ApiError } from '@/shared/api/api-error'
-import { transitionJob } from '@/shared/api/generated/jobs/jobs'
-import type { TransitionRequest } from '@/shared/api/generated/model'
 import { useIdempotencyKeys } from '@/shared/api/idempotency'
 
 export interface ChangeStatusVariables {
@@ -31,13 +36,11 @@ export function useChangeStatus() {
   return useMutation({
     mutationFn: (variables: ChangeStatusVariables) => {
       const request = requestOf(variables)
-      return transitionJob(request.id, request.body, {
-        'Idempotency-Key': idempotency.keyFor(request),
-      })
+      return transitionJob(request.id, request.body, idempotency.keyFor(request))
     },
     onSuccess: (updated, variables) => {
       idempotency.forget(requestOf(variables))
-      queryClient.setQueryData(jobQueries.detail(updated.id).queryKey, updated)
+      queryClient.setQueryData(jobKeys.detail(updated.id), updated)
       void invalidateJobData(queryClient)
     },
   })

@@ -3,7 +3,7 @@ import { MenuIcon } from 'lucide-react'
 import { type ReactNode, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { useMe } from '@/entities/session'
+import { useMe } from '@/entities/auth'
 import { Button } from '@/shared/ui/button'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/shared/ui/sheet'
 

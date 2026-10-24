@@ -14,7 +14,7 @@ Backend is a separate .NET API built by another developer. This repo only talks 
 
 ## Stack
 
-Vite + React + TypeScript (strict), Feature-Sliced Design (see Architecture), TanStack Router (file-based routes in `src/app/routes`), TanStack Query, Orval-generated client, Tailwind CSS, shadcn/ui-style components on Radix, react-hook-form + zod, react-i18next (Croatian first), MSW for a mock API, Vitest + Testing Library, Playwright.
+Vite + React + TypeScript (strict), Feature-Sliced Design (see Architecture), TanStack Router (file-based routes in `src/app/routes`), TanStack Query, Orval-generated types, Tailwind CSS, shadcn/ui-style components on Radix, react-hook-form + zod, react-i18next (Croatian first), MSW for a mock API, Vitest + Testing Library, Playwright.
 
 Hosting: Vercel (SPA rewrite to index.html). API on AWS, DB on Supabase; the frontend never talks to Supabase directly.
 
@@ -47,25 +47,35 @@ Rules:
 ```
 src/
   app/        providers, router setup, global styles, route files (src/app/routes)
-  pages/      one slice per screen: jobs-list, job-detail, clients-list, client-detail, day-overview, field-day, field-job, login
-  widgets/    composed blocks used by pages: app-shell (office rail, field header), technician-day-column, job-queue, job-history
-  features/   user actions: auth/sign-in, auth/sign-out, job/quick-create, job/assign, job/change-status, client/create
-  entities/   business objects: job, client, location, technician, job-type, session (UI bits like StatusBadge, model helpers, query option factories)
-  shared/     api (fetcher, generated client, mocks), ui (shadcn components), lib (datetime, phone, cn), i18n, config (env)
+  pages/      one slice per screen, a group of widgets: jobs-list, job-detail, clients-list, client-detail, day-overview, field-day, field-job, login
+  widgets/    groups of features: app-shell (office rail, field header), job-detail, technician-day-column, job-queue
+  features/   components that call the backend, grouped: auth/sign-in, auth/sign-out, job/list, job/details, job/history, job/change-status, job/quick-create, client/create
+  entities/   one folder per API area: auth, tenant, job, client, location, asset, technician, job-type, custom-field (query keys, request functions, cache times; presentational UI like StatusBadge; model helpers)
+  shared/     UI and helpers that never call the backend: api (fetcher, apiFetch, generated types, mocks), ui (shadcn components), lib (datetime, phone, cn), i18n, config (env)
 ```
+
+Where the backend is called (enforced by ESLint):
+
+- **entities/<area>/** (one folder per API area, e.g. `/auth/login` and `/auth/switch-tenant` both in `entities/auth`):
+  - `const.ts`: cache times (`JOB_DETAIL_STALE_TIME`…) and other constants.
+  - `api.ts`: query keys (`jobKeys.detail(id)` → `['jobs', 'detail', id]`; every key starts with the area's name), GET request functions used as `queryFn`, POST/PUT/DELETE request functions used as `mutationFn`, and cache helpers (`invalidateJobData`, `fetchMe(queryClient)` for route guards). Requests are written out with `apiFetch` and `path`: ``apiFetch<Job>(path`/jobs/${id}`, { signal })``.
+- **features**: call the backend. `useQuery({ queryKey, queryFn, staleTime })` and `useMutation({ mutationFn })` are written inline in the feature with the entity's keys, request functions and cache times. Two features reading the same data use the same key, so they share the cache.
+- **widgets** group features, **pages** group widgets (a page may use a single feature directly when there is nothing to compose); neither calls the backend. Data flows in by id (the feature reads it), not through props loaded above.
+- **shared** never calls the backend (`shared/api` provides the means).
+- Exception: session data (`useMe` in `entities/auth`, `useTenantSettings` in `entities/tenant`) is read anywhere in the signed-in area; the route guard loads it first.
 
 Rules:
 
 - Layers import only from layers below: app → pages → widgets → features → entities → shared. Never upward, never sideways between slices of the same layer (a feature must not import another feature; compose them in a widget or page).
 - Every slice exposes a public API through its `index.ts`. Import slices only via that index (`@/entities/job`), never deep paths (`@/entities/job/ui/status-badge`). `shared` segments may be imported directly (`@/shared/ui/button`).
-- Segments inside a slice: `ui/`, `model/` (hooks, state, query options, helpers), `api/` (thin wrappers around generated hooks if needed), `lib/`, `config/`. Only create the segments you need.
+- Inside an entity: `const.ts` and `api.ts` (see above), plus segments `ui/`, `model/` (state, helpers), `lib/`, `config/` as needed. Inside other slices: `ui/`, `model/`, `lib/`, `config/`. Only create the segments you need.
 - Route files in `src/app/routes` stay thin: search-param schema, guards (`beforeLoad`), loader, and render the page component from `@/pages/...`. No UI logic in route files.
-- Generated API types live in `shared/api/generated`; entities may re-export the types they own (e.g. `Job`, `JobStatus` from `@/entities/job`).
+- Generated API types live in `shared/api/generated/model`; entities re-export the types they own (e.g. `Job`, `JobStatus` from `@/entities/job`). Nothing imports the generated request functions.
 - Enforce boundaries with ESLint (`eslint-plugin-boundaries` or Steiger, the FSD linter); a boundary violation fails lint.
 
 ## Rules
 
-- API calls only through the generated client in `src/shared/api/generated` (never edit it; after changing the spec run `npm run api:generate` and commit the result, CI fails on drift via `npm run api:check`) and the single fetch mutator `src/shared/api/fetcher.ts`.
+- API calls only through the request functions in `entities/<area>/api.ts`, built on `apiFetch` (`src/shared/api/api-fetch.ts`) and the single fetcher `src/shared/api/fetcher.ts`. Paths and bodies follow `openapi/openapi.json`; types come from the generated model. Never edit the generated code; after changing the spec run `npm run api:generate` and commit the result (CI fails on drift via `npm run api:check`).
 - The fetcher handles: base URL from `VITE_API_URL`, bearer token, refresh on 401 (refresh tokens rotate), `Idempotency-Key` on every non-GET request except the internal `/auth/refresh` call, throwing `ApiError` with RFC 9457 ProblemDetails (`errors` = field path → messages).
 - Access token in memory only; refresh token in localStorage.
 - Tenant comes from the JWT. Never put tenantId in URLs or bodies.

@@ -13,7 +13,7 @@ export type SessionEndReason = 'signed_out' | 'other_tab' | 'expired' | 'revoked
 export const ACCESS_REVOKED_CODE = 'auth.access_revoked'
 
 /**
- * What the fetcher needs from the session. Implemented by `entities/session`
+ * What the fetcher needs from the session. Implemented by `entities/auth`
  * and wired in `app/providers/session.ts` (shared can't import entities).
  */
 export interface SessionTokenStore {

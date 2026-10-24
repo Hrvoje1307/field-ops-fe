@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { sessionStore } from '@/entities/session'
+import { sessionStore } from '@/entities/auth'
 import { resetMockDb } from '@/shared/api/mocks/db'
 import { server } from '@/shared/api/mocks/node'
 import type { TokenResponse } from '@/shared/api/generated/model'

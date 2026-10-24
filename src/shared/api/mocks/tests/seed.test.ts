@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import type { JobStatus } from '@/shared/api/generated/model'
-import { addDays, todayInTimeZone } from '@/shared/lib/datetime'
+import { addDays, todayInTimeZone, zonedDateTimeToInstant } from '@/shared/lib/datetime'
 
 import { getDb, resetMockDb } from '../db'
 import type { MockDb } from '../db/rows'
@@ -137,9 +137,11 @@ describe('persistence', () => {
   it('reseeds when the stored seed date is not today', () => {
     const db = getDb()
     db.loginThrottle.push({ email: 'x@test', failures: [], lockedUntil: '2999-01-01T00:00:00Z' })
-    // The next day arrives
+    // The next day arrives (noon in the seed's zone: "+24 h" is still today on a 25-hour day)
     vi.useFakeTimers({ toFake: ['Date'] })
-    vi.setSystemTime(new Date(Date.now() + 24 * 3_600_000))
+    vi.setSystemTime(
+      new Date(zonedDateTimeToInstant(addDays(db.seedDate, 1), '12:00', 'Europe/Zagreb')),
+    )
 
     const next = getDb()
     expect(next.seedDate).toBe(addDays(db.seedDate, 1))

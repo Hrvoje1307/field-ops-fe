@@ -47,7 +47,7 @@ export function SignInForm({ onSignedIn }: SignInFormProps) {
   const onSubmit = handleSubmit(async (values) => {
     setFormError(null)
     try {
-      onSignedIn(await signIn.mutateAsync({ data: values }))
+      onSignedIn(await signIn.mutateAsync(values))
     } catch (error) {
       // 400: messages go next to the fields they belong to
       const fieldErrors = error instanceof ApiError && error.status === 400 ? error.fieldErrors : {}

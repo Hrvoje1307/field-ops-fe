@@ -5,7 +5,7 @@ import { http, HttpResponse } from 'msw'
 import { toast } from 'sonner'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { type Job, jobQueries } from '@/entities/job'
+import { getJob, type Job, jobKeys } from '@/entities/job'
 import type { TransitionRequest } from '@/shared/api/generated/model'
 import { server } from '@/shared/api/mocks/node'
 import { Toaster } from '@/shared/ui/sonner'
@@ -55,13 +55,16 @@ afterEach(() => {
   toast.dismiss()
 })
 
-/** Like the job page: the menu gets the live job from the detail query. */
+/** Like the job page: other parts show the same cached job as the menu. */
 function Page() {
-  const job = useQuery(jobQueries.detail('job-1'))
+  const job = useQuery({
+    queryKey: jobKeys.detail('job-1'),
+    queryFn: ({ signal }) => getJob('job-1', signal),
+  })
   return job.data ? (
     <>
       <p data-testid="status">{job.data.status}</p>
-      <StatusMenu job={job.data} />
+      <StatusMenu jobId="job-1" />
     </>
   ) : null
 }
@@ -111,7 +114,7 @@ describe('StatusMenu', () => {
     expect(await screen.findByText('Status naloga: Potvrđen.')).toBeInTheDocument()
     expect(requests.map((request) => request.body)).toEqual([{ to: 'confirmed', version: 3 }])
     expect(requests[0]?.key).toMatch(/^[0-9a-f-]{36}$/)
-    expect(queryClient.getQueryData(jobQueries.detail('job-1').queryKey)).toMatchObject({
+    expect(queryClient.getQueryData(jobKeys.detail('job-1'))).toMatchObject({
       status: 'confirmed',
       version: 4,
     })

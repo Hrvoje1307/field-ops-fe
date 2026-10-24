@@ -52,6 +52,13 @@ Each step follows the workflow in `CLAUDE.md`: plan first, wait for OK, then bui
   - Backend question #27.
   - Branch `feat/office-jobs`.
 
+- [x] **Restructure: where the backend is called**
+  - `entities/<area>/` per API area (auth, tenant, job, client, location, asset, technician, job-type, custom-field) with `const.ts` (cache times) and `api.ts` (query keys, request functions written with `apiFetch` and `path`, cache helpers). `entities/session` became `entities/auth`; `/tenant` got its own entity.
+  - Features write `useQuery` / `useMutation` inline with those; widgets and pages only compose (`widgets/job-history` became `features/job/history`; the job list and detail moved into `features/job/list` and `features/job/details`, composed by `widgets/job-detail`).
+  - Orval generates plain functions (no hooks); the app imports only its types.
+  - ESLint enforces it: requests only in entities, queries and mutations not in pages, widgets or shared, no generated request functions.
+  - Branch `refactor/entity-api`.
+
 ## Next
 
 Each step adds the mock handlers its screens need, as `CLAUDE.md` requires.

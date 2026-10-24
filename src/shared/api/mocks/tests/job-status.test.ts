@@ -76,13 +76,15 @@ describe('POST /transition', () => {
 
     const history = (await petra.get<StatusHistoryEntry[]>(`/jobs/${EN_ROUTE_PETRA()}/history`))
       .body
-    expect(history.at(-1)).toMatchObject({
+    // Found by status, not position: seeded entries for today can lie after "now"
+    const entry = history.find((h) => h.toStatus === 'on_site')
+    expect(entry).toMatchObject({
       fromStatus: 'en_route',
       toStatus: 'on_site',
       lat: 45.78,
       lng: 15.92,
     })
-    expect(history.at(-1)?.changedBy?.fullName).toBe('Petra Jurić')
+    expect(entry?.changedBy?.fullName).toBe('Petra Jurić')
   })
 
   it('refuses completed (409): that goes through /complete', async () => {

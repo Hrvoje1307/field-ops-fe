@@ -1,13 +1,8 @@
 import type { QueryClient } from '@tanstack/react-query'
 import { redirect } from '@tanstack/react-router'
 
-import {
-  loginSearchFor,
-  meQueryOptions,
-  sessionEndReasonOf,
-  sessionStore,
-  tenantQueryOptions,
-} from '@/entities/session'
+import { fetchMe, loginSearchFor, sessionEndReasonOf, sessionStore } from '@/entities/auth'
+import { fetchTenant } from '@/entities/tenant'
 import type { Me } from '@/shared/api/generated/model'
 
 /**
@@ -26,7 +21,7 @@ export async function loadSignedInSession(
   let me: Me
   try {
     // Cached data is reused while fresh (5 min), refetched when stale
-    me = await queryClient.query(meQueryOptions())
+    me = await fetchMe(queryClient)
   } catch (error) {
     const reason = sessionEndReasonOf(error)
     if (!reason) throw error
@@ -35,6 +30,6 @@ export async function loadSignedInSession(
   }
 
   // E.g. a role that may not read /tenant must not lose its session over it
-  await queryClient.query(tenantQueryOptions()).catch(() => undefined)
+  await fetchTenant(queryClient).catch(() => undefined)
   return { me }
 }

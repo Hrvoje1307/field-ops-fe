@@ -29,7 +29,7 @@ export function TenantSwitcher({ memberships, currentTenantId }: TenantSwitcherP
         <DropdownMenuRadioGroup
           value={currentTenantId}
           onValueChange={(tenantId) => {
-            if (tenantId !== currentTenantId) switchTenant.mutate({ data: { tenantId } })
+            if (tenantId !== currentTenantId) switchTenant.mutate({ tenantId })
           }}
         >
           {memberships.map((membership) => (

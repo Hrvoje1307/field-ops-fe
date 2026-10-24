@@ -43,22 +43,6 @@
  *
  * OpenAPI spec version: 0.2.0
  */
-import { useMutation, useQuery } from '@tanstack/react-query'
-import type {
-  DataTag,
-  DefinedInitialDataOptions,
-  DefinedUseQueryResult,
-  MutationFunction,
-  QueryClient,
-  QueryFunction,
-  QueryKey,
-  UndefinedInitialDataOptions,
-  UseMutationOptions,
-  UseMutationResult,
-  UseQueryOptions,
-  UseQueryResult,
-} from '@tanstack/react-query'
-
 import type {
   InfobipDeliveryReportBody,
   ListMessagesParams,
@@ -66,29 +50,9 @@ import type {
   MessagePage,
   NotifyClientBody,
   NotifyClientHeaders,
-  ProblemDetails,
-  UnauthorizedResponse,
 } from '../model'
 
 import { customFetch } from '../../fetcher.ts'
-import type { ErrorType, BodyType } from '../../fetcher.ts'
-
-type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1]
-
-const withQueryKey = <T extends object, K>(query: T, queryKey: K): T & { queryKey: K } => {
-  const result = { queryKey } as T & { queryKey: K }
-  for (const key of Object.keys(query)) {
-    // The explicit queryKey always wins, matching the previous
-    // `{ ...query, queryKey }` spread where it was set last.
-    if (key === 'queryKey') continue
-    Object.defineProperty(result, key, {
-      enumerable: true,
-      configurable: true,
-      get: () => (query as Record<string, unknown>)[key],
-    })
-  }
-  return result
-}
 
 export const getListMessagesUrl = (params?: ListMessagesParams) => {
   const normalizedParams = new URLSearchParams()
@@ -112,107 +76,6 @@ export const listMessages = async (
     ...options,
     method: 'GET',
   })
-}
-
-export const getListMessagesQueryKey = (params?: ListMessagesParams) => {
-  return [`/messages`, ...(params ? [params] : [])] as const
-}
-
-export const getListMessagesQueryOptions = <
-  TData = Awaited<ReturnType<typeof listMessages>>,
-  TError = ErrorType<unknown>,
->(
-  params?: ListMessagesParams,
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listMessages>>, TError, TData>>
-    request?: SecondParameter<typeof customFetch>
-  },
-) => {
-  const { query: queryOptions, request: requestOptions } = options ?? {}
-
-  const queryKey = queryOptions?.queryKey ?? getListMessagesQueryKey(params)
-
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof listMessages>>> = ({ signal }) =>
-    listMessages(params, { signal, ...requestOptions })
-
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof listMessages>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> }
-}
-
-export type ListMessagesQueryResult = NonNullable<Awaited<ReturnType<typeof listMessages>>>
-export type ListMessagesQueryError = ErrorType<unknown>
-
-export function useListMessages<
-  TData = Awaited<ReturnType<typeof listMessages>>,
-  TError = ErrorType<unknown>,
->(
-  params: undefined | ListMessagesParams,
-  options: {
-    query: Partial<UseQueryOptions<Awaited<ReturnType<typeof listMessages>>, TError, TData>> &
-      Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listMessages>>,
-          TError,
-          Awaited<ReturnType<typeof listMessages>>
-        >,
-        'initialData'
-      >
-    request?: SecondParameter<typeof customFetch>
-  },
-  queryClient?: QueryClient,
-): DefinedUseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListMessages<
-  TData = Awaited<ReturnType<typeof listMessages>>,
-  TError = ErrorType<unknown>,
->(
-  params?: ListMessagesParams,
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listMessages>>, TError, TData>> &
-      Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof listMessages>>,
-          TError,
-          Awaited<ReturnType<typeof listMessages>>
-        >,
-        'initialData'
-      >
-    request?: SecondParameter<typeof customFetch>
-  },
-  queryClient?: QueryClient,
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-export function useListMessages<
-  TData = Awaited<ReturnType<typeof listMessages>>,
-  TError = ErrorType<unknown>,
->(
-  params?: ListMessagesParams,
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listMessages>>, TError, TData>>
-    request?: SecondParameter<typeof customFetch>
-  },
-  queryClient?: QueryClient,
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> }
-
-export function useListMessages<
-  TData = Awaited<ReturnType<typeof listMessages>>,
-  TError = ErrorType<unknown>,
->(
-  params?: ListMessagesParams,
-  options?: {
-    query?: Partial<UseQueryOptions<Awaited<ReturnType<typeof listMessages>>, TError, TData>>
-    request?: SecondParameter<typeof customFetch>
-  },
-  queryClient?: QueryClient,
-): UseQueryResult<TData, TError> & { queryKey: DataTag<QueryKey, TData, TError> } {
-  const queryOptions = getListMessagesQueryOptions(params, options)
-
-  const query = useQuery(queryOptions, queryClient) as UseQueryResult<TData, TError> & {
-    queryKey: DataTag<QueryKey, TData, TError>
-  }
-
-  return withQueryKey(query, queryOptions.queryKey)
 }
 
 export const getNotifyClientUrl = (id: string) => {
@@ -255,75 +118,6 @@ export const notifyClient = async (
   })
 }
 
-export const getNotifyClientMutationKey = () => ['notifyClient'] as const
-
-export const getNotifyClientMutationOptions = <
-  TError = ErrorType<ProblemDetails>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof notifyClient>>,
-    TError,
-    NotifyClientMutationVariables,
-    TContext
-  >
-  request?: SecondParameter<typeof customFetch>
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof notifyClient>>,
-  TError,
-  NotifyClientMutationVariables,
-  TContext
-> => {
-  const mutationKey = getNotifyClientMutationKey()
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined }
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof notifyClient>>,
-    NotifyClientMutationVariables
-  > = (props) => {
-    const { id, data, headers } = props ?? {}
-
-    return notifyClient(id, data, headers, requestOptions)
-  }
-
-  return { mutationFn, ...mutationOptions }
-}
-
-export type NotifyClientMutationResult = NonNullable<Awaited<ReturnType<typeof notifyClient>>>
-export type NotifyClientMutationBody = BodyType<NotifyClientBody>
-export type NotifyClientMutationError = ErrorType<ProblemDetails>
-export type NotifyClientMutationVariables = {
-  id: string
-  data: BodyType<NotifyClientBody>
-  headers?: NotifyClientHeaders
-}
-
-/**
- * @summary Manually send a message to the job's client contact(s).
- */
-export const useNotifyClient = <TError = ErrorType<ProblemDetails>, TContext = unknown>(
-  options?: {
-    mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof notifyClient>>,
-      TError,
-      NotifyClientMutationVariables,
-      TContext
-    >
-    request?: SecondParameter<typeof customFetch>
-  },
-  queryClient?: QueryClient,
-): UseMutationResult<
-  Awaited<ReturnType<typeof notifyClient>>,
-  TError,
-  NotifyClientMutationVariables,
-  TContext
-> => {
-  return useMutation(getNotifyClientMutationOptions(options), queryClient)
-}
 export const getInfobipDeliveryReportUrl = () => {
   return `/webhooks/infobip`
 }
@@ -360,75 +154,4 @@ export const infobipDeliveryReport = async (
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
     body: JSON.stringify(infobipDeliveryReportBody),
   })
-}
-
-export const getInfobipDeliveryReportMutationKey = () => ['infobipDeliveryReport'] as const
-
-export const getInfobipDeliveryReportMutationOptions = <
-  TError = ErrorType<UnauthorizedResponse>,
-  TContext = unknown,
->(options?: {
-  mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof infobipDeliveryReport>>,
-    TError,
-    InfobipDeliveryReportMutationVariables,
-    TContext
-  >
-  request?: SecondParameter<typeof customFetch>
-}): UseMutationOptions<
-  Awaited<ReturnType<typeof infobipDeliveryReport>>,
-  TError,
-  InfobipDeliveryReportMutationVariables,
-  TContext
-> => {
-  const mutationKey = getInfobipDeliveryReportMutationKey()
-  const { mutation: mutationOptions, request: requestOptions } = options
-    ? options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey
-      ? options
-      : { ...options, mutation: { ...options.mutation, mutationKey } }
-    : { mutation: { mutationKey }, request: undefined }
-
-  const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof infobipDeliveryReport>>,
-    InfobipDeliveryReportMutationVariables
-  > = (props) => {
-    const { data } = props ?? {}
-
-    return infobipDeliveryReport(data, requestOptions)
-  }
-
-  return { mutationFn, ...mutationOptions }
-}
-
-export type InfobipDeliveryReportMutationResult = NonNullable<
-  Awaited<ReturnType<typeof infobipDeliveryReport>>
->
-export type InfobipDeliveryReportMutationBody = BodyType<InfobipDeliveryReportBody>
-export type InfobipDeliveryReportMutationError = ErrorType<UnauthorizedResponse>
-export type InfobipDeliveryReportMutationVariables = { data: BodyType<InfobipDeliveryReportBody> }
-
-/**
- * @summary Infobip delivery reports. Updates message status/cost and usage counters.
- */
-export const useInfobipDeliveryReport = <
-  TError = ErrorType<UnauthorizedResponse>,
-  TContext = unknown,
->(
-  options?: {
-    mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof infobipDeliveryReport>>,
-      TError,
-      InfobipDeliveryReportMutationVariables,
-      TContext
-    >
-    request?: SecondParameter<typeof customFetch>
-  },
-  queryClient?: QueryClient,
-): UseMutationResult<
-  Awaited<ReturnType<typeof infobipDeliveryReport>>,
-  TError,
-  InfobipDeliveryReportMutationVariables,
-  TContext
-> => {
-  return useMutation(getInfobipDeliveryReportMutationOptions(options), queryClient)
 }

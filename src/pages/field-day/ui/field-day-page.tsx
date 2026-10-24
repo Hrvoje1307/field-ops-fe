@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next'
 
-import { useMe } from '@/entities/session'
+import { useMe } from '@/entities/auth'
 import { useTenantFormat } from '@/shared/lib/tenant-format'
 import { PagePlaceholder } from '@/shared/ui/page-placeholder'
 

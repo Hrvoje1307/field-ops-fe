@@ -83,6 +83,71 @@ const fsdBoundaries = {
   },
 }
 
+// ---------------------------------------------------------------------------
+// Where the backend is called
+//   entities/<area>/api.ts   query keys and request functions (apiFetch + path)
+//   features                 useQuery / useMutation with those functions, inline
+//   app                      route guards (fetchMe, fetchTenant) and the QueryClient
+//   pages, widgets, shared   never: they compose and render
+// Generated code is used for its types only (@/shared/api/generated/model).
+// ---------------------------------------------------------------------------
+const generatedRequests = {
+  group: ['@/shared/api/generated/*', '!@/shared/api/generated/model'],
+  message:
+    'Requests are written in entities/<area>/api.ts with apiFetch; import only types from @/shared/api/generated/model.',
+}
+const apiFetchOutsideEntities = {
+  name: '@/shared/api/api-fetch',
+  message: 'Requests are written in entities/<area>/api.ts; use those functions.',
+}
+const queryHooks = {
+  name: '@tanstack/react-query',
+  importNames: [
+    'useQuery',
+    'useSuspenseQuery',
+    'useQueries',
+    'useSuspenseQueries',
+    'useInfiniteQuery',
+    'useSuspenseInfiniteQuery',
+    'usePrefetchQuery',
+    'useMutation',
+    'useQueryClient',
+    'queryOptions',
+    'mutationOptions',
+  ],
+  message:
+    'Data is read and written in features (useQuery / useMutation with entity request functions). Pages, widgets and shared only compose and render.',
+}
+
+const backendCalls = [
+  {
+    name: 'backend/entities',
+    files: ['src/entities/**/*.{ts,tsx}'],
+    rules: { 'no-restricted-imports': ['error', { patterns: [generatedRequests] }] },
+  },
+  {
+    name: 'backend/features-and-app',
+    files: ['src/features/**/*.{ts,tsx}', 'src/app/**/*.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        { paths: [apiFetchOutsideEntities], patterns: [generatedRequests] },
+      ],
+    },
+  },
+  {
+    name: 'backend/compose-only',
+    files: ['src/pages/**/*.{ts,tsx}', 'src/widgets/**/*.{ts,tsx}', 'src/shared/**/*.{ts,tsx}'],
+    ignores: ['src/shared/api/**'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        { paths: [apiFetchOutsideEntities, queryHooks], patterns: [generatedRequests] },
+      ],
+    },
+  },
+]
+
 export default defineConfig([
   globalIgnores([
     'dist',
@@ -153,6 +218,7 @@ export default defineConfig([
     },
   },
   fsdBoundaries,
+  ...backendCalls,
   {
     name: 'config/javascript',
     files: ['**/*.js'],

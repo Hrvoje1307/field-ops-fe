@@ -1,10 +1,11 @@
 import { zodResolver } from '@hookform/resolvers/zod'
+import { useMutation } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
 
-import { useForgotPassword } from '@/shared/api/generated/auth/auth'
+import { forgotPassword as requestPasswordReset } from '@/entities/auth'
 import { Alert, AlertDescription } from '@/shared/ui/alert'
 import { Button } from '@/shared/ui/button'
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/shared/ui/field'
@@ -13,7 +14,7 @@ import { Input } from '@/shared/ui/input'
 /** Always shows the same confirmation: the API never tells whether the account exists. */
 export function ForgotPasswordForm() {
   const { t } = useTranslation()
-  const forgotPassword = useForgotPassword()
+  const forgotPassword = useMutation({ mutationFn: requestPasswordReset })
   const [sentTo, setSentTo] = useState<string | null>(null)
 
   const schema = useMemo(
@@ -37,7 +38,7 @@ export function ForgotPasswordForm() {
   })
 
   const onSubmit = handleSubmit(async ({ email }) => {
-    await forgotPassword.mutateAsync({ data: { email } }).then(
+    await forgotPassword.mutateAsync({ email }).then(
       () => {
         setSentTo(email)
       },

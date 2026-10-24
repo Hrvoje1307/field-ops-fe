@@ -4,5 +4,6 @@ export type {
   TechnicianBrief,
   TechnicianDay,
 } from '@/shared/api/generated/model'
-export { technicianQueries } from './model/queries'
+export { getTechnician, getTechnicianSchedule, listTechnicians, technicianKeys } from './api'
+export { TECHNICIAN_STALE_TIME } from './const'
 export { TechnicianChip, TechnicianChips } from './ui/technician-chip'

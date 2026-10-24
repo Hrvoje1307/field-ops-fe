@@ -1,6 +1,6 @@
 import { createFileRoute, Outlet } from '@tanstack/react-router'
 
-import { useTenantSettings } from '@/entities/session'
+import { useTenantSettings } from '@/entities/tenant'
 import { TenantFormatProvider } from '@/shared/lib/tenant-format-provider'
 import { Spinner } from '@/shared/ui/spinner'
 

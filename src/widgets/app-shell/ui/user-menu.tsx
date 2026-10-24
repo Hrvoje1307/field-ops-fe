@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next'
 
-import { useMe } from '@/entities/session'
+import { useMe } from '@/entities/auth'
 import { SignOutMenuItem } from '@/features/auth/sign-out'
 import { TenantSwitcher } from '@/features/auth/switch-tenant'
 import { initials } from '@/shared/lib/initials'
