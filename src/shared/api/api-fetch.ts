@@ -36,20 +36,32 @@ export function toQueryString(query: object | undefined): string {
 }
 
 /**
- * A request to the API by path, e.g. `apiFetch<Job>(`/jobs/${id}`, { signal })`.
+ * A request to the API by path, e.g. apiFetch<Job>(path`/jobs/${id}`, { signal }).
  * Goes through the fetcher: base URL, bearer token, refresh on 401, Idempotency-Key
  * on writes, and `ApiError` with the ProblemDetails body for every non-2xx response.
  */
 export function apiFetch<T>(
-  path: string,
+  requestPath: string,
   { query, json, headers, idempotencyKey, ...init }: ApiFetchOptions = {},
 ): Promise<T> {
   const requestHeaders: Record<string, string> = { ...headers }
   if (json !== undefined) requestHeaders['Content-Type'] = 'application/json'
   if (idempotencyKey) requestHeaders['Idempotency-Key'] = idempotencyKey
-  return customFetch<T>(`${path}${toQueryString(query)}`, {
+  return customFetch<T>(`${requestPath}${toQueryString(query)}`, {
     ...init,
     headers: requestHeaders,
     ...(json === undefined ? {} : { body: JSON.stringify(json) }),
   })
+}
+
+/**
+ * A request path with its parameters encoded: path`/jobs/${id}/history`. An id from
+ * the URL (`/jobs/$jobId`) can't turn into another endpoint (`../tenant`).
+ */
+export function path(strings: TemplateStringsArray, ...params: (string | number)[]): string {
+  return strings.reduce(
+    (result, part, index) =>
+      result + part + (index < params.length ? encodeURIComponent(String(params[index])) : ''),
+    '',
+  )
 }

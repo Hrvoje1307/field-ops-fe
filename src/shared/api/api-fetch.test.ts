@@ -2,7 +2,7 @@ import { http, HttpResponse } from 'msw'
 import { describe, expect, it } from 'vitest'
 
 import { ApiError } from './api-error'
-import { apiFetch, toQueryString } from './api-fetch'
+import { apiFetch, path, toQueryString } from './api-fetch'
 import { server } from './mocks/node'
 
 const API = 'http://localhost/api/v1'
@@ -73,5 +73,13 @@ describe('apiFetch', () => {
     const error = await apiFetch('/jobs/missing').catch((caught: unknown) => caught)
     expect(error).toBeInstanceOf(ApiError)
     expect(error).toMatchObject({ status: 404, problem: { title: 'Not found' } })
+  })
+})
+
+describe('path', () => {
+  it('encodes each parameter, not the template', () => {
+    expect(path`/jobs/${'a1'}/history`).toBe('/jobs/a1/history')
+    expect(path`/jobs/${'../tenant'}`).toBe('/jobs/..%2Ftenant')
+    expect(path`/technicians/${'t 1'}/schedule`).toBe('/technicians/t%201/schedule')
   })
 })
