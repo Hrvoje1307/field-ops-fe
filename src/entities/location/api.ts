@@ -1,5 +1,5 @@
 import { apiFetch, path } from '@/shared/api/api-fetch'
-import type { Location } from '@/shared/api/generated/model'
+import type { Location, LocationInput } from '@/shared/api/generated/model'
 
 export const locationKeys = {
   all: ['locations'] as const,
@@ -15,4 +15,18 @@ export async function getLocation(id: string, signal?: AbortSignal) {
 
 export async function listClientLocations(clientId: string, signal?: AbortSignal) {
   return apiFetch<Location[]>(path`/clients/${clientId}/locations`, { signal })
+}
+
+// --- POST / PUT / DELETE (used as mutationFn) --------------------------------
+
+export async function createLocation(
+  clientId: string,
+  body: LocationInput,
+  idempotencyKey?: string,
+) {
+  return apiFetch<Location>(path`/clients/${clientId}/locations`, {
+    method: 'POST',
+    json: body,
+    idempotencyKey,
+  })
 }

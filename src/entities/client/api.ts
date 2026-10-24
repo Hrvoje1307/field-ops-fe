@@ -1,6 +1,7 @@
 import { apiFetch, path } from '@/shared/api/api-fetch'
 import type {
   Client,
+  ClientCreate,
   ClientSummaryPage,
   ListClientsParams,
   LookupClientByPhone200,
@@ -27,4 +28,11 @@ export async function getClient(id: string, signal?: AbortSignal) {
 /** Clients with a contact on this phone number (quick job entry). */
 export async function lookupClientByPhone(params: LookupClientByPhoneParams, signal?: AbortSignal) {
   return apiFetch<LookupClientByPhone200>('/clients/lookup', { query: params, signal })
+}
+
+// --- POST / PUT / DELETE (used as mutationFn) --------------------------------
+
+/** Optionally with its first location, in one transaction (quick job entry). */
+export async function createClient(body: ClientCreate, idempotencyKey?: string) {
+  return apiFetch<Client>('/clients', { method: 'POST', json: body, idempotencyKey })
 }
