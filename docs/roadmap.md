@@ -59,11 +59,18 @@ Each step follows the workflow in `CLAUDE.md`: plan first, wait for OK, then bui
   - ESLint enforces it: requests only in entities, queries and mutations not in pages, widgets or shared, no generated request functions.
   - Branch `refactor/entity-api`.
 
+- [x] **Step 7: quick job entry**
+  - `/jobs/new` ("Novi nalog" in the office menu and on the job list): find the caller by phone (`/clients/lookup`) or by name, or enter a new client; pick one of their locations (the only one is picked by itself) or add one, optionally the equipment; then the job.
+  - Job types are the tenant's active ones, with their default duration and crew size as hints; client, location and job custom fields come from `/custom-fields` (required ones shown, optional ones under "Dodatni podaci").
+  - Saving: a new client goes with its first location in one request, a new location for an existing client goes first, then the job. After a saved client or location the form switches to it, so a retry only sends what is left; each request keeps its idempotency key while retried unchanged. 400s land next to their inputs (`contacts[0].phone`, `firstLocation.street`, `customFields.x` mapped onto the form).
+  - Entities: `createJob`, `createClient`, `createLocation`; `ClientFields`, `ClientMatch`, `LocationFields`. Shared: `TextField`, `SelectField`, `ChoiceGroup`.
+  - No new mock handlers were needed. Playwright for both tenants.
+  - Branch `feat/quick-job-entry`.
+
 ## Next
 
 Each step adds the mock handlers its screens need, as `CLAUDE.md` requires.
 
-- [ ] **Step 7: quick job entry**
 - [ ] **Step 8: clients: list, detail, edit client/location/asset**
 - [ ] **Step 9: day overview and manual scheduling**
 - [ ] **Step 10: field day and field job on the phone**
