@@ -1,5 +1,5 @@
 # widgets
 
-Large, self-contained UI blocks reused across pages (e.g. a dispatch board, a job list with filters, the app shell header).
+Groups of features that make a block of a screen (e.g. `job-detail`: details, status menu and history; the app shell). Widgets don't call the backend; they pass ids and compose features, e.g. through slots.
 
 Imports: features, entities, shared, through their public API. Never another widget.
