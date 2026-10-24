@@ -25,13 +25,12 @@ export default defineConfig({
   build: {
     rolldownOptions: {
       output: {
-        // Vendor libraries in their own chunks: they change less often than app code, so
+        // React and TanStack in their own chunks: they change less often than app code, so
         // browsers keep them cached across deploys. (Rolldown's form of Rollup's manualChunks.)
         codeSplitting: {
           groups: [
             { name: 'react', test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/ },
             { name: 'tanstack', test: /node_modules[\\/]@tanstack[\\/]/ },
-            { name: 'radix', test: /node_modules[\\/](radix-ui|@radix-ui)[\\/]/ },
           ],
         },
       },
