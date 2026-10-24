@@ -139,24 +139,6 @@ export const hr = {
     clientsList: { title: 'Klijenti' },
     fieldDay: { title: 'Moj dan' },
   },
-  /** Developer previews (mock mode only). */
-  dev: {
-    customFields: {
-      title: 'Prilagođena polja',
-      description:
-        'Polja aktivne tvrtke iz /custom-fields, za uređivanje i prikaz. Ništa se ne šalje poslužitelju.',
-      entity: 'Entitet',
-      sample: 'Vrijednosti: {{name}}',
-      noSample: 'Nema zapisa s vrijednostima, polja su prazna.',
-      noFields: 'Za ovaj entitet nema prilagođenih polja.',
-      loadFailed: 'Polja nije moguće učitati.',
-      edit: 'Uređivanje',
-      read: 'Prikaz',
-      check: 'Provjeri',
-      valid: 'Podaci su ispravni.',
-      payload: 'Podaci za slanje',
-    },
-  },
   notFound: {
     title: 'Stranica nije pronađena',
     description: 'Adresa ne postoji ili je premještena.',

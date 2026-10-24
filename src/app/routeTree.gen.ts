@@ -17,7 +17,6 @@ import { Route as AuthedFieldRouteImport } from './routes/_authed/field'
 import { Route as AuthedOfficeIndexRouteImport } from './routes/_authed/_office/index'
 import { Route as AuthedOfficeClientsRouteImport } from './routes/_authed/_office/clients'
 import { Route as AuthedOfficeJobsRouteImport } from './routes/_authed/_office/jobs'
-import { Route as AuthedDevCustomFieldsRouteImport } from './routes/_authed/dev.custom-fields'
 import { Route as AuthedFieldIndexRouteImport } from './routes/_authed/field/index'
 
 const AuthedRoute = AuthedRouteImport.update({
@@ -58,11 +57,6 @@ const AuthedOfficeJobsRoute = AuthedOfficeJobsRouteImport.update({
   path: '/jobs',
   getParentRoute: () => AuthedOfficeRoute,
 } as any)
-const AuthedDevCustomFieldsRoute = AuthedDevCustomFieldsRouteImport.update({
-  id: '/dev/custom-fields',
-  path: '/dev/custom-fields',
-  getParentRoute: () => AuthedRoute,
-} as any)
 const AuthedFieldIndexRoute = AuthedFieldIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -76,7 +70,6 @@ export interface FileRoutesByFullPath {
   '/field': typeof AuthedFieldRouteWithChildren
   '/clients': typeof AuthedOfficeClientsRoute
   '/jobs': typeof AuthedOfficeJobsRoute
-  '/dev/custom-fields': typeof AuthedDevCustomFieldsRoute
   '/field/': typeof AuthedFieldIndexRoute
 }
 export interface FileRoutesByTo {
@@ -85,7 +78,6 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/clients': typeof AuthedOfficeClientsRoute
   '/jobs': typeof AuthedOfficeJobsRoute
-  '/dev/custom-fields': typeof AuthedDevCustomFieldsRoute
   '/field': typeof AuthedFieldIndexRoute
 }
 export interface FileRoutesById {
@@ -97,7 +89,6 @@ export interface FileRoutesById {
   '/_authed/field': typeof AuthedFieldRouteWithChildren
   '/_authed/_office/clients': typeof AuthedOfficeClientsRoute
   '/_authed/_office/jobs': typeof AuthedOfficeJobsRoute
-  '/_authed/dev/custom-fields': typeof AuthedDevCustomFieldsRoute
   '/_authed/_office/': typeof AuthedOfficeIndexRoute
   '/_authed/field/': typeof AuthedFieldIndexRoute
 }
@@ -110,17 +101,9 @@ export interface FileRouteTypes {
     | '/field'
     | '/clients'
     | '/jobs'
-    | '/dev/custom-fields'
     | '/field/'
   fileRoutesByTo: FileRoutesByTo
-  to:
-    | '/'
-    | '/forgot-password'
-    | '/login'
-    | '/clients'
-    | '/jobs'
-    | '/dev/custom-fields'
-    | '/field'
+  to: '/' | '/forgot-password' | '/login' | '/clients' | '/jobs' | '/field'
   id:
     | '__root__'
     | '/_authed'
@@ -130,7 +113,6 @@ export interface FileRouteTypes {
     | '/_authed/field'
     | '/_authed/_office/clients'
     | '/_authed/_office/jobs'
-    | '/_authed/dev/custom-fields'
     | '/_authed/_office/'
     | '/_authed/field/'
   fileRoutesById: FileRoutesById
@@ -199,13 +181,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedOfficeJobsRouteImport
       parentRoute: typeof AuthedOfficeRoute
     }
-    '/_authed/dev/custom-fields': {
-      id: '/_authed/dev/custom-fields'
-      path: '/dev/custom-fields'
-      fullPath: '/dev/custom-fields'
-      preLoaderRoute: typeof AuthedDevCustomFieldsRouteImport
-      parentRoute: typeof AuthedRoute
-    }
     '/_authed/field/': {
       id: '/_authed/field/'
       path: '/'
@@ -247,13 +222,11 @@ const AuthedFieldRouteWithChildren = AuthedFieldRoute._addFileChildren(
 interface AuthedRouteChildren {
   AuthedOfficeRoute: typeof AuthedOfficeRouteWithChildren
   AuthedFieldRoute: typeof AuthedFieldRouteWithChildren
-  AuthedDevCustomFieldsRoute: typeof AuthedDevCustomFieldsRoute
 }
 
 const AuthedRouteChildren: AuthedRouteChildren = {
   AuthedOfficeRoute: AuthedOfficeRouteWithChildren,
   AuthedFieldRoute: AuthedFieldRouteWithChildren,
-  AuthedDevCustomFieldsRoute: AuthedDevCustomFieldsRoute,
 }
 
 const AuthedRouteWithChildren =
