@@ -51,3 +51,33 @@ export async function openUserMenu(page: Page): Promise<void> {
 export async function expectSignedInAs(page: Page, tenantName: string): Promise<void> {
   await expect(page.getByTestId('tenant-name')).toHaveText(tenantName)
 }
+
+/**
+ * GET requests to the mock API from the page (MSW runs there), signed in as `email`
+ * with a session of their own. Lets tests read what the app should show.
+ */
+export async function apiGet<T extends unknown[]>(
+  page: Page,
+  email: string,
+  paths: readonly string[],
+): Promise<T> {
+  return (await page.evaluate(
+    async ({ api, email, password, paths }) => {
+      const login = await fetch(`${api}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
+      const { accessToken } = (await login.json()) as { accessToken: string }
+      return Promise.all(
+        paths.map(async (path) => {
+          const response = await fetch(`${api}${path}`, {
+            headers: { Authorization: `Bearer ${accessToken}` },
+          })
+          return (await response.json()) as unknown
+        }),
+      )
+    },
+    { api: API_URL, email, password: PASSWORD, paths },
+  )) as T
+}
