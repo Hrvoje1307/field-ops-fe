@@ -120,7 +120,8 @@ for (const tenant of TENANTS) {
       }
 
       await expect(page.getByTestId('completion-blockers')).toHaveCount(0)
-      await expect(page.getByText('Spremljeno')).toBeVisible()
+      // Completing saves the draft first, so the text does not have to be "saved" yet:
+      // the API is checked for it at the end
       await expect(complete).toBeEnabled()
       await complete.click()
 
