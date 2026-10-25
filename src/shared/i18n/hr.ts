@@ -16,6 +16,14 @@ export const hr = {
     /** E.g. "Danas u 08:30". */
     dayAtTime: '{{day}} u {{time}}',
     moreFields: 'Dodatni podaci',
+    drag: {
+      instructions:
+        'Razmaknicom podignite stavku, strelicama je premjestite, razmaknicom je spustite, Escom odustanite.',
+      pickedUp: '{{item}} je podignut.',
+      movedOver: '{{item}} je iznad: {{target}}.',
+      dropped: '{{item}} je spušten: {{target}}.',
+      cancelled: 'Premještanje je otkazano.',
+    },
     errors: {
       emailInvalid: 'Upišite ispravan email.',
     },

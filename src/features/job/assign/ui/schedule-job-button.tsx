@@ -6,9 +6,16 @@ import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
 import { useGetDispatchBoard } from '@/entities/dispatch'
-import { type AssignRequest, type Job, useAssignJob, useGetJob } from '@/entities/job'
+import { type AssignRequest, canSchedule, type Job, useAssignJob, useGetJob } from '@/entities/job'
 import { useListJobTypes } from '@/entities/job-type'
-import { type Technician, TechnicianChip, useListTechnicians } from '@/entities/technician'
+import {
+  type ScheduleWarning,
+  scheduleWarnings,
+  type Technician,
+  TechnicianChip,
+  useListTechnicians,
+  warningText,
+} from '@/entities/technician'
 import { ApiError, isConflict } from '@/shared/api/api-error'
 import { applyServerFieldErrors } from '@/shared/lib/form-errors'
 import { useTenantFormat } from '@/shared/lib/tenant-format'
@@ -25,8 +32,6 @@ import {
   buildAssignSchema,
   toAssignRequest,
 } from '../model/assign-form'
-import { canSchedule } from '../model/schedulable'
-import { type ScheduleWarning, scheduleWarnings } from '../model/warnings'
 
 const ACTIVE = { includeInactive: false }
 
@@ -383,30 +388,13 @@ function TechnicianPicker({
 
 function Warnings({ warnings }: { warnings: ScheduleWarning[] }) {
   const { t } = useTranslation()
-  const text = (warning: ScheduleWarning) => {
-    switch (warning.kind) {
-      case 'missingSkills':
-        return t('schedule.assign.warnings.missingSkills', {
-          name: warning.name,
-          skills: warning.skills.join(', '),
-        })
-      case 'dayOff':
-        return t('schedule.assign.warnings.dayOff', { name: warning.name })
-      case 'outsideHours':
-        return t('schedule.assign.warnings.outsideHours', warning)
-      case 'crew':
-        return t('schedule.assign.warnings.crew', warning)
-      case 'overlap':
-        return t('schedule.assign.warnings.overlap', warning)
-    }
-  }
   return (
     <Alert className="border-amber-300 bg-amber-50 text-amber-950" data-testid="schedule-warnings">
       <AlertTitle>{t('schedule.assign.warningsTitle')}</AlertTitle>
       <AlertDescription>
         <ul className="list-disc pl-4">
           {warnings.map((warning, index) => (
-            <li key={index}>{text(warning)}</li>
+            <li key={index}>{warningText(t, warning)}</li>
           ))}
         </ul>
       </AlertDescription>

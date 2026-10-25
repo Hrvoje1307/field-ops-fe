@@ -1,13 +1,7 @@
-import type { DispatchBoardColumnsItem } from '@/entities/dispatch'
-import type { Job } from '@/entities/job'
-import {
-  minutesOf,
-  missingSkillIds,
-  type Technician,
-  withinHours,
-  worksOn,
-} from '@/entities/technician'
+import type { Technician } from '@/shared/api/generated/model'
 import { timeInTimeZone } from '@/shared/lib/datetime'
+
+import { minutesOf, missingSkillIds, withinHours, worksOn } from './working-time'
 
 /** Things the dispatcher should know before saving; none of them blocks. */
 export type ScheduleWarning =
@@ -17,8 +11,19 @@ export type ScheduleWarning =
   | { kind: 'crew'; required: number; selected: number }
   | { kind: 'overlap'; name: string; number: string }
 
+/** The part of a board column the overlap check reads (a `DispatchBoard` column fits). */
+export interface WarningColumn {
+  technician: { id: string }
+  jobs: readonly {
+    id: string
+    number: string
+    durationMin: number
+    scheduledStart?: string | null
+  }[]
+}
+
 export interface WarningInput {
-  job: Pick<Job, 'id' | 'durationMin' | 'requiredPeople'>
+  job: { id: string; durationMin: number; requiredPeople: number }
   /** The job type's required skills (ids). */
   requiredSkillIds: readonly string[]
   /** The chosen technicians. */
@@ -29,7 +34,7 @@ export interface WarningInput {
   /** `HH:mm`, or empty for the day only. */
   time: string
   /** The board for `date` (other jobs of the chosen technicians). */
-  columns: readonly DispatchBoardColumnsItem[]
+  columns: readonly WarningColumn[]
   timeZone: string
 }
 

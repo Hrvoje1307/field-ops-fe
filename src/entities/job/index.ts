@@ -34,6 +34,7 @@ export {
 } from './api'
 export type { TransitionVariables } from './api'
 export { NOTE_REQUIRED_STATUSES, transitionNeedsNote } from './config/transitions'
+export { canSchedule } from './lib/schedulable'
 export { splitTransitions } from './lib/primary-transition'
 export { handleJobConflict } from './model/conflict'
 export {

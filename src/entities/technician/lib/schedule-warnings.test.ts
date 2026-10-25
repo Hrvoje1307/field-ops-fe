@@ -1,9 +1,8 @@
 import { describe, expect, it } from 'vitest'
 
-import type { DispatchBoardColumnsItem } from '@/entities/dispatch'
-import type { Technician } from '@/entities/technician'
+import type { Technician } from '@/shared/api/generated/model'
 
-import { scheduleWarnings, type WarningInput } from './warnings'
+import { scheduleWarnings, type WarningColumn, type WarningInput } from './schedule-warnings'
 
 const skill = (id: string, name: string) => ({ id, name })
 const technician = (
@@ -83,7 +82,7 @@ describe('scheduleWarnings', () => {
         { ...other('j', '2026-10-26T08:00:00Z', 60) }, // the job itself: ignored
         { ...other('3', '', 60), scheduledStart: undefined }, // no start: ignored
       ],
-    } as unknown as DispatchBoardColumnsItem
+    } as unknown as WarningColumn
     expect(scheduleWarnings(base({ time: '10:00', columns: [column] }))).toEqual([
       { kind: 'overlap', name: 'Ana', number: 'RN-1' },
     ])
