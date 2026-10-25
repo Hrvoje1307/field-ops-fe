@@ -27,6 +27,7 @@ import { Route as AuthedOfficePlansPlanIdRouteImport } from './routes/_authed/_o
 import { Route as AuthedOfficeSettingsIndexRouteImport } from './routes/_authed/_office/settings/index'
 import { Route as AuthedOfficeSettingsChecklistsRouteImport } from './routes/_authed/_office/settings/checklists'
 import { Route as AuthedOfficeSettingsCompanyRouteImport } from './routes/_authed/_office/settings/company'
+import { Route as AuthedOfficeSettingsCustomFieldsRouteImport } from './routes/_authed/_office/settings/custom-fields'
 import { Route as AuthedOfficeSettingsDepotsRouteImport } from './routes/_authed/_office/settings/depots'
 import { Route as AuthedOfficeSettingsEquipmentTypesRouteImport } from './routes/_authed/_office/settings/equipment-types'
 import { Route as AuthedOfficeSettingsJobTypesRouteImport } from './routes/_authed/_office/settings/job-types'
@@ -127,6 +128,12 @@ const AuthedOfficeSettingsCompanyRoute =
     path: '/company',
     getParentRoute: () => AuthedOfficeSettingsRoute,
   } as any)
+const AuthedOfficeSettingsCustomFieldsRoute =
+  AuthedOfficeSettingsCustomFieldsRouteImport.update({
+    id: '/custom-fields',
+    path: '/custom-fields',
+    getParentRoute: () => AuthedOfficeSettingsRoute,
+  } as any)
 const AuthedOfficeSettingsDepotsRoute =
   AuthedOfficeSettingsDepotsRouteImport.update({
     id: '/depots',
@@ -178,6 +185,7 @@ export interface FileRoutesByFullPath {
   '/plans/$planId': typeof AuthedOfficePlansPlanIdRoute
   '/settings/checklists': typeof AuthedOfficeSettingsChecklistsRoute
   '/settings/company': typeof AuthedOfficeSettingsCompanyRoute
+  '/settings/custom-fields': typeof AuthedOfficeSettingsCustomFieldsRoute
   '/settings/depots': typeof AuthedOfficeSettingsDepotsRoute
   '/settings/equipment-types': typeof AuthedOfficeSettingsEquipmentTypesRoute
   '/settings/job-types': typeof AuthedOfficeSettingsJobTypesRoute
@@ -200,6 +208,7 @@ export interface FileRoutesByTo {
   '/plans/$planId': typeof AuthedOfficePlansPlanIdRoute
   '/settings/checklists': typeof AuthedOfficeSettingsChecklistsRoute
   '/settings/company': typeof AuthedOfficeSettingsCompanyRoute
+  '/settings/custom-fields': typeof AuthedOfficeSettingsCustomFieldsRoute
   '/settings/depots': typeof AuthedOfficeSettingsDepotsRoute
   '/settings/equipment-types': typeof AuthedOfficeSettingsEquipmentTypesRoute
   '/settings/job-types': typeof AuthedOfficeSettingsJobTypesRoute
@@ -227,6 +236,7 @@ export interface FileRoutesById {
   '/_authed/_office/plans/$planId': typeof AuthedOfficePlansPlanIdRoute
   '/_authed/_office/settings/checklists': typeof AuthedOfficeSettingsChecklistsRoute
   '/_authed/_office/settings/company': typeof AuthedOfficeSettingsCompanyRoute
+  '/_authed/_office/settings/custom-fields': typeof AuthedOfficeSettingsCustomFieldsRoute
   '/_authed/_office/settings/depots': typeof AuthedOfficeSettingsDepotsRoute
   '/_authed/_office/settings/equipment-types': typeof AuthedOfficeSettingsEquipmentTypesRoute
   '/_authed/_office/settings/job-types': typeof AuthedOfficeSettingsJobTypesRoute
@@ -253,6 +263,7 @@ export interface FileRouteTypes {
     | '/plans/$planId'
     | '/settings/checklists'
     | '/settings/company'
+    | '/settings/custom-fields'
     | '/settings/depots'
     | '/settings/equipment-types'
     | '/settings/job-types'
@@ -275,6 +286,7 @@ export interface FileRouteTypes {
     | '/plans/$planId'
     | '/settings/checklists'
     | '/settings/company'
+    | '/settings/custom-fields'
     | '/settings/depots'
     | '/settings/equipment-types'
     | '/settings/job-types'
@@ -301,6 +313,7 @@ export interface FileRouteTypes {
     | '/_authed/_office/plans/$planId'
     | '/_authed/_office/settings/checklists'
     | '/_authed/_office/settings/company'
+    | '/_authed/_office/settings/custom-fields'
     | '/_authed/_office/settings/depots'
     | '/_authed/_office/settings/equipment-types'
     | '/_authed/_office/settings/job-types'
@@ -446,6 +459,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedOfficeSettingsCompanyRouteImport
       parentRoute: typeof AuthedOfficeSettingsRoute
     }
+    '/_authed/_office/settings/custom-fields': {
+      id: '/_authed/_office/settings/custom-fields'
+      path: '/custom-fields'
+      fullPath: '/settings/custom-fields'
+      preLoaderRoute: typeof AuthedOfficeSettingsCustomFieldsRouteImport
+      parentRoute: typeof AuthedOfficeSettingsRoute
+    }
     '/_authed/_office/settings/depots': {
       id: '/_authed/_office/settings/depots'
       path: '/depots'
@@ -494,6 +514,7 @@ declare module '@tanstack/react-router' {
 interface AuthedOfficeSettingsRouteChildren {
   AuthedOfficeSettingsChecklistsRoute: typeof AuthedOfficeSettingsChecklistsRoute
   AuthedOfficeSettingsCompanyRoute: typeof AuthedOfficeSettingsCompanyRoute
+  AuthedOfficeSettingsCustomFieldsRoute: typeof AuthedOfficeSettingsCustomFieldsRoute
   AuthedOfficeSettingsDepotsRoute: typeof AuthedOfficeSettingsDepotsRoute
   AuthedOfficeSettingsEquipmentTypesRoute: typeof AuthedOfficeSettingsEquipmentTypesRoute
   AuthedOfficeSettingsJobTypesRoute: typeof AuthedOfficeSettingsJobTypesRoute
@@ -504,6 +525,7 @@ interface AuthedOfficeSettingsRouteChildren {
 const AuthedOfficeSettingsRouteChildren: AuthedOfficeSettingsRouteChildren = {
   AuthedOfficeSettingsChecklistsRoute: AuthedOfficeSettingsChecklistsRoute,
   AuthedOfficeSettingsCompanyRoute: AuthedOfficeSettingsCompanyRoute,
+  AuthedOfficeSettingsCustomFieldsRoute: AuthedOfficeSettingsCustomFieldsRoute,
   AuthedOfficeSettingsDepotsRoute: AuthedOfficeSettingsDepotsRoute,
   AuthedOfficeSettingsEquipmentTypesRoute:
     AuthedOfficeSettingsEquipmentTypesRoute,
