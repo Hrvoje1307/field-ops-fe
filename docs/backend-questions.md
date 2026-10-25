@@ -2,7 +2,7 @@
 
 Places where `openapi/openapi.json` is ambiguous, incomplete or contradicts `schemas/schema.md`, found while building the mock API (`src/shared/api/mocks`). Each item lists what the spec says, what the mock does today, and what we propose. The mock's behaviour is a placeholder until the backend answers; the frontend is built against the proposal.
 
-**Status, spec 0.2.0 (2026-10-23):** 0.2.0 doesn't resolve any of items 1–18 yet. Its changes are the print endpoint, `Location.address`, `Invitation.inviteUrl`, the `accessCodes` semantics and description fixes. Items 19–21 are new; items 22–26 came up while building the custom-field renderer (step 5), item 27 with the office job screens (step 6), item 28 with the client screens (step 8).
+**Status, spec 0.2.0 (2026-10-23):** 0.2.0 doesn't resolve any of items 1–18 yet. Its changes are the print endpoint, `Location.address`, `Invitation.inviteUrl`, the `accessCodes` semantics and description fixes. Items 19–21 are new; items 22–26 came up while building the custom-field renderer (step 5), item 27 with the office job screens (step 6), item 28 with the client screens (step 8), item 29 with scheduling (step 9).
 
 ## 1. Two different job status machines
 
@@ -304,3 +304,13 @@ Note the asymmetry with `LocationInput.accessCodes` (0.2.0), where `null` means 
 **Frontend does:** asks for confirmation, then deletes; job pages keep showing what the API returns.
 
 **We propose:** either `409` while open jobs refer to the equipment (like locations), or document that jobs keep the reference and keep returning the deleted equipment in `Job.asset`.
+
+## 29. What `POST /jobs/{id}/assign` checks
+
+**Spec says:** "Manual assignment (drag & drop). Replaces the assignment set." 400 for validation, 409 for conflicts. It doesn't say which job statuses may be reassigned, nor whether technicians without the job type's required skills, on a non-working day or outside their working hours are refused. `DispatchBoard` and the technician fields (`skillIds`, `workingDays`, `workStart`, `workEnd`) carry the data to check.
+
+**Mock does:** refuses `en_route`, `on_site`, `completed`, `invoiced` and `cancelled` with `409 job.not_assignable`; unknown or inactive technicians and a lead who isn't assigned give `400`; a start on another day than `scheduledDate` gives `400`. Skills, working days and hours are not checked.
+
+**Frontend does:** only offers scheduling for `new`, `scheduled`, `confirmed` and `on_hold`, and shows skills, days off, hours, crew size and overlaps as warnings that don't block saving.
+
+**We propose:** document the accepted statuses on the operation, and decide whether skills, days off and hours are errors or only warnings. We prefer warnings only: a dispatcher may know better (a swap, a favour, an emergency).

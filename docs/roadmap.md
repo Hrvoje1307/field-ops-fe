@@ -76,11 +76,18 @@ Each step follows the workflow in `CLAUDE.md`: plan first, wait for OK, then bui
   - No new mock handlers were needed. Backend question #28. Playwright for both tenants.
   - Devtools are off in Playwright runs (`VITE_DEVTOOLS=false`), where they covered buttons.
 
+- [x] **Step 9: day overview and manual scheduling**
+  - `/` ("Danas"): a day (date in the URL, previous/next/today, tenant time zone) with the unscheduled queue (new jobs of any date, most urgent first) and a column per active technician: working hours or "Ne radi", planned load against the working day, jobs in visit order; every card opens the job or its schedule.
+  - Scheduling in a side panel ("Zakaži" / "Promijeni termin", also on the job page): date, optional start, technicians with a lead; the start goes to the API as a UTC instant from the tenant-local date and time. Warnings that don't block: missing skills of the job type, day off, outside working hours, fewer technicians than needed, overlap with the technician's other jobs. "Ukloni iz rasporeda" puts the job back in the queue. A 409 keeps the panel and refetches; retries reuse the idempotency key.
+  - Entities: `dispatch` (board), `assignJob`, technician working-time helpers.
+  - Mock: new `GET /dispatch/board` handler (columns, working days, planned minutes, queue), tested and covered by the contract tests.
+  - Toasts moved to the top centre: at the bottom right they covered side panels' buttons.
+  - Backend question #29. Playwright for both tenants (the skill warning needs a technician lacking a skill: only Bura's seed has one).
+
 ## Next
 
 Each step adds the mock handlers its screens need, as `CLAUDE.md` requires.
 
-- [ ] **Step 9: day overview and manual scheduling**
 - [ ] **Step 10: field day and field job on the phone**
 - [ ] **Step 11: dispatch board (drag and drop, route plans)**
 - [ ] **Step 12: field report, photos, signature, complete, print**
