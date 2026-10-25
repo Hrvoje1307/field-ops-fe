@@ -361,6 +361,12 @@ export const hr = {
       preferred: 'Željeno: {{day}}',
       loadFailed: 'Raspored nije moguće učitati.',
       noTechnicians: 'Tvrtka još nema aktivnih montera.',
+      dragJob: 'Povuci nalog {{number}}',
+      jobName: '{{number}} {{title}}',
+      lockJob: 'Zaključaj nalog {{number}}',
+      unlockJob: 'Otključaj nalog {{number}}',
+      locked: 'Zaključan',
+      lockFailed: 'Zaključavanje nije spremljeno. Pokušajte ponovno.',
     },
     plan: {
       conflict: 'Plan je u međuvremenu promijenjen. Prikazani su najnoviji podaci.',
