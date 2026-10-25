@@ -1,6 +1,15 @@
 import { expect, type Page, test } from '@playwright/test'
 
-import { apiGet, drag, expectSignedInAs, nextWorkday, resetMock, signIn, TENANTS } from './support'
+import {
+  apiGet,
+  apiPost,
+  drag,
+  expectSignedInAs,
+  nextWorkday,
+  resetMock,
+  signIn,
+  TENANTS,
+} from './support'
 
 interface JobSummary {
   id: string
@@ -105,6 +114,58 @@ for (const tenant of TENANTS) {
       )
       expect(back.status).toBe('new')
       expect(back.technicians).toHaveLength(0)
+    })
+
+    test('a job with an agreed time keeps it when dragged, and the board warns when the order disagrees', async ({
+      page,
+    }) => {
+      await signIn(page, tenant.dispatcher)
+      await expectSignedInAs(page, tenant.name)
+      const date = await nextWorkday(page)
+      const [board] = await apiGet<[Board]>(page, tenant.dispatcher, [
+        `/dispatch/board?date=${date}`,
+      ])
+      const queued = board.unassigned.filter(
+        (candidate) =>
+          candidate.status === 'new' && candidate.requiredPeople === 1 && !candidate.locked,
+      )
+      const target = board.columns.find((c) => c.isWorkingDay)
+      const [early, late] = queued
+      if (!early || !late || !target) throw new Error('Seed needs two queued jobs and a technician')
+
+      // Two jobs with agreed times, in the order of their times
+      const times: [JobSummary, string][] = [
+        [early, `${date}T06:00:00Z`],
+        [late, `${date}T08:00:00Z`],
+      ]
+      for (const [index, [job, start]] of times.entries()) {
+        const assigned = await apiPost(page, tenant.dispatcher, `/jobs/${job.id}/assign`, {
+          technicianIds: [target.technician.id],
+          leadTechnicianId: target.technician.id,
+          scheduledDate: date,
+          scheduledStart: start,
+          sequence: index,
+        })
+        expect(assigned.status).toBe(200)
+      }
+      await page.goto(`/?date=${date}`)
+      const own = column(page, target.technician.fullName)
+      const cards = own.getByTestId('board-job')
+      const indexOf = async (title: string) =>
+        (await cards.allTextContents()).findIndex((text) => text.includes(title))
+      await expect(cards.filter({ hasText: late.title })).toBeVisible()
+      expect(await indexOf(late.title)).toBeGreaterThan(await indexOf(early.title))
+
+      // The later job is dragged above the earlier one: its time stays, and the board says
+      await drag(page, handleOf(page, late.number), cards.filter({ hasText: early.title }), 'top')
+      await expect(page.getByText(/zadržava svoj termin/)).toBeVisible()
+      await expect
+        .poll(async () => (await indexOf(late.title)) < (await indexOf(early.title)))
+        .toBe(true)
+      const [saved] = await apiGet<[{ scheduledStart: string }]>(page, tenant.dispatcher, [
+        `/jobs/${late.id}`,
+      ])
+      expect(saved.scheduledStart).toBe(`${date}T08:00:00Z`)
     })
 
     test("dropping on a technician without the job type's skills warns, and still saves", async ({

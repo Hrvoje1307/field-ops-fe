@@ -508,6 +508,8 @@ export const hr = {
       loadFailed: 'Raspored nije moguće učitati.',
       noTechnicians: 'Tvrtka još nema aktivnih montera.',
       dragJob: 'Povuci nalog {{number}}',
+      startsOutOfOrder:
+        'Nalog {{number}} zadržava svoj termin, ali je sada izvan redoslijeda prema vremenima. Provjerite raspored.',
       jobName: '{{number}} {{title}}',
       lockJob: 'Zaključaj nalog {{number}}',
       unlockJob: 'Otključaj nalog {{number}}',

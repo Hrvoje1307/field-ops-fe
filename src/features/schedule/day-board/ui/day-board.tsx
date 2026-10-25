@@ -24,7 +24,7 @@ import { Button } from '@/shared/ui/button'
 import { DragBoard, DragColumn, DragItem } from '@/shared/ui/drag-board'
 import { Skeleton } from '@/shared/ui/skeleton'
 
-import { dropRequest, isDraggable, lockRequest, QUEUE_ID } from '../lib/drop'
+import { dropRequest, isDraggable, lockRequest, QUEUE_ID, startsOutOfOrder } from '../lib/drop'
 import { minutesBetween } from '../lib/minutes'
 import { usePendingMove } from '../model/pending-move'
 import { JobCardBody } from './job-card'
@@ -160,6 +160,16 @@ function LoadedBoard({
     })
   }
 
+  /** A job that kept its agreed time may now stand before an earlier one or after a later one. */
+  function notifyOrder(job: JobSummary, move: DragMove) {
+    if (!job.scheduledStart) return
+    const column = board.columns.find((candidate) => candidate.technician.id === move.toId)
+    const others = (column?.jobs ?? []).filter((other) => other.id !== job.id)
+    const after = [...others.slice(0, move.index), job, ...others.slice(move.index)]
+    if (!startsOutOfOrder(after, job.id)) return
+    toast.warning(t('schedule.board.startsOutOfOrder', { number: job.number }))
+  }
+
   function save(job: JobSummary, move: DragMove | null, body: ReturnType<typeof dropRequest>) {
     if (!body) return
     if (move) pending.begin(move)
@@ -175,6 +185,7 @@ function LoadedBoard({
               toast.success(t('schedule.assign.saved', { number: job.number }))
             }
             notifyWarnings(job, move.toId)
+            notifyOrder(job, move)
           }
         },
         onError: (error) => {
@@ -188,7 +199,7 @@ function LoadedBoard({
   function onMove(move: DragMove) {
     const job = jobs.get(baseId(move.itemId))
     if (!job || assign.isPending || !isDraggable(job)) return
-    save(job, move, dropRequest(move, date))
+    save(job, move, dropRequest(move, date, job))
   }
 
   function onToggleLock(job: JobSummary) {

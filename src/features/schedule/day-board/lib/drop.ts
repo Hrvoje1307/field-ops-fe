@@ -20,21 +20,47 @@ export function isDraggable(
 
 /**
  * What a drop asks of the API. Into a column: that technician for the board's day at
- * the dropped position (the position, not a time, now decides the order, so an earlier
- * start is cleared). Into the queue: no technicians, which takes it off the schedule.
- * Reordering within the queue means nothing (it is sorted by urgency).
+ * the dropped position. A start that was agreed for this very day is kept (a confirmed
+ * job's time is the client's, not the board's to erase); otherwise there is no start and
+ * the position decides the order. Into the queue: no technicians, which takes it off the
+ * schedule. Reordering within the queue means nothing (it is sorted by urgency).
  */
-export function dropRequest(move: DragMove, date: string): AssignRequest | null {
+export function dropRequest(
+  move: DragMove,
+  date: string,
+  job?: Pick<JobSummary, 'scheduledDate' | 'scheduledStart'>,
+): AssignRequest | null {
   if (move.toId === QUEUE_ID) {
     return move.fromId === QUEUE_ID ? null : { technicianIds: [] }
   }
+  const keepsStart = Boolean(job?.scheduledStart) && job?.scheduledDate === date
   return {
     technicianIds: [move.toId],
     leadTechnicianId: move.toId,
     scheduledDate: date,
-    scheduledStart: null,
+    // Left out, the API keeps the start the job has
+    ...(keepsStart ? {} : { scheduledStart: null }),
     sequence: move.index,
   }
+}
+
+/**
+ * Whether the starts of the jobs that have one run backwards in this order, with the
+ * moved job among them: a job that keeps its agreed time and is dropped before an
+ * earlier one (or after a later one) is out of order with the times.
+ */
+export function startsOutOfOrder(
+  jobs: readonly Pick<JobSummary, 'id' | 'scheduledStart'>[],
+  movedId: string,
+): boolean {
+  const timed = jobs.filter((job) => job.scheduledStart)
+  const at = timed.findIndex((job) => job.id === movedId)
+  if (at < 0) return false
+  const start = timed[at]?.scheduledStart ?? ''
+  return timed.some((job, index) => {
+    const other = job.scheduledStart ?? ''
+    return (index < at && other > start) || (index > at && other < start)
+  })
 }
 
 /** The request that locks or unlocks a scheduled job where it is. */
