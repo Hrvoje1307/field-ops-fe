@@ -116,7 +116,9 @@ Each step adds the mock handlers its screens need, as `CLAUDE.md` requires.
   - [x] **13a: company.** `/settings` (owner only; the menu item and the route both) with a list of sections and `/settings/company`: name, OIB, address, phone, email, IBAN, logo (uploaded at once, linked on save), language and country, time zone, currency, signature required, job number prefix, report colour and footer, reminder time, SMS sender, quiet hours, "on the way" SMS, link validity, and this month's usage. Saving refreshes the session (the shell's name), and everything shown in the tenant's time zone. 400s land next to their inputs.
     - Entities: `useUpdateTenant`, `useGetTenantUsage`, the form model (`entities/tenant`), `useUploadTenantLogo` (`entities/report`, next to the other file uploads). Shared: `CheckboxField`, `FormSection`, time zone and currency options.
     - Mock: the logo (a confirmed `logo` file of the company; `logoUrl` follows it). Backend questions #42–#44. Playwright for both tenants, a dispatcher and a technician.
-  - [ ] 13b: skills, depots, equipment types
+  - [x] **13b: skills, depots, equipment types.** `/settings/skills`, `/settings/depots`, `/settings/equipment-types`: a list with add, edit (side panel) and delete (asking first) for each. Skills: a taken name is shown next to the name. Depots: name, address, working hours (closing after opening), optional coordinates (both or none, point or comma). Equipment types: name and the API's icon word, kept when only the name changes. A depot technicians start from and a type with equipment cannot be deleted: the 409 is worded.
+    - Entities: `entities/skill` and `entities/depot` (new; requests, one hook per request, form models), equipment type requests and hooks in `entities/asset`. Writes refresh what shows the data (technicians, the board, job types, equipment, custom fields). Shared: `ConfigList`.
+    - Backend question #45. Playwright for both tenants.
   - [ ] 13c: job types
   - [ ] 13d: custom fields, message templates
   - [ ] 13e: team (members, invitations, technicians)

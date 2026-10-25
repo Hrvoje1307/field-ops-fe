@@ -464,3 +464,13 @@ Note the asymmetry with `LocationInput.accessCodes` (0.2.0), where `null` means 
 **Frontend does:** takes pictures in JPEG, PNG or WebP up to 2 MB, uploads at once, and links the file when the settings are saved. A replaced or removed logo's old file is left alone.
 
 **We propose:** say which formats a logo may be (a PDF or HEIC logo is of no use on a report), how long `logoUrl` is valid (if it is a presigned link the page needs to fetch it again), whether the old logo file is deleted when another is linked, and what a sender name may contain (spaces? the 11-character limit counts which characters?).
+
+## 45. Skills, depots and equipment types: what the contract leaves open
+
+**Spec says:** `POST /skills` answers 409 (a duplicate name, presumably); `PUT /skills/{id}` lists no error; `DELETE /skills/{id}` is 204 with no 409. `DELETE /depots/{id}` and `DELETE /asset-types/{id}` answer 409. `Depot.lat/lng` are optional. `AssetType.icon` is a free string.
+
+**Mock does:** `POST /skills` with a name that exists is 409, `PUT` with one is 400 on `name`, and a deleted skill is also removed from technicians (job types keep a dangling id). A depot technicians start from and a type that equipment has cannot be deleted (409); deleting an equipment type deletes its custom fields.
+
+**Frontend does:** shows a taken skill name next to the name for both 409 and 400, words the two depot and type 409s ("technicians still start here", "equipment of this type exists"), and asks before every delete. Coordinates are typed by hand and optional; the icon is a text field that is kept as it is when only the name changes.
+
+**We propose:** say what `PUT /skills` answers for a taken name (400 `name` or 409), what deleting a skill does to the job types that require it and to technicians (refuse with 409 listing them, or remove it from both), whether the backend geocodes a depot's address when `lat/lng` are empty (if not, the screen needs a way to find them, if so the fields can go), and which icon names exist (a list, so the screen can offer them instead of free text). Say too whether deleting an equipment type should take its custom fields' stored values with it.
