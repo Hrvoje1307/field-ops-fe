@@ -91,7 +91,9 @@ for (const tenant of TENANTS) {
       )
 
       // The type filter offers this tenant's job types, nothing hardcoded
-      const typeOptions = await page.getByLabel('Vrsta').locator('option').allTextContents()
+      const typeFilter = page.getByLabel('Vrsta').locator('option')
+      await expect(typeFilter).toHaveCount(jobTypes.length + 1)
+      const typeOptions = await typeFilter.allTextContents()
       expect(typeOptions.slice(1).sort()).toEqual(jobTypes.map((jobType) => jobType.name).sort())
 
       await page.getByLabel('Status').selectOption({ label: 'Otkazan' })
