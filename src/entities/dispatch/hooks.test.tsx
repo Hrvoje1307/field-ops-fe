@@ -122,6 +122,26 @@ describe('useOptimizeRoutePlan', () => {
   })
 })
 
+describe('useOptimizeRoutePlan keys', () => {
+  it('a request that went through is done: the same choice made again is a new request', async () => {
+    const body = await request()
+    const keys: (string | null)[] = []
+    server.events.on('request:start', ({ request: sent }) => {
+      if (sent.method === 'POST' && new URL(sent.url).pathname.endsWith('/route-plans/optimize')) {
+        keys.push(sent.headers.get('Idempotency-Key'))
+      }
+    })
+    const { wrapper } = queryWrapper()
+    const { result } = renderHook(() => useOptimizeRoutePlan(), { wrapper })
+
+    await act(() => result.current.mutateAsync(body))
+    await act(() => result.current.mutateAsync(body))
+
+    expect(keys).toHaveLength(2)
+    expect(keys[1]).not.toBe(keys[0])
+  })
+})
+
 describe('useUpdateRoutePlan', () => {
   it('replaces the cached plan with the corrected one', async () => {
     const body = await request()

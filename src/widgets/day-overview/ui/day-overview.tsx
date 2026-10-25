@@ -1,12 +1,16 @@
 import { ChevronLeftIcon, ChevronRightIcon } from 'lucide-react'
 import { useId } from 'react'
+import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 
 import { ScheduleJobButton } from '@/features/job/assign'
 import { canSchedule } from '@/entities/job'
 import { DayBoard } from '@/features/schedule/day-board'
+import { OptimizeDayButton } from '@/features/schedule/route-plan'
+import { useGetDispatchBoard } from '@/entities/dispatch'
 import { addDays, isPlainDate } from '@/shared/lib/datetime'
 import { useTenantFormat } from '@/shared/lib/tenant-format'
+import { Alert, AlertAction, AlertDescription } from '@/shared/ui/alert'
 import { Button } from '@/shared/ui/button'
 import { Input } from '@/shared/ui/input'
 
@@ -25,6 +29,7 @@ export function DayOverview({
   return (
     <div className="space-y-6">
       <DayNavigator date={date} onDateChange={onDateChange} />
+      <PlanBanner date={date} />
       <DayBoard
         date={date}
         jobActions={(job) =>
@@ -62,6 +67,7 @@ function DayNavigator({
         </p>
       </div>
       <div className="flex flex-wrap items-center gap-2">
+        <OptimizeDayButton date={date} />
         <Button
           variant="outline"
           size="icon"
@@ -104,6 +110,46 @@ function DayNavigator({
           {t('schedule.board.today')}
         </Button>
       </div>
+    </div>
+  )
+}
+
+/**
+ * Says when the day has a draft plan waiting to be reviewed, or a published one, and
+ * links to it. The board reports the plans of the day.
+ */
+function PlanBanner({ date }: { date: string }) {
+  const { t } = useTranslation()
+  const board = useGetDispatchBoard(date)
+  const draftId = board.data?.draftPlanId
+  const publishedId = board.data?.publishedPlanId
+  if (!draftId && !publishedId) return null
+  return (
+    <div className="space-y-2">
+      {draftId && (
+        <Alert data-testid="draft-plan-banner">
+          <AlertDescription>{t('schedule.plan.draftBanner')}</AlertDescription>
+          <AlertAction>
+            <Button asChild size="sm" variant="outline">
+              <Link to="/plans/$planId" params={{ planId: draftId }}>
+                {t('schedule.plan.openDraft')}
+              </Link>
+            </Button>
+          </AlertAction>
+        </Alert>
+      )}
+      {publishedId && (
+        <Alert data-testid="published-plan-banner">
+          <AlertDescription>{t('schedule.plan.publishedBanner')}</AlertDescription>
+          <AlertAction>
+            <Button asChild size="sm" variant="outline">
+              <Link to="/plans/$planId" params={{ planId: publishedId }}>
+                {t('schedule.plan.openPublished')}
+              </Link>
+            </Button>
+          </AlertAction>
+        </Alert>
+      )}
     </div>
   )
 }

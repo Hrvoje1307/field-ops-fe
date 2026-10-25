@@ -13,7 +13,7 @@ import {
   DialogTitle,
 } from './dialog'
 
-/** Asks before a destructive action; shows why it failed and stays open. */
+/** Asks before an action that is hard to undo; shows why it failed and stays open. */
 export function ConfirmDialog({
   open,
   onOpenChange,
@@ -23,6 +23,7 @@ export function ConfirmDialog({
   onConfirm,
   pending = false,
   error,
+  confirmVariant = 'destructive',
 }: {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -32,6 +33,8 @@ export function ConfirmDialog({
   onConfirm: () => void
   pending?: boolean
   error?: string | null
+  /** Destructive by default; `default` for an action that only needs a second look. */
+  confirmVariant?: 'destructive' | 'default'
 }) {
   const { t } = useTranslation()
   return (
@@ -53,7 +56,7 @@ export function ConfirmDialog({
             </Button>
           </DialogClose>
           {!error && (
-            <Button type="button" variant="destructive" disabled={pending} onClick={onConfirm}>
+            <Button type="button" variant={confirmVariant} disabled={pending} onClick={onConfirm}>
               {confirmLabel}
             </Button>
           )}

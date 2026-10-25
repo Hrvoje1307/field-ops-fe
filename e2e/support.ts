@@ -1,4 +1,4 @@
-import { expect, type Page } from '@playwright/test'
+import { expect, type Locator, type Page } from '@playwright/test'
 
 export const PASSWORD = 'demo'
 
@@ -113,4 +113,38 @@ export async function apiPost(
     },
     { api: API_URL, email, password: PASSWORD, path, body },
   )
+}
+
+/** The next working weekday on the tenant's calendar (both mock tenants are in Zagreb). */
+export async function nextWorkday(page: Page): Promise<string> {
+  return page.evaluate(() => {
+    const zagreb = (date: Date) =>
+      new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Zagreb' }).format(date)
+    const date = new Date(`${zagreb(new Date())}T12:00:00Z`)
+    do date.setUTCDate(date.getUTCDate() + 1)
+    while ([0, 6].includes(date.getUTCDay()))
+    return date.toISOString().slice(0, 10)
+  })
+}
+
+/**
+ * Presses on a drag handle, moves in steps (dnd-kit needs real moves) and lets go over
+ * `target`.
+ */
+export async function drag(
+  page: Page,
+  handle: Locator,
+  target: Locator,
+  at: 'top' | 'middle' = 'middle',
+): Promise<void> {
+  const from = await handle.boundingBox()
+  const to = await target.boundingBox()
+  if (!from || !to) throw new Error('Nothing to drag')
+  await page.mouse.move(from.x + from.width / 2, from.y + from.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(from.x + from.width / 2 + 24, from.y + from.height / 2 + 24, { steps: 4 })
+  await page.mouse.move(to.x + to.width / 2, to.y + (at === 'top' ? 4 : to.height / 2), {
+    steps: 16,
+  })
+  await page.mouse.up()
 }

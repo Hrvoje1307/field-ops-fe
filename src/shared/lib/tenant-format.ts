@@ -9,6 +9,7 @@ import {
   formatTime,
   todayInTimeZone,
 } from './datetime'
+import { formatDistance } from './distance'
 import { formatDuration } from './duration'
 import { formatMoney, type MoneyString } from './money'
 import { formatNumber } from './number'
@@ -48,6 +49,8 @@ export interface TenantFormat extends TenantFormatSettings {
   formatRelativeDateTime: (instant: string) => string
   /** Minutes: `45 min`, `1 h 30 min`. */
   formatDuration: (minutes: number) => string
+  /** Metres: `850 m`, `12,3 km`. */
+  formatDistance: (metres: number) => string
   formatNumber: (value: number) => string
   /** E.164 → national format for the tenant's country, E.164 otherwise. */
   formatPhone: (e164: string) => string
@@ -80,6 +83,7 @@ export function useTenantFormat(): TenantFormat {
           time: formatTime(instant, settings),
         }),
       formatDuration: (minutes) => formatDuration(minutes, settings.locale),
+      formatDistance: (metres) => formatDistance(metres, settings.locale),
       formatNumber: (value) => formatNumber(value, settings.locale),
       formatPhone: (e164) => formatPhone(e164, settings.country),
       formatMoney: (amount) => formatMoney(amount, settings),

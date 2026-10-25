@@ -21,7 +21,7 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import { cn } from 'cn'
 import { GripVerticalIcon } from 'lucide-react'
-import { type ReactNode, useCallback, useMemo, useState } from 'react'
+import { type ReactNode, useCallback, useId, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { type DragLayout, type DragMove, resolveMove } from '@/shared/lib/drag-move'
@@ -235,5 +235,54 @@ export function DragItem({
     >
       {children(handle)}
     </li>
+  )
+}
+
+/**
+ * A titled column of cards that accepts drops (also when it has none): the day board's
+ * columns and a route plan's routes look and behave the same.
+ */
+export function DragColumn({
+  id,
+  title,
+  label,
+  subtitle,
+  itemIds,
+  empty,
+  testId,
+  className,
+  children,
+}: {
+  id: string
+  title: ReactNode
+  /** Accessible name when the title isn't plain text. */
+  label?: string
+  subtitle: ReactNode
+  itemIds: readonly string[]
+  /** Said when there is no card. */
+  empty: string
+  testId: string
+  className?: string
+  children: ReactNode
+}) {
+  const headingId = useId()
+  return (
+    <section
+      aria-labelledby={label ? undefined : headingId}
+      aria-label={label}
+      data-testid={testId}
+      className={cn('w-72 shrink-0 space-y-3 rounded-xl border p-3', className)}
+    >
+      <header className="space-y-1">
+        <h2 id={headingId} className="font-semibold">
+          {title}
+        </h2>
+        <div className="text-xs text-muted-foreground">{subtitle}</div>
+      </header>
+      <DragList id={id} itemIds={itemIds} className="min-h-24 space-y-2">
+        {children}
+        {itemIds.length === 0 && <li className="p-1 text-sm text-muted-foreground">{empty}</li>}
+      </DragList>
+    </section>
   )
 }

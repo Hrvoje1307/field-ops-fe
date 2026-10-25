@@ -1,5 +1,5 @@
 import { cn } from 'cn'
-import { type ReactNode, useCallback, useId, useMemo, useState } from 'react'
+import { type ReactNode, useCallback, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -17,11 +17,11 @@ import {
   useListTechnicians,
   warningText,
 } from '@/entities/technician'
-import { applyMove, type DragMove } from '@/shared/lib/drag-move'
+import { applyMove, baseId, type DragMove, withCopies } from '@/shared/lib/drag-move'
 import { useTenantFormat } from '@/shared/lib/tenant-format'
 import { Alert, AlertAction, AlertDescription } from '@/shared/ui/alert'
 import { Button } from '@/shared/ui/button'
-import { DragBoard, DragItem, DragList } from '@/shared/ui/drag-board'
+import { DragBoard, DragColumn, DragItem } from '@/shared/ui/drag-board'
 import { Skeleton } from '@/shared/ui/skeleton'
 
 import { dropRequest, isDraggable, lockRequest, QUEUE_ID } from '../lib/drop'
@@ -108,13 +108,15 @@ function LoadedBoard({
       ),
     [board],
   )
+  // A job for several technicians is on each of their columns: one id per place
   const saved = useMemo<Record<string, string[]>>(
-    () => ({
-      [QUEUE_ID]: board.unassigned.map((job) => job.id),
-      ...Object.fromEntries(
-        board.columns.map((column) => [column.technician.id, column.jobs.map((job) => job.id)]),
-      ),
-    }),
+    () =>
+      withCopies({
+        [QUEUE_ID]: board.unassigned.map((job) => job.id),
+        ...Object.fromEntries(
+          board.columns.map((column) => [column.technician.id, column.jobs.map((job) => job.id)]),
+        ),
+      }),
     [board],
   )
   // The card sits where it was dropped until the save and the refetch are over; if the
@@ -123,7 +125,7 @@ function LoadedBoard({
 
   const nameOf = useCallback(
     (id: string) => {
-      const job = jobs.get(id)
+      const job = jobs.get(baseId(id))
       return job ? t('schedule.board.jobName', { number: job.number, title: job.title }) : id
     },
     [jobs, t],
@@ -182,7 +184,7 @@ function LoadedBoard({
   }
 
   function onMove(move: DragMove) {
-    const job = jobs.get(move.itemId)
+    const job = jobs.get(baseId(move.itemId))
     if (!job || assign.isPending || !isDraggable(job)) return
     save(job, move, dropRequest(move, date))
   }
@@ -199,12 +201,12 @@ function LoadedBoard({
     )
   }
 
-  const card = (job: JobSummary, list: string) => {
+  const card = (itemId: string, job: JobSummary, list: string) => {
     const queue = list === QUEUE_ID
     return (
       <DragItem
-        key={job.id}
-        id={job.id}
+        key={itemId}
+        id={itemId}
         listId={list}
         disabled={!isDraggable(job)}
         handleLabel={t('schedule.board.dragJob', { number: job.number })}
@@ -228,8 +230,8 @@ function LoadedBoard({
 
   const shown = (list: string) =>
     (layout[list] ?? []).flatMap((id) => {
-      const job = jobs.get(id)
-      return job ? [card(job, list)] : []
+      const job = jobs.get(baseId(id))
+      return job ? [card(id, job, list)] : []
     })
 
   return (
@@ -240,7 +242,7 @@ function LoadedBoard({
         listNameOf={listNameOf}
         onMove={onMove}
         renderOverlay={(id) => {
-          const job = jobs.get(id)
+          const job = jobs.get(baseId(id))
           return job ? (
             <div className="rounded-lg border bg-background p-2.5 text-sm shadow-lg">
               <JobCardBody job={job} queue={(layout[QUEUE_ID] ?? []).includes(id)} linked={false} />
@@ -249,7 +251,7 @@ function LoadedBoard({
         }}
       >
         <div className="flex min-w-max items-start gap-4">
-          <Column
+          <DragColumn
             id={QUEUE_ID}
             title={t('schedule.board.queue')}
             subtitle={String(layout[QUEUE_ID]?.length ?? 0)}
@@ -259,7 +261,7 @@ function LoadedBoard({
             empty={t('schedule.board.queueEmpty')}
           >
             {shown(QUEUE_ID)}
-          </Column>
+          </DragColumn>
           {board.columns.length === 0 && (
             <p className="self-center text-sm text-muted-foreground">
               {t('schedule.board.noTechnicians')}
@@ -296,7 +298,7 @@ function TechnicianColumn({
   const share = available > 0 ? Math.min(1, planned / available) : 0
 
   return (
-    <Column
+    <DragColumn
       id={column.technician.id}
       title={<TechnicianChip technician={column.technician} />}
       label={column.technician.fullName}
@@ -330,51 +332,6 @@ function TechnicianColumn({
       className={column.isWorkingDay ? undefined : 'opacity-75'}
     >
       {children}
-    </Column>
-  )
-}
-
-function Column({
-  id,
-  title,
-  label,
-  subtitle,
-  children,
-  itemIds,
-  empty,
-  testId,
-  className,
-}: {
-  id: string
-  title: ReactNode
-  /** Accessible name when the title isn't plain text. */
-  label?: string
-  subtitle: ReactNode
-  children: ReactNode
-  itemIds: readonly string[]
-  /** Said when there is no card. */
-  empty: string
-  testId: string
-  className?: string
-}) {
-  const headingId = useId()
-  return (
-    <section
-      aria-labelledby={label ? undefined : headingId}
-      aria-label={label}
-      data-testid={testId}
-      className={cn('w-72 shrink-0 space-y-3 rounded-xl border p-3', className)}
-    >
-      <header className="space-y-1">
-        <h2 id={headingId} className="font-semibold">
-          {title}
-        </h2>
-        <div className="text-xs text-muted-foreground">{subtitle}</div>
-      </header>
-      <DragList id={id} itemIds={itemIds} className="min-h-24 space-y-2">
-        {children}
-        {itemIds.length === 0 && <li className="p-1 text-sm text-muted-foreground">{empty}</li>}
-      </DragList>
-    </section>
+    </DragColumn>
   )
 }

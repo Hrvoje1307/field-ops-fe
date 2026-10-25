@@ -48,3 +48,38 @@ export function applyMove(layout: DragLayout, move: DragMove): Record<string, st
   next[move.toId] = target
   return next
 }
+
+const COPY_SEPARATOR = '@'
+
+/**
+ * The same thing can sit in several lists (a job for two technicians is on both their
+ * days); the drag lists need an id per place, so extra copies are `id@listId`.
+ */
+export function copyId(id: string, listId: string): string {
+  return `${id}${COPY_SEPARATOR}${listId}`
+}
+
+/** The id of the thing behind an item id (copy or not). */
+export function baseId(itemId: string): string {
+  return itemId.split(COPY_SEPARATOR)[0] ?? itemId
+}
+
+export function isCopy(itemId: string): boolean {
+  return itemId.includes(COPY_SEPARATOR)
+}
+
+/** Item ids for lists of ids: those that appear in more than one list become copies. */
+export function withCopies(
+  lists: Readonly<Record<string, readonly string[]>>,
+): Record<string, string[]> {
+  const counts = new Map<string, number>()
+  for (const ids of Object.values(lists)) {
+    for (const id of new Set(ids)) counts.set(id, (counts.get(id) ?? 0) + 1)
+  }
+  return Object.fromEntries(
+    Object.entries(lists).map(([listId, ids]) => [
+      listId,
+      ids.map((id) => ((counts.get(id) ?? 0) > 1 ? copyId(id, listId) : id)),
+    ]),
+  )
+}

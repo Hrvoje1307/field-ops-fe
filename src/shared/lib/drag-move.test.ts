@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { applyMove, resolveMove } from './drag-move'
+import { applyMove, baseId, copyId, isCopy, resolveMove, withCopies } from './drag-move'
 
 const layout = { queue: ['q1', 'q2'], a: ['a1', 'a2', 'a3'], b: [] }
 
@@ -90,5 +90,19 @@ describe('applyMove', () => {
       'a3',
       'a1',
     ])
+  })
+})
+
+describe('copies', () => {
+  it('gives a thing that is in several lists an id per list', () => {
+    expect(withCopies({ a: ['x', 'crew'], b: ['crew'], c: [] })).toEqual({
+      a: ['x', 'crew@a'],
+      b: ['crew@b'],
+      c: [],
+    })
+    expect(baseId('crew@b')).toBe('crew')
+    expect(baseId('x')).toBe('x')
+    expect(isCopy(copyId('crew', 'a'))).toBe(true)
+    expect(isCopy('x')).toBe(false)
   })
 })
