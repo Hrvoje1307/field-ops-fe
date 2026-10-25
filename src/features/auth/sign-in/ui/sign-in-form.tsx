@@ -4,6 +4,7 @@ import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
 
+import { useLogin } from '@/entities/auth'
 import { ApiError } from '@/shared/api/api-error'
 import type { TokenResponse } from '@/shared/api/generated/model'
 import { Alert, AlertDescription } from '@/shared/ui/alert'
@@ -12,7 +13,6 @@ import { Field, FieldError, FieldGroup, FieldLabel } from '@/shared/ui/field'
 import { Input } from '@/shared/ui/input'
 
 import { signInErrorMessage } from '../lib/sign-in-error'
-import { useSignIn } from '../model/use-sign-in'
 
 interface SignInFormProps {
   onSignedIn: (tokens: TokenResponse) => void
@@ -20,7 +20,7 @@ interface SignInFormProps {
 
 export function SignInForm({ onSignedIn }: SignInFormProps) {
   const { t } = useTranslation()
-  const signIn = useSignIn()
+  const signIn = useLogin()
   const [formError, setFormError] = useState<string | null>(null)
 
   const schema = useMemo(

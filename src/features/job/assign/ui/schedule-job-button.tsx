@@ -1,32 +1,15 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarClockIcon, CalendarPlusIcon } from 'lucide-react'
 import { useId, useMemo, useState } from 'react'
 import { FormProvider, useController, useForm, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
-import { BOARD_STALE_TIME, dispatchKeys, getDispatchBoard } from '@/entities/dispatch'
-import {
-  type AssignRequest,
-  assignJob,
-  getJob,
-  handleJobConflict,
-  invalidateJobData,
-  type Job,
-  JOB_DETAIL_STALE_TIME,
-  jobKeys,
-} from '@/entities/job'
-import { JOB_TYPES_STALE_TIME, jobTypeKeys, listJobTypes } from '@/entities/job-type'
-import {
-  listTechnicians,
-  type Technician,
-  TechnicianChip,
-  TECHNICIAN_STALE_TIME,
-  technicianKeys,
-} from '@/entities/technician'
+import { useGetDispatchBoard } from '@/entities/dispatch'
+import { type AssignRequest, type Job, useAssignJob, useGetJob } from '@/entities/job'
+import { useListJobTypes } from '@/entities/job-type'
+import { type Technician, TechnicianChip, useListTechnicians } from '@/entities/technician'
 import { ApiError, isConflict } from '@/shared/api/api-error'
-import { useIdempotencyKeys } from '@/shared/api/idempotency'
 import { applyServerFieldErrors } from '@/shared/lib/form-errors'
 import { useTenantFormat } from '@/shared/lib/tenant-format'
 import { Alert, AlertDescription, AlertTitle } from '@/shared/ui/alert'
@@ -46,16 +29,6 @@ import { canSchedule } from '../model/schedulable'
 import { type ScheduleWarning, scheduleWarnings } from '../model/warnings'
 
 const ACTIVE = { includeInactive: false }
-
-function useJob(jobId: string) {
-  return useQuery({
-    queryKey: jobKeys.detail(jobId),
-    queryFn: async ({ signal }) => {
-      return getJob(jobId, signal)
-    },
-    staleTime: JOB_DETAIL_STALE_TIME,
-  })
-}
 
 /**
  * "Zakaži" / "Promijeni termin": date, start and technicians in a side panel, with
@@ -112,7 +85,7 @@ export function ScheduleJobButton({
 
 /** The schedule button for a job page: only for jobs a schedule makes sense for. */
 export function JobScheduleAction({ jobId }: { jobId: string }) {
-  const job = useJob(jobId)
+  const job = useGetJob(jobId)
   if (!job.data || !canSchedule(job.data.status)) return null
   return (
     <ScheduleJobButton
@@ -133,21 +106,9 @@ function ScheduleSheet({
   onClose: () => void
 }) {
   const { t } = useTranslation()
-  const job = useJob(jobId)
-  const technicians = useQuery({
-    queryKey: technicianKeys.list(ACTIVE),
-    queryFn: async ({ signal }) => {
-      return listTechnicians(ACTIVE, signal)
-    },
-    staleTime: TECHNICIAN_STALE_TIME,
-  })
-  const jobTypes = useQuery({
-    queryKey: jobTypeKeys.all,
-    queryFn: async ({ signal }) => {
-      return listJobTypes(signal)
-    },
-    staleTime: JOB_TYPES_STALE_TIME,
-  })
+  const job = useGetJob(jobId)
+  const technicians = useListTechnicians(ACTIVE)
+  const jobTypes = useListJobTypes()
 
   if (!job.data || !technicians.data || !jobTypes.data) {
     const failed = job.isError || technicians.isError || jobTypes.isError
@@ -199,34 +160,26 @@ function ScheduleForm({
 }) {
   const { t } = useTranslation()
   const { timeZone, today } = useTenantFormat()
-  const queryClient = useQueryClient()
-  const idempotency = useIdempotencyKeys()
   const [conflicted, setConflicted] = useState(false)
   const schema = useMemo(() => buildAssignSchema(), [])
   const form = useForm<AssignFormValues>({
     resolver: zodResolver(schema),
     defaultValues: assignFormValues(job, { day, today: today(), timeZone }),
   })
-  const save = useMutation({
-    mutationFn: ({ body, key }: { body: AssignRequest; key: string }) =>
-      assignJob(job.id, body, key),
-  })
+  const save = useAssignJob()
 
   const send = async (
     body: AssignRequest,
     done: 'schedule.assign.saved' | 'schedule.assign.unscheduled',
   ) => {
     try {
-      const updated = await save.mutateAsync({ body, key: idempotency.keyFor(body) })
-      idempotency.forget(body)
-      queryClient.setQueryData(jobKeys.detail(updated.id), updated)
-      void invalidateJobData(queryClient)
+      const updated = await save.mutateAsync({ id: job.id, body })
       toast.success(t(done, { number: updated.number }))
       onClose()
     } catch (error) {
       if (isConflict(error)) {
+        // The hook has refetched the job and told the user
         setConflicted(true)
-        await handleJobConflict(queryClient)
         return
       }
       if (error instanceof ApiError && error.status === 400) {
@@ -327,14 +280,7 @@ function TechnicianPicker({
     field: { value: leadId, onChange: setLead },
   } = useController<AssignFormValues, 'leadId'>({ name: 'leadId' })
   const validDate = /^\d{4}-\d{2}-\d{2}$/.test(date)
-  const board = useQuery({
-    queryKey: dispatchKeys.board(date),
-    queryFn: async ({ signal }) => {
-      return getDispatchBoard(date, signal)
-    },
-    staleTime: BOARD_STALE_TIME,
-    enabled: validDate,
-  })
+  const board = useGetDispatchBoard(date, { enabled: validDate })
   const columns = board.data?.columns ?? []
   const selected = technicians.filter((technician) => selectedIds.includes(technician.id))
   const warnings = validDate

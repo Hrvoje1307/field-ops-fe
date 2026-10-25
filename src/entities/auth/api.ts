@@ -1,4 +1,4 @@
-import type { QueryClient } from '@tanstack/react-query'
+import { type QueryClient, useMutation } from '@tanstack/react-query'
 
 import { apiFetch } from '@/shared/api/api-fetch'
 import type {
@@ -11,6 +11,7 @@ import type {
 } from '@/shared/api/generated/model'
 
 import { ME_STALE_TIME } from './const'
+import { sessionStore } from './model/session-store'
 
 export const authKeys = {
   me: ['auth', 'me'] as const,
@@ -50,4 +51,32 @@ export async function switchTenant(body: SwitchTenantBody) {
 /** Always 202: the API never tells whether the account exists. */
 export async function forgotPassword(body: ForgotPasswordBody) {
   return apiFetch<undefined>('/auth/password/forgot', { method: 'POST', json: body })
+}
+
+// --- Hooks (what features and widgets call) ---------------------------------
+
+/** Signs in: the session starts with an empty cache and the new tokens. */
+export function useLogin() {
+  return useMutation({
+    mutationFn: login,
+    onSuccess: (tokens, _body, _result, { client }) => {
+      client.clear()
+      sessionStore.setTokens(tokens)
+    },
+  })
+}
+
+/** Switches the active tenant: the new tokens replace the session. */
+export function useSwitchTenant() {
+  return useMutation({
+    mutationFn: switchTenant,
+    onSuccess: (tokens) => {
+      sessionStore.setTokens(tokens)
+    },
+  })
+}
+
+/** Asks for a password reset email (the API never tells whether the account exists). */
+export function useForgotPassword() {
+  return useMutation({ mutationFn: forgotPassword })
 }

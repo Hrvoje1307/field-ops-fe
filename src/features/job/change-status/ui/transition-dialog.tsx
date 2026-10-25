@@ -1,12 +1,11 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useQueryClient } from '@tanstack/react-query'
 import { useId, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 import { z } from 'zod'
 
-import { handleJobConflict, type Job, transitionNeedsNote } from '@/entities/job'
+import { type Job, transitionNeedsNote, useTransitionJob } from '@/entities/job'
 import { ApiError, isConflict } from '@/shared/api/api-error'
 import { applyFieldErrors } from '@/shared/lib/form-errors'
 import { Alert, AlertDescription } from '@/shared/ui/alert'
@@ -24,7 +23,7 @@ import { Field, FieldError, FieldLabel } from '@/shared/ui/field'
 import { Textarea } from '@/shared/ui/textarea'
 
 import type { DialogStatus } from '../config/menu'
-import { changeStatusErrorMessage, useChangeStatus } from '../model/use-change-status'
+import { changeStatusErrorMessage } from '../lib/error-message'
 
 /**
  * Confirms a status change; asks for the reason where the contract requires a note
@@ -42,8 +41,7 @@ export function TransitionDialog({
   onClose: () => void
 }) {
   const { t } = useTranslation()
-  const queryClient = useQueryClient()
-  const changeStatus = useChangeStatus()
+  const changeStatus = useTransitionJob()
   const noteId = useId()
   const needsNote = transitionNeedsNote(to)
   const [conflicted, setConflicted] = useState(false)
@@ -73,8 +71,8 @@ export function TransitionDialog({
       onClose()
     } catch (error) {
       if (isConflict(error)) {
+        // The hook has refetched the job and told the user; the dialog follows it
         setConflicted(true)
-        await handleJobConflict(queryClient)
         return
       }
       if (error instanceof ApiError && error.status === 400) {

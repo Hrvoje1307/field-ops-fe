@@ -1,4 +1,3 @@
-import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import { SearchIcon } from 'lucide-react'
 import { type KeyboardEvent, useEffect, useId, useState } from 'react'
 import { useController, useFormContext, useWatch } from 'react-hook-form'
@@ -6,13 +5,12 @@ import { useTranslation } from 'react-i18next'
 
 import {
   type Client,
-  CLIENT_STALE_TIME,
   ClientFields,
-  clientKeys,
   ClientMatch,
-  getClient,
-  listClients,
-  lookupClientByPhone,
+  useCacheClient,
+  useGetClient,
+  useListClients,
+  useLookupClientByPhone,
 } from '@/entities/client'
 import { ApiError } from '@/shared/api/api-error'
 import { useTenantFormat } from '@/shared/lib/tenant-format'
@@ -74,7 +72,7 @@ function useChooseClient(definitions: QuickJobDefinitions) {
 function FindClient({ definitions }: { definitions: QuickJobDefinitions }) {
   const { t } = useTranslation()
   const { formatPhone } = useTenantFormat()
-  const queryClient = useQueryClient()
+  const cacheClient = useCacheClient()
   const choose = useChooseClient(definitions)
   const id = useId()
   // The phone input is where a "choose a client" error takes the focus
@@ -86,14 +84,7 @@ function FindClient({ definitions }: { definitions: QuickJobDefinitions }) {
   const [searched, setSearched] = useState('')
   const [byName, setByName] = useState(false)
 
-  const lookup = useQuery({
-    queryKey: clientKeys.lookup({ phone: searched }),
-    queryFn: async ({ signal }) => {
-      return lookupClientByPhone({ phone: searched }, signal)
-    },
-    staleTime: CLIENT_STALE_TIME,
-    enabled: searched !== '',
-  })
+  const lookup = useLookupClientByPhone(searched)
 
   const find = () => {
     const value = phone.trim()
@@ -107,7 +98,7 @@ function FindClient({ definitions }: { definitions: QuickJobDefinitions }) {
     }
   }
   const pick = (client: Client) => {
-    queryClient.setQueryData(clientKeys.detail(client.id), client)
+    cacheClient(client)
     choose.existing(client.id)
   }
 
@@ -243,15 +234,7 @@ function NameSearch({ onPick }: { onPick: (clientId: string) => void }) {
   }, [query])
 
   const params = { q: searched, pageSize: NAME_RESULTS }
-  const results = useQuery({
-    queryKey: clientKeys.list(params),
-    queryFn: async ({ signal }) => {
-      return listClients(params, signal)
-    },
-    staleTime: CLIENT_STALE_TIME,
-    enabled: searched.length >= 2,
-    placeholderData: keepPreviousData,
-  })
+  const results = useListClients(params, { enabled: searched.length >= 2, keepPrevious: true })
 
   return (
     <div className="space-y-2">
@@ -314,13 +297,7 @@ function NameSearch({ onPick }: { onPick: (clientId: string) => void }) {
 
 function SelectedClient({ clientId }: { clientId: string }) {
   const { t } = useTranslation()
-  const client = useQuery({
-    queryKey: clientKeys.detail(clientId),
-    queryFn: async ({ signal }) => {
-      return getClient(clientId, signal)
-    },
-    staleTime: CLIENT_STALE_TIME,
-  })
+  const client = useGetClient(clientId)
   const { setValue } = useFormContext<QuickJobFormValues, unknown, QuickJobValues>()
   const change = (
     <Button

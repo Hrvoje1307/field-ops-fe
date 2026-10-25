@@ -1,5 +1,4 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { EllipsisIcon } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
@@ -8,14 +7,12 @@ import { toast } from 'sonner'
 import { z } from 'zod'
 
 import {
-  getJob,
-  handleJobConflict,
-  JOB_DETAIL_STALE_TIME,
   type Job,
-  jobKeys,
   type JobStatus,
   splitTransitions,
   transitionNeedsNote,
+  useGetJob,
+  useTransitionJob,
 } from '@/entities/job'
 import { ApiError, isConflict } from '@/shared/api/api-error'
 import { applyFieldErrors } from '@/shared/lib/form-errors'
@@ -40,8 +37,6 @@ import { Field, FieldError, FieldLabel } from '@/shared/ui/field'
 import { Spinner } from '@/shared/ui/spinner'
 import { Textarea } from '@/shared/ui/textarea'
 
-import { useFieldStatus } from '../model/use-field-status'
-
 /** Arrival steps record where the technician is. */
 const WITH_POSITION: readonly JobStatus[] = ['en_route', 'on_site']
 
@@ -51,20 +46,13 @@ const WITH_POSITION: readonly JobStatus[] = ['en_route', 'on_site']
  * change or a 409 it shows the job as the server has it.
  */
 export function FieldStatusBar({ jobId }: { jobId: string }) {
-  const { data: job } = useQuery({
-    queryKey: jobKeys.detail(jobId),
-    queryFn: async ({ signal }) => {
-      return getJob(jobId, signal)
-    },
-    staleTime: JOB_DETAIL_STALE_TIME,
-  })
+  const { data: job } = useGetJob(jobId)
   return job ? <Bar job={job} /> : null
 }
 
 function Bar({ job }: { job: Job }) {
   const { t } = useTranslation()
-  const queryClient = useQueryClient()
-  const change = useFieldStatus()
+  const change = useTransitionJob()
   const [reasonFor, setReasonFor] = useState<JobStatus | null>(null)
   const { primary, more } = splitTransitions(job.status, job.allowedTransitions)
 
@@ -80,8 +68,8 @@ function Bar({ job }: { job: Job }) {
           toast.success(t('field.job.done', { status: t(`job.status.${to}`) }))
         },
         onError: (error) => {
-          if (isConflict(error)) void handleJobConflict(queryClient)
-          else toast.error(t('job.changeStatus.failed'))
+          // A 409 is handled by the hook (refetch and message)
+          if (!isConflict(error)) toast.error(t('job.changeStatus.failed'))
         },
       },
     )
@@ -152,8 +140,7 @@ function Bar({ job }: { job: Job }) {
 /** Asks for the reason where the contract needs a note; stays open on 409 with the note kept. */
 function ReasonDialog({ job, to, onClose }: { job: Job; to: JobStatus; onClose: () => void }) {
   const { t } = useTranslation()
-  const queryClient = useQueryClient()
-  const change = useFieldStatus()
+  const change = useTransitionJob()
   const [conflicted, setConflicted] = useState(false)
   const schema = useMemo(
     () => z.object({ note: z.string().trim().min(1, t('field.job.reasonRequired')) }),
@@ -174,8 +161,8 @@ function ReasonDialog({ job, to, onClose }: { job: Job; to: JobStatus; onClose: 
       onClose()
     } catch (error) {
       if (isConflict(error)) {
+        // The hook has refetched the job and told the user
         setConflicted(true)
-        await handleJobConflict(queryClient)
       } else if (error instanceof ApiError && error.status === 400) {
         const unmatched = applyFieldErrors(setError, error.fieldErrors, ['note'])
         if (unmatched.length > 0) toast.error(unmatched.join(' '))

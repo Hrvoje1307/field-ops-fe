@@ -1,4 +1,3 @@
-import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ArrowLeftIcon, NavigationIcon } from 'lucide-react'
 import { type ReactNode, useId } from 'react'
@@ -7,14 +6,12 @@ import { useTranslation } from 'react-i18next'
 import { AssetSummary } from '@/entities/asset'
 import { CallButton } from '@/entities/client'
 import {
-  getJob,
-  JOB_DETAIL_STALE_TIME,
   type Job,
-  jobKeys,
   JobNumber,
   JobTypeTag,
   PriorityMark,
   StatusBadge,
+  useGetJob,
 } from '@/entities/job'
 import { AccessCodes, AccessNotes, mapsUrl } from '@/entities/location'
 import { ApiError } from '@/shared/api/api-error'
@@ -32,13 +29,7 @@ import { CustomFieldValuesFor } from './custom-field-values-for'
  */
 export function FieldJob({ jobId, bottomBar }: { jobId: string; bottomBar?: ReactNode }) {
   const { t } = useTranslation()
-  const job = useQuery({
-    queryKey: jobKeys.detail(jobId),
-    queryFn: async ({ signal }) => {
-      return getJob(jobId, signal)
-    },
-    staleTime: JOB_DETAIL_STALE_TIME,
-  })
+  const job = useGetJob(jobId)
 
   if (job.isPending) {
     return (

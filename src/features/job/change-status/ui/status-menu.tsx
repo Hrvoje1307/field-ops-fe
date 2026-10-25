@@ -1,17 +1,9 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronDownIcon } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
-import {
-  getJob,
-  handleJobConflict,
-  JOB_DETAIL_STALE_TIME,
-  type Job,
-  jobKeys,
-  type JobStatus,
-} from '@/entities/job'
+import { type Job, type JobStatus, useGetJob, useTransitionJob } from '@/entities/job'
 import { isConflict } from '@/shared/api/api-error'
 import { Button } from '@/shared/ui/button'
 import {
@@ -23,7 +15,7 @@ import {
 import { Spinner } from '@/shared/ui/spinner'
 
 import { type DialogStatus, menuTargets, needsDialog } from '../config/menu'
-import { changeStatusErrorMessage, useChangeStatus } from '../model/use-change-status'
+import { changeStatusErrorMessage } from '../lib/error-message'
 import { TransitionDialog } from './transition-dialog'
 
 /**
@@ -32,13 +24,7 @@ import { TransitionDialog } from './transition-dialog'
  * after a change or a 409 it shows the job as the server has it.
  */
 export function StatusMenu({ jobId }: { jobId: string }) {
-  const { data: job } = useQuery({
-    queryKey: jobKeys.detail(jobId),
-    queryFn: async ({ signal }) => {
-      return getJob(jobId, signal)
-    },
-    staleTime: JOB_DETAIL_STALE_TIME,
-  })
+  const { data: job } = useGetJob(jobId)
   return job ? <JobStatusMenu job={job} /> : null
 }
 
@@ -48,8 +34,7 @@ function JobStatusMenu({
   job: Pick<Job, 'id' | 'number' | 'version' | 'allowedTransitions'>
 }) {
   const { t } = useTranslation()
-  const queryClient = useQueryClient()
-  const changeStatus = useChangeStatus()
+  const changeStatus = useTransitionJob()
   const [dialogFor, setDialogFor] = useState<DialogStatus | null>(null)
 
   const targets = menuTargets(job.allowedTransitions)
@@ -65,9 +50,9 @@ function JobStatusMenu({
         onSuccess: () => {
           toast.success(t('job.changeStatus.done', { status: t(`job.status.${to}`) }))
         },
+        // A 409 is handled by the hook (refetch and message); other errors say so
         onError: (error) => {
-          if (isConflict(error)) void handleJobConflict(queryClient)
-          else toast.error(changeStatusErrorMessage(error, t))
+          if (!isConflict(error)) toast.error(changeStatusErrorMessage(error, t))
         },
       },
     )

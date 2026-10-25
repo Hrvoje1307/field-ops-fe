@@ -1,5 +1,4 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useId, useMemo } from 'react'
 import { FormProvider, useController, useForm } from 'react-hook-form'
@@ -8,14 +7,13 @@ import { toast } from 'sonner'
 import { z } from 'zod'
 
 import {
-  buildClientSchema,
   type ClientCreate,
+  buildClientSchema,
   clientFormValues,
-  clientKeys,
   ClientProfileFields,
   ContactsFields,
-  createClient,
   toClientBody,
+  useCreateClient,
 } from '@/entities/client'
 import {
   buildCustomFieldsSchema,
@@ -23,9 +21,7 @@ import {
   customFieldFormValues,
   CustomFieldInputs,
   type CustomFieldScope,
-  CUSTOM_FIELDS_STALE_TIME,
-  customFieldKeys,
-  listCustomFieldDefinitions,
+  useListCustomFieldDefinitions,
 } from '@/entities/custom-field'
 import {
   buildLocationSchema,
@@ -33,7 +29,6 @@ import {
   locationFormValues,
   toLocationBody,
 } from '@/entities/location'
-import { useIdempotencyKeys } from '@/shared/api/idempotency'
 import { reportSaveError } from '@/shared/lib/report-save-error'
 import { useTenantFormat } from '@/shared/lib/tenant-format'
 import { Alert, AlertDescription } from '@/shared/ui/alert'
@@ -45,21 +40,11 @@ const SCOPES = {
   location: { entity: 'location' },
 } as const satisfies Record<string, CustomFieldScope>
 
-function useDefinitions(scope: CustomFieldScope) {
-  return useQuery({
-    queryKey: customFieldKeys.list(scope),
-    queryFn: async ({ signal }) => {
-      return listCustomFieldDefinitions(scope, signal)
-    },
-    staleTime: CUSTOM_FIELDS_STALE_TIME,
-  })
-}
-
 /** A new client without a job: their fields, contacts, and (by default) a first location. */
 export function CreateClientForm() {
   const { t } = useTranslation()
-  const client = useDefinitions(SCOPES.client)
-  const location = useDefinitions(SCOPES.location)
+  const client = useListCustomFieldDefinitions(SCOPES.client)
+  const location = useListCustomFieldDefinitions(SCOPES.location)
   if (client.isError || location.isError) {
     return (
       <Alert variant="destructive">
@@ -94,9 +79,7 @@ function Form({
 }) {
   const { t } = useTranslation()
   const { locale, country } = useTenantFormat()
-  const queryClient = useQueryClient()
   const navigate = useNavigate()
-  const idempotency = useIdempotencyKeys()
   const schema = useMemo(
     () => buildSchema(clientFields, locationFields),
     [clientFields, locationFields],
@@ -112,9 +95,7 @@ function Form({
       ),
     },
   })
-  const save = useMutation({
-    mutationFn: ({ body, key }: { body: ClientCreate; key: string }) => createClient(body, key),
-  })
+  const save = useCreateClient()
 
   const submit = form.handleSubmit(async (values) => {
     const body: ClientCreate = {
@@ -124,10 +105,7 @@ function Form({
         : {}),
     }
     try {
-      const client = await save.mutateAsync({ body, key: idempotency.keyFor(body) })
-      idempotency.forget(body)
-      queryClient.setQueryData(clientKeys.detail(client.id), client)
-      void queryClient.invalidateQueries({ queryKey: clientKeys.all })
+      const client = await save.mutateAsync(body)
       toast.success(t('client.form.created', { name: client.name }))
       void navigate({ to: '/clients/$clientId', params: { clientId: client.id } })
     } catch (error) {

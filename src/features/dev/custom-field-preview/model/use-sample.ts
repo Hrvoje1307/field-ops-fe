@@ -1,14 +1,6 @@
-import { useQuery } from '@tanstack/react-query'
-
-import { CLIENT_STALE_TIME, clientKeys, getClient, listClients } from '@/entities/client'
+import { useGetClient, useListClients } from '@/entities/client'
 import type { CustomFieldScope, CustomFieldValues } from '@/entities/custom-field'
-import {
-  getJob,
-  JOB_DETAIL_STALE_TIME,
-  JOB_LIST_STALE_TIME,
-  jobKeys,
-  listJobs,
-} from '@/entities/job'
+import { useGetJob, useListJobs } from '@/entities/job'
 import { locationAddress } from '@/entities/location'
 
 /** Just the first record. */
@@ -27,41 +19,13 @@ export interface Sample {
  */
 export function useSample(scope: CustomFieldScope): { pending: boolean; sample: Sample | null } {
   const fromClient = scope.entity !== 'job'
-  const clients = useQuery({
-    queryKey: clientKeys.list(FIRST),
-    queryFn: async ({ signal }) => {
-      return listClients(FIRST, signal)
-    },
-    staleTime: CLIENT_STALE_TIME,
-    enabled: fromClient,
-  })
+  const clients = useListClients(FIRST, { enabled: fromClient })
   const clientId = clients.data?.items[0]?.id ?? ''
-  const client = useQuery({
-    queryKey: clientKeys.detail(clientId),
-    queryFn: async ({ signal }) => {
-      return getClient(clientId, signal)
-    },
-    staleTime: CLIENT_STALE_TIME,
-    enabled: fromClient && clientId !== '',
-  })
+  const client = useGetClient(clientId, { enabled: fromClient && clientId !== '' })
 
-  const jobs = useQuery({
-    queryKey: jobKeys.list(FIRST),
-    queryFn: async ({ signal }) => {
-      return listJobs(FIRST, signal)
-    },
-    staleTime: JOB_LIST_STALE_TIME,
-    enabled: !fromClient,
-  })
+  const jobs = useListJobs(FIRST, { enabled: !fromClient })
   const jobId = jobs.data?.items[0]?.id ?? ''
-  const job = useQuery({
-    queryKey: jobKeys.detail(jobId),
-    queryFn: async ({ signal }) => {
-      return getJob(jobId, signal)
-    },
-    staleTime: JOB_DETAIL_STALE_TIME,
-    enabled: !fromClient && jobId !== '',
-  })
+  const job = useGetJob(jobId, { enabled: !fromClient && jobId !== '' })
 
   const list = fromClient ? clients : jobs
   const detail = fromClient ? client : job

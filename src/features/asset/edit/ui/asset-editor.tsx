@@ -1,5 +1,4 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { PencilIcon, PlusIcon, Trash2Icon } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { FormProvider, type Resolver, useForm, useWatch } from 'react-hook-form'
@@ -11,31 +10,23 @@ import {
   AssetFields,
   assetFormValues,
   type AssetFormValues,
-  type AssetInput,
   type AssetType,
-  ASSET_TYPES_STALE_TIME,
-  assetTypeKeys,
   buildAssetSchema,
-  createAsset,
-  deleteAsset,
-  listAssetTypes,
   toAssetBody,
-  updateAsset,
+  useCreateAsset,
+  useDeleteAsset,
+  useListAssetTypes,
+  useUpdateAsset,
 } from '@/entities/asset'
-import { clientKeys } from '@/entities/client'
 import {
   buildCustomFieldsSchema,
   type CustomFieldDefinition,
   customFieldFormValues,
   type CustomFieldFormValues,
   CustomFieldInputs,
-  CUSTOM_FIELDS_STALE_TIME,
-  customFieldKeys,
   type CustomFieldValues,
-  listCustomFieldDefinitions,
+  useListCustomFieldDefinitions,
 } from '@/entities/custom-field'
-import { invalidateJobData } from '@/entities/job'
-import { useIdempotencyKeys } from '@/shared/api/idempotency'
 import { reportSaveError } from '@/shared/lib/report-save-error'
 import { useTenantFormat } from '@/shared/lib/tenant-format'
 import { Alert, AlertDescription } from '@/shared/ui/alert'
@@ -49,15 +40,6 @@ const NO_FIELDS: CustomFieldDefinition[] = []
 
 type FormInput = AssetFormValues<CustomFieldFormValues>
 type FormOutput = AssetFormValues<CustomFieldValues>
-
-/** Client pages and job pages show equipment: refetch both after a change. */
-function useRefreshAfterChange() {
-  const queryClient = useQueryClient()
-  return () => {
-    void queryClient.invalidateQueries({ queryKey: clientKeys.all })
-    void invalidateJobData(queryClient)
-  }
-}
 
 const assetName = (asset: Asset) =>
   [asset.assetType.name, asset.manufacturer, asset.model].filter(Boolean).join(' ')
@@ -125,13 +107,7 @@ function AssetSheet({
   onClose: () => void
 }) {
   const { t } = useTranslation()
-  const assetTypes = useQuery({
-    queryKey: assetTypeKeys.all,
-    queryFn: async ({ signal }) => {
-      return listAssetTypes(signal)
-    },
-    staleTime: ASSET_TYPES_STALE_TIME,
-  })
+  const assetTypes = useListAssetTypes()
   const title = asset ? t('asset.form.editTitle') : t('asset.form.addTitle')
   if (!assetTypes.data) {
     return (
@@ -168,14 +144,7 @@ function AssetSheet({
 /** The chosen type's field definitions (none until a type is chosen). */
 function useTypeFields(assetTypeId: string) {
   const scope = { entity: 'asset', assetTypeId } as const
-  return useQuery({
-    queryKey: customFieldKeys.list(scope),
-    queryFn: async ({ signal }) => {
-      return listCustomFieldDefinitions(scope, signal)
-    },
-    staleTime: CUSTOM_FIELDS_STALE_TIME,
-    enabled: assetTypeId !== '',
-  })
+  return useListCustomFieldDefinitions(scope, { enabled: assetTypeId !== '' })
 }
 
 function AssetForm({
@@ -193,8 +162,6 @@ function AssetForm({
 }) {
   const { t } = useTranslation()
   const { locale } = useTenantFormat()
-  const refresh = useRefreshAfterChange()
-  const idempotency = useIdempotencyKeys()
 
   // The fields depend on the chosen type, so the schema is read at validation time
   const definitionsRef = useRef<CustomFieldDefinition[]>([])
@@ -224,16 +191,13 @@ function AssetForm({
     form.setValue('customFields', customFieldFormValues(definitions, stored, { locale }))
   }, [definitions, assetTypeId, asset, form, locale])
 
-  const save = useMutation({
-    mutationFn: ({ body, key }: { body: AssetInput; key: string }) =>
-      asset ? updateAsset(asset.id, body, key) : createAsset(locationId, body, key),
-  })
+  const create = useCreateAsset()
+  const update = useUpdateAsset()
   const submit = form.handleSubmit(async (values) => {
     const body = toAssetBody(values)
     try {
-      await save.mutateAsync({ body, key: idempotency.keyFor(body) })
-      idempotency.forget(body)
-      refresh()
+      if (asset) await update.mutateAsync({ id: asset.id, body })
+      else await create.mutateAsync({ locationId, body })
       toast.success(t('asset.form.saved'))
       onClose()
     } catch (error) {
@@ -285,10 +249,9 @@ function AssetForm({
 /** "Obriši" for a piece of equipment, after a confirmation. */
 export function DeleteAssetButton({ asset }: { asset: Asset }) {
   const { t } = useTranslation()
-  const refresh = useRefreshAfterChange()
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const remove = useMutation({ mutationFn: () => deleteAsset(asset.id) })
+  const remove = useDeleteAsset()
   const name = assetName(asset)
 
   return (
@@ -314,10 +277,9 @@ export function DeleteAssetButton({ asset }: { asset: Asset }) {
         pending={remove.isPending}
         error={error}
         onConfirm={() => {
-          remove.mutate(undefined, {
+          remove.mutate(asset.id, {
             onSuccess: () => {
               setOpen(false)
-              refresh()
               toast.success(t('asset.delete.done'))
             },
             onError: () => {

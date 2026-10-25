@@ -1,10 +1,9 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { SearchIcon } from 'lucide-react'
 import { useEffect, useEffectEvent, useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { CLIENT_STALE_TIME, clientKeys, type ClientSummary, listClients } from '@/entities/client'
+import { type ClientSummary, useListClients } from '@/entities/client'
 import { useTenantFormat } from '@/shared/lib/tenant-format'
 import { Alert, AlertAction, AlertDescription } from '@/shared/ui/alert'
 import { Button } from '@/shared/ui/button'
@@ -42,14 +41,7 @@ export function ClientList({
   const { t } = useTranslation()
   const ids = useId()
   const params = toListClientsParams(search)
-  const clients = useQuery({
-    queryKey: clientKeys.list(params),
-    queryFn: async ({ signal }) => {
-      return listClients(params, signal)
-    },
-    staleTime: CLIENT_STALE_TIME,
-    placeholderData: keepPreviousData,
-  })
+  const clients = useListClients(params, { keepPrevious: true })
   const filtered = hasActiveFilters(search)
 
   return (

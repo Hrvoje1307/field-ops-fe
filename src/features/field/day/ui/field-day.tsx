@@ -1,17 +1,15 @@
-import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ChevronLeftIcon, ChevronRightIcon, NavigationIcon } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 
 import { CallButton } from '@/entities/client'
 import {
-  getMyDay,
   type Job,
-  jobKeys,
   JobNumber,
   JobTypeTag,
   PriorityMark,
   StatusBadge,
+  useGetMyDay,
 } from '@/entities/job'
 import { mapsUrl } from '@/entities/location'
 import { addDays } from '@/shared/lib/datetime'
@@ -19,9 +17,6 @@ import { useTenantFormat } from '@/shared/lib/tenant-format'
 import { Alert, AlertAction, AlertDescription } from '@/shared/ui/alert'
 import { Button } from '@/shared/ui/button'
 import { Skeleton } from '@/shared/ui/skeleton'
-
-/** Jobs change as the day goes on and offices reschedule: refetched every time. */
-const MY_DAY_STALE_TIME = 0
 
 /**
  * The technician's day on the phone: date arrows, then the jobs in visit order as large
@@ -37,13 +32,7 @@ export function FieldDay({
 }) {
   const { t } = useTranslation()
   const { formatRelativeDay, today } = useTenantFormat()
-  const day = useQuery({
-    queryKey: jobKeys.myDay(date),
-    queryFn: async ({ signal }) => {
-      return getMyDay(date, signal)
-    },
-    staleTime: MY_DAY_STALE_TIME,
-  })
+  const day = useGetMyDay(date)
   const isToday = date === today()
 
   return (

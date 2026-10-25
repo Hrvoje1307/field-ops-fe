@@ -1,22 +1,19 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useQuery } from '@tanstack/react-query'
 import { useId, useMemo, useState } from 'react'
 import { FormProvider, useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { z } from 'zod'
 
-import { ASSET_TYPES_STALE_TIME, assetTypeKeys, listAssetTypes } from '@/entities/asset'
+import { useListAssetTypes } from '@/entities/asset'
 import {
   buildCustomFieldsSchema,
-  CUSTOM_FIELDS_STALE_TIME,
   type CustomFieldDefinition,
   customFieldFormValues,
   CustomFieldInputs,
-  customFieldKeys,
   type CustomFieldScope,
   type CustomFieldValues,
   CustomFieldValuesView,
-  listCustomFieldDefinitions,
+  useListCustomFieldDefinitions,
 } from '@/entities/custom-field'
 import { useMe } from '@/entities/auth'
 import { useTenantFormat } from '@/shared/lib/tenant-format'
@@ -65,13 +62,7 @@ function Preview() {
   const { t } = useTranslation(PREVIEW_NS)
   const { t: tApp } = useTranslation()
   const id = useId()
-  const assetTypes = useQuery({
-    queryKey: assetTypeKeys.all,
-    queryFn: async ({ signal }) => {
-      return listAssetTypes(signal)
-    },
-    staleTime: ASSET_TYPES_STALE_TIME,
-  })
+  const assetTypes = useListAssetTypes()
   const [choice, setChoice] = useState('client')
   const scope = scopeOf(choice)
 
@@ -109,13 +100,7 @@ function Preview() {
 function ScopePreview({ scope }: { scope: CustomFieldScope }) {
   const { t } = useTranslation(PREVIEW_NS)
   const { t: tApp } = useTranslation()
-  const definitionsQuery = useQuery({
-    queryKey: customFieldKeys.list(scope),
-    queryFn: async ({ signal }) => {
-      return listCustomFieldDefinitions(scope, signal)
-    },
-    staleTime: CUSTOM_FIELDS_STALE_TIME,
-  })
+  const definitionsQuery = useListCustomFieldDefinitions(scope)
   const { pending, sample } = useSample(scope)
 
   if (definitionsQuery.isError) {

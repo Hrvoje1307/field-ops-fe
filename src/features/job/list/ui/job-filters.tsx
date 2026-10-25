@@ -1,10 +1,9 @@
-import { useQuery } from '@tanstack/react-query'
 import { SearchIcon } from 'lucide-react'
 import { useEffect, useEffectEvent, useId, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { JOB_TYPES_STALE_TIME, jobTypeKeys, listJobTypes } from '@/entities/job-type'
-import { listTechnicians, TECHNICIAN_STALE_TIME, technicianKeys } from '@/entities/technician'
+import { useListJobTypes } from '@/entities/job-type'
+import { useListTechnicians } from '@/entities/technician'
 import { Priority } from '@/shared/api/generated/model'
 import { Button } from '@/shared/ui/button'
 import { Field, FieldLabel } from '@/shared/ui/field'
@@ -38,20 +37,8 @@ export function JobFilters({
 }) {
   const { t } = useTranslation()
   const ids = useId()
-  const jobTypes = useQuery({
-    queryKey: jobTypeKeys.all,
-    queryFn: async ({ signal }) => {
-      return listJobTypes(signal)
-    },
-    staleTime: JOB_TYPES_STALE_TIME,
-  })
-  const technicians = useQuery({
-    queryKey: technicianKeys.list(TECHNICIAN_PARAMS),
-    queryFn: async ({ signal }) => {
-      return listTechnicians(TECHNICIAN_PARAMS, signal)
-    },
-    staleTime: TECHNICIAN_STALE_TIME,
-  })
+  const jobTypes = useListJobTypes()
+  const technicians = useListTechnicians(TECHNICIAN_PARAMS)
   const filter = (patch: Partial<JobsSearch>) => {
     onSearchChange({ ...patch, page: 1 })
   }

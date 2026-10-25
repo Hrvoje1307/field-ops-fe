@@ -1,11 +1,11 @@
-import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { toast } from 'sonner'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
-import { getJob, type Job, jobKeys } from '@/entities/job'
+import { type Job, jobKeys, useGetJob } from '@/entities/job'
 import type { TransitionRequest } from '@/shared/api/generated/model'
 import { server } from '@/shared/api/mocks/node'
 import { Toaster } from '@/shared/ui/sonner'
@@ -57,10 +57,7 @@ afterEach(() => {
 
 /** Like the job page: other parts show the same cached job as the menu. */
 function Page() {
-  const job = useQuery({
-    queryKey: jobKeys.detail('job-1'),
-    queryFn: ({ signal }) => getJob('job-1', signal),
-  })
+  const job = useGetJob('job-1')
   return job.data ? (
     <>
       <p data-testid="status">{job.data.status}</p>

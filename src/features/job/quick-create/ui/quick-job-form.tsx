@@ -1,22 +1,10 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
 import { FormProvider, useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 
-import {
-  CUSTOM_FIELDS_STALE_TIME,
-  customFieldKeys,
-  type CustomFieldScope,
-  listCustomFieldDefinitions,
-} from '@/entities/custom-field'
-import {
-  activeJobTypes,
-  type JobType,
-  JOB_TYPES_STALE_TIME,
-  jobTypeKeys,
-  listJobTypes,
-} from '@/entities/job-type'
+import { type CustomFieldScope, useListCustomFieldDefinitions } from '@/entities/custom-field'
+import { activeJobTypes, type JobType, useListJobTypes } from '@/entities/job-type'
 import { useTenantFormat } from '@/shared/lib/tenant-format'
 import { Alert, AlertAction, AlertDescription } from '@/shared/ui/alert'
 import { Button } from '@/shared/ui/button'
@@ -41,16 +29,6 @@ const SCOPES = {
   job: { entity: 'job' },
 } as const satisfies Record<keyof QuickJobDefinitions, CustomFieldScope>
 
-function useDefinitions(scope: CustomFieldScope) {
-  return useQuery({
-    queryKey: customFieldKeys.list(scope),
-    queryFn: async ({ signal }) => {
-      return listCustomFieldDefinitions(scope, signal)
-    },
-    staleTime: CUSTOM_FIELDS_STALE_TIME,
-  })
-}
-
 /**
  * Quick job entry for the office, e.g. while the client is on the phone: find or
  * enter the client, pick or enter the location, describe the job, save.
@@ -61,16 +39,10 @@ export function QuickJobForm({
   /** Start with this client chosen. */ clientId?: string
 }) {
   const { t } = useTranslation()
-  const client = useDefinitions(SCOPES.client)
-  const location = useDefinitions(SCOPES.location)
-  const job = useDefinitions(SCOPES.job)
-  const jobTypes = useQuery({
-    queryKey: jobTypeKeys.all,
-    queryFn: async ({ signal }) => {
-      return listJobTypes(signal)
-    },
-    staleTime: JOB_TYPES_STALE_TIME,
-  })
+  const client = useListCustomFieldDefinitions(SCOPES.client)
+  const location = useListCustomFieldDefinitions(SCOPES.location)
+  const job = useListCustomFieldDefinitions(SCOPES.job)
+  const jobTypes = useListJobTypes()
 
   const definitions = useMemo<QuickJobDefinitions | null>(
     () =>

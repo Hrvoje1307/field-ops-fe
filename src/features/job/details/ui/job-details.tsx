@@ -1,21 +1,17 @@
-import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ArrowLeftIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import {
-  getJob,
-  getJobHistory,
-  JOB_DETAIL_STALE_TIME,
-  JOB_HISTORY_STALE_TIME,
   type Job,
-  jobKeys,
   JobNumber,
   JobTypeTag,
   PriorityMark,
   StatusBadge,
   StatusTrack,
+  useGetJob,
+  useGetJobHistory,
 } from '@/entities/job'
 import { ApiError } from '@/shared/api/api-error'
 import { useTenantFormat } from '@/shared/lib/tenant-format'
@@ -46,13 +42,7 @@ interface Slots {
  */
 export function JobDetails({ jobId, ...slots }: { jobId: string } & Slots) {
   const { t } = useTranslation()
-  const job = useQuery({
-    queryKey: jobKeys.detail(jobId),
-    queryFn: async ({ signal }) => {
-      return getJob(jobId, signal)
-    },
-    staleTime: JOB_DETAIL_STALE_TIME,
-  })
+  const job = useGetJob(jobId)
 
   if (job.isPending) {
     return (
@@ -84,13 +74,7 @@ function JobDetail({ job, actions, history, scheduleAction }: { job: Job } & Slo
   const { t } = useTranslation()
   const { formatRelativeDateTime } = useTenantFormat()
   // The track shows when each step was reached
-  const statusHistory = useQuery({
-    queryKey: jobKeys.history(job.id),
-    queryFn: async ({ signal }) => {
-      return getJobHistory(job.id, signal)
-    },
-    staleTime: JOB_HISTORY_STALE_TIME,
-  })
+  const statusHistory = useGetJobHistory(job.id)
   const reason =
     job.status === 'on_hold'
       ? job.onHoldReason

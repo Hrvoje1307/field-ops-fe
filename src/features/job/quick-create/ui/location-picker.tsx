@@ -1,9 +1,8 @@
-import { useQuery } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { useFormContext, useFormState, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 
-import { CLIENT_STALE_TIME, clientKeys, getClient } from '@/entities/client'
+import { useGetClient } from '@/entities/client'
 import { LocationFields } from '@/entities/location'
 import { useTenantFormat } from '@/shared/lib/tenant-format'
 import { FieldError, FieldLegend, FieldSet } from '@/shared/ui/field'
@@ -51,13 +50,7 @@ function ClientLocations({
   const { setValue, formState } = useFormContext<QuickJobFormValues, unknown, QuickJobValues>()
   const { errors } = useFormState<QuickJobFormValues>({ name: 'location' })
   const location = useWatch<QuickJobFormValues, 'location'>({ name: 'location' })
-  const client = useQuery({
-    queryKey: clientKeys.detail(clientId),
-    queryFn: async ({ signal }) => {
-      return getClient(clientId, signal)
-    },
-    staleTime: CLIENT_STALE_TIME,
-  })
+  const client = useGetClient(clientId)
   const locations = client.data?.locations ?? []
   const only = locations.length === 1 ? locations[0] : undefined
   const unchosen = location.kind === 'existing' && !location.locationId

@@ -1,14 +1,11 @@
-import { useQuery } from '@tanstack/react-query'
 import { type ReactNode, useId } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import {
-  CUSTOM_FIELDS_STALE_TIME,
-  customFieldKeys,
   type CustomFieldScope,
   type CustomFieldValues,
   CustomFieldValuesView,
-  listCustomFieldDefinitions,
+  useListCustomFieldDefinitions,
 } from '@/entities/custom-field'
 import { Skeleton } from '@/shared/ui/skeleton'
 
@@ -30,13 +27,7 @@ export function CustomFieldValuesFor({
 }) {
   const { t } = useTranslation()
   const titleId = useId()
-  const definitions = useQuery({
-    queryKey: customFieldKeys.list(scope),
-    queryFn: async ({ signal }) => {
-      return listCustomFieldDefinitions(scope, signal)
-    },
-    staleTime: CUSTOM_FIELDS_STALE_TIME,
-  })
+  const definitions = useListCustomFieldDefinitions(scope)
   const Wrapper = title ? 'section' : 'div'
   const heading = title ? (
     <h2 id={titleId} className="font-semibold">

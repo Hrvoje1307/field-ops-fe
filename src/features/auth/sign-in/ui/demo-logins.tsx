@@ -1,18 +1,17 @@
 import { useTranslation } from 'react-i18next'
 
+import { useLogin } from '@/entities/auth'
 import { demoAccountGroups, DEMO_PASSWORD } from '@/shared/api/mocks/demo-accounts'
 import type { TokenResponse } from '@/shared/api/generated/model'
 import { Button } from '@/shared/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/shared/ui/card'
-
-import { useSignIn } from '../model/use-sign-in'
 
 const groups = demoAccountGroups()
 
 /** One-click sign-in as any seeded user. Only bundled when VITE_API_MOCK=true. */
 export function DemoLogins({ onSignedIn }: { onSignedIn: (tokens: TokenResponse) => void }) {
   const { t } = useTranslation()
-  const signIn = useSignIn()
+  const signIn = useLogin()
 
   return (
     <Card>

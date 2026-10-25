@@ -1,8 +1,7 @@
-import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
 
-import { JOB_LIST_STALE_TIME, jobKeys, JobNumber, listJobs, StatusBadge } from '@/entities/job'
+import { JobNumber, StatusBadge, useListJobs } from '@/entities/job'
 import { useTenantFormat } from '@/shared/lib/tenant-format'
 import { Alert, AlertAction, AlertDescription } from '@/shared/ui/alert'
 import { Button } from '@/shared/ui/button'
@@ -15,13 +14,7 @@ export function ClientJobs({ clientId }: { clientId: string }) {
   const { t } = useTranslation()
   const { formatRelativeDay } = useTenantFormat()
   const params = { clientId, sort: '-createdAt' as const, page: 1, pageSize: SHOWN }
-  const jobs = useQuery({
-    queryKey: jobKeys.list(params),
-    queryFn: async ({ signal }) => {
-      return listJobs(params, signal)
-    },
-    staleTime: JOB_LIST_STALE_TIME,
-  })
+  const jobs = useListJobs(params)
 
   if (jobs.isPending) return <Skeleton className="h-24" />
   if (jobs.isError) {

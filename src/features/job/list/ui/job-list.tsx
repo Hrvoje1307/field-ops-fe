@@ -1,7 +1,6 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 
-import { JOB_LIST_STALE_TIME, jobKeys, listJobs } from '@/entities/job'
+import { useListJobs } from '@/entities/job'
 import { useTenantFormat } from '@/shared/lib/tenant-format'
 import { Alert, AlertAction, AlertDescription } from '@/shared/ui/alert'
 import { Button } from '@/shared/ui/button'
@@ -28,15 +27,8 @@ export function JobList({
   const { t } = useTranslation()
   const { today } = useTenantFormat()
   const params = toListJobsParams(search, today())
-  const jobs = useQuery({
-    queryKey: jobKeys.list(params),
-    queryFn: async ({ signal }) => {
-      return listJobs(params, signal)
-    },
-    staleTime: JOB_LIST_STALE_TIME,
-    // Keep the rows on screen while the next filter or page loads
-    placeholderData: keepPreviousData,
-  })
+  // The rows stay on screen while the next filter or page loads
+  const jobs = useListJobs(params, { keepPrevious: true })
   const filtered = hasActiveFilters(search)
 
   return (

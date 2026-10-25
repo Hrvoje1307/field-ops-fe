@@ -1,6 +1,16 @@
 export type { Me, TokenResponse } from '@/shared/api/generated/model'
-export { authKeys, fetchMe, forgotPassword, getMe, login, logout, switchTenant } from './api'
-export { ME_STALE_TIME } from './const'
+export {
+  authKeys,
+  fetchMe,
+  forgotPassword,
+  getMe,
+  login,
+  logout,
+  switchTenant,
+  useForgotPassword,
+  useLogin,
+  useSwitchTenant,
+} from './api'
 export {
   LOGIN_REASONS,
   loginSearchFor,

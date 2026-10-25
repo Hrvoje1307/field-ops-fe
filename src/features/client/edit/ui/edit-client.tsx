@@ -1,5 +1,4 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { PencilIcon, Trash2Icon } from 'lucide-react'
 import { useMemo, useState } from 'react'
@@ -10,30 +9,23 @@ import { toast } from 'sonner'
 import {
   buildClientSchema,
   type Client,
-  CLIENT_STALE_TIME,
   clientFormValues,
-  clientKeys,
   ClientProfileFields,
-  type ClientUpdate,
   ContactsFields,
-  deleteClient,
-  getClient,
-  handleClientConflict,
   toClientBody,
-  updateClient,
+  useDeleteClient,
+  useGetClient,
+  useUpdateClient,
 } from '@/entities/client'
 import {
   buildCustomFieldsSchema,
   type CustomFieldDefinition,
   customFieldFormValues,
   CustomFieldInputs,
-  CUSTOM_FIELDS_STALE_TIME,
-  customFieldKeys,
-  listCustomFieldDefinitions,
+  useListCustomFieldDefinitions,
 } from '@/entities/custom-field'
-import { invalidateJobData } from '@/entities/job'
+
 import { isConflict } from '@/shared/api/api-error'
-import { useIdempotencyKeys } from '@/shared/api/idempotency'
 import { reportSaveError } from '@/shared/lib/report-save-error'
 import { useTenantFormat } from '@/shared/lib/tenant-format'
 import { Alert, AlertDescription } from '@/shared/ui/alert'
@@ -43,16 +35,6 @@ import { FormSheet } from '@/shared/ui/form-sheet'
 import { Skeleton } from '@/shared/ui/skeleton'
 
 const CLIENT_SCOPE = { entity: 'client' } as const
-
-function useClient(clientId: string) {
-  return useQuery({
-    queryKey: clientKeys.detail(clientId),
-    queryFn: async ({ signal }) => {
-      return getClient(clientId, signal)
-    },
-    staleTime: CLIENT_STALE_TIME,
-  })
-}
 
 /** "Uredi": the client's own fields, contacts and custom fields in a side panel. */
 export function EditClientButton({ clientId }: { clientId: string }) {
@@ -83,14 +65,8 @@ export function EditClientButton({ clientId }: { clientId: string }) {
 
 function EditClientSheet({ clientId, onClose }: { clientId: string; onClose: () => void }) {
   const { t } = useTranslation()
-  const client = useClient(clientId)
-  const definitionsQuery = useQuery({
-    queryKey: customFieldKeys.list(CLIENT_SCOPE),
-    queryFn: async ({ signal }) => {
-      return listCustomFieldDefinitions(CLIENT_SCOPE, signal)
-    },
-    staleTime: CUSTOM_FIELDS_STALE_TIME,
-  })
+  const client = useGetClient(clientId)
+  const definitionsQuery = useListCustomFieldDefinitions(CLIENT_SCOPE)
 
   if (!client.data || !definitionsQuery.data) {
     return (
@@ -129,8 +105,6 @@ function EditClientForm({
 }) {
   const { t } = useTranslation()
   const { locale, formatPhone } = useTenantFormat()
-  const queryClient = useQueryClient()
-  const idempotency = useIdempotencyKeys()
   const [conflicted, setConflicted] = useState(false)
   const schema = useMemo(
     () => buildClientSchema(buildCustomFieldsSchema(definitions)),
@@ -144,25 +118,19 @@ function EditClientForm({
       formatPhone,
     ),
   })
-  const save = useMutation({
-    mutationFn: ({ body, key }: { body: ClientUpdate; key: string }) =>
-      updateClient(client.id, body, key),
-  })
+  const save = useUpdateClient()
 
   const submit = form.handleSubmit(async (values) => {
     // `client` is the live query data: after a 409 it is the refetched client
     const body = toClientBody(values, client.version)
     try {
-      const saved = await save.mutateAsync({ body, key: idempotency.keyFor(body) })
-      idempotency.forget(body)
-      queryClient.setQueryData(clientKeys.detail(saved.id), saved)
-      void invalidateJobData(queryClient)
+      await save.mutateAsync({ id: client.id, body })
       toast.success(t('client.form.saved'))
       onClose()
     } catch (error) {
       if (isConflict(error)) {
+        // The hook has refetched the client and told the user
         setConflicted(true)
-        await handleClientConflict(queryClient)
         return
       }
       reportSaveError(error, form, t('client.form.failed'))
@@ -206,12 +174,11 @@ function EditClientForm({
 /** "Obriši": asks first; the API refuses while the client has open jobs. */
 export function DeleteClientButton({ clientId }: { clientId: string }) {
   const { t } = useTranslation()
-  const queryClient = useQueryClient()
   const navigate = useNavigate()
-  const client = useClient(clientId)
+  const client = useGetClient(clientId)
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const remove = useMutation({ mutationFn: () => deleteClient(clientId) })
+  const remove = useDeleteClient()
   const name = client.data?.name ?? ''
 
   return (
@@ -235,11 +202,9 @@ export function DeleteClientButton({ clientId }: { clientId: string }) {
         pending={remove.isPending}
         error={error}
         onConfirm={() => {
-          remove.mutate(undefined, {
+          remove.mutate(clientId, {
             onSuccess: () => {
               setOpen(false)
-              queryClient.removeQueries({ queryKey: clientKeys.detail(clientId) })
-              void queryClient.invalidateQueries({ queryKey: clientKeys.all })
               toast.success(t('client.delete.done', { name }))
               void navigate({ to: '/clients' })
             },

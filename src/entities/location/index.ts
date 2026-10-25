@@ -6,8 +6,10 @@ export {
   listClientLocations,
   locationKeys,
   updateLocation,
+  useCreateLocation,
+  useDeleteLocation,
+  useUpdateLocation,
 } from './api'
-export { LOCATION_STALE_TIME } from './const'
 export {
   type AccessCodesFormValue,
   accessCodesForRequest,

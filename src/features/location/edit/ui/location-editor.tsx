@@ -1,35 +1,28 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { PencilIcon, PlusIcon, Trash2Icon } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { FormProvider, useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
-import { clientKeys } from '@/entities/client'
 import {
   buildCustomFieldsSchema,
   type CustomFieldDefinition,
   customFieldFormValues,
   CustomFieldInputs,
-  CUSTOM_FIELDS_STALE_TIME,
-  customFieldKeys,
-  listCustomFieldDefinitions,
+  useListCustomFieldDefinitions,
 } from '@/entities/custom-field'
-import { invalidateJobData } from '@/entities/job'
 import {
   buildLocationSchema,
-  createLocation,
-  deleteLocation,
   type Location,
   LocationFields,
   locationFormValues,
-  type LocationInput,
   toLocationBody,
-  updateLocation,
+  useCreateLocation,
+  useDeleteLocation,
+  useUpdateLocation,
 } from '@/entities/location'
 import { isConflict } from '@/shared/api/api-error'
-import { useIdempotencyKeys } from '@/shared/api/idempotency'
 import { reportSaveError } from '@/shared/lib/report-save-error'
 import { useTenantFormat } from '@/shared/lib/tenant-format'
 import { Alert, AlertDescription } from '@/shared/ui/alert'
@@ -39,15 +32,6 @@ import { FormSheet } from '@/shared/ui/form-sheet'
 import { Skeleton } from '@/shared/ui/skeleton'
 
 const LOCATION_SCOPE = { entity: 'location' } as const
-
-/** Client pages and job pages show locations: refetch both after a change. */
-function useRefreshAfterChange() {
-  const queryClient = useQueryClient()
-  return () => {
-    void queryClient.invalidateQueries({ queryKey: clientKeys.all })
-    void invalidateJobData(queryClient)
-  }
-}
 
 /**
  * "Dodaj lokaciju" (no `location`) or "Uredi" for one location, in a side panel.
@@ -112,13 +96,7 @@ function LocationSheet({
   onClose: () => void
 }) {
   const { t } = useTranslation()
-  const definitionsQuery = useQuery({
-    queryKey: customFieldKeys.list(LOCATION_SCOPE),
-    queryFn: async ({ signal }) => {
-      return listCustomFieldDefinitions(LOCATION_SCOPE, signal)
-    },
-    staleTime: CUSTOM_FIELDS_STALE_TIME,
-  })
+  const definitionsQuery = useListCustomFieldDefinitions(LOCATION_SCOPE)
   const title = location ? t('location.form.editTitle') : t('location.form.addTitle')
   if (!definitionsQuery.data) {
     return (
@@ -167,8 +145,6 @@ function LocationForm({
 }) {
   const { t } = useTranslation()
   const { locale, country } = useTenantFormat()
-  const refresh = useRefreshAfterChange()
-  const idempotency = useIdempotencyKeys()
   const schema = useMemo(
     () => buildLocationSchema(buildCustomFieldsSchema(definitions)),
     [definitions],
@@ -180,18 +156,15 @@ function LocationForm({
       customFieldFormValues(definitions, location?.customFields, { locale }),
     ),
   })
-  const save = useMutation({
-    mutationFn: ({ body, key }: { body: LocationInput; key: string }) =>
-      location ? updateLocation(location.id, body, key) : createLocation(clientId, body, key),
-  })
+  const create = useCreateLocation()
+  const update = useUpdateLocation()
 
   const submit = form.handleSubmit(async (values) => {
     // A stored location keeps its own country; a new one gets the tenant's
     const body = toLocationBody(values, location ? location.country : country)
     try {
-      await save.mutateAsync({ body, key: idempotency.keyFor(body) })
-      idempotency.forget(body)
-      refresh()
+      if (location) await update.mutateAsync({ id: location.id, body })
+      else await create.mutateAsync({ clientId, body })
       toast.success(t('location.form.saved'))
       onClose()
     } catch (error) {
@@ -230,10 +203,9 @@ function LocationForm({
 /** "Obriši" for a location: asks first; the API refuses while it has open jobs. */
 export function DeleteLocationButton({ location }: { location: Location }) {
   const { t } = useTranslation()
-  const refresh = useRefreshAfterChange()
   const [open, setOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const remove = useMutation({ mutationFn: () => deleteLocation(location.id) })
+  const remove = useDeleteLocation()
   const name = location.label ?? location.address ?? ''
 
   return (
@@ -259,10 +231,9 @@ export function DeleteLocationButton({ location }: { location: Location }) {
         pending={remove.isPending}
         error={error}
         onConfirm={() => {
-          remove.mutate(undefined, {
+          remove.mutate(location.id, {
             onSuccess: () => {
               setOpen(false)
-              refresh()
               toast.success(t('location.delete.done'))
             },
             onError: (failure) => {

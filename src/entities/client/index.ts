@@ -17,8 +17,14 @@ export {
   listClients,
   lookupClientByPhone,
   updateClient,
+  useCacheClient,
+  useCreateClient,
+  useDeleteClient,
+  useGetClient,
+  useListClients,
+  useLookupClientByPhone,
+  useUpdateClient,
 } from './api'
-export { CLIENT_STALE_TIME } from './const'
 export {
   buildClientSchema,
   type ClientFormValues,

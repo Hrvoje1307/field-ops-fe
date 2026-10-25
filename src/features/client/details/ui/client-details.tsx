@@ -1,17 +1,10 @@
-import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { ArrowLeftIcon } from 'lucide-react'
 import { type ReactNode, useId } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { type Asset, AssetSummary } from '@/entities/asset'
-import {
-  type Client,
-  CLIENT_STALE_TIME,
-  clientKeys,
-  ContactLine,
-  getClient,
-} from '@/entities/client'
+import { type Client, ContactLine, useGetClient } from '@/entities/client'
 import { AccessCodes, AccessNotes, type Location, MapsLink } from '@/entities/location'
 import { ApiError } from '@/shared/api/api-error'
 import { Alert, AlertAction, AlertDescription } from '@/shared/ui/alert'
@@ -38,13 +31,7 @@ export interface ClientDetailsSlots {
  */
 export function ClientDetails({ clientId, ...slots }: { clientId: string } & ClientDetailsSlots) {
   const { t } = useTranslation()
-  const client = useQuery({
-    queryKey: clientKeys.detail(clientId),
-    queryFn: async ({ signal }) => {
-      return getClient(clientId, signal)
-    },
-    staleTime: CLIENT_STALE_TIME,
-  })
+  const client = useGetClient(clientId)
 
   if (client.isPending) {
     return (

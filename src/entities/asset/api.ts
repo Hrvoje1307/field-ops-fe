@@ -1,5 +1,11 @@
+import { useMutation, useQuery } from '@tanstack/react-query'
+
 import { apiFetch, path } from '@/shared/api/api-fetch'
+import { useIdempotencyKeys } from '@/shared/api/idempotency'
+import { invalidateRoots, JOB_DATA_ROOTS } from '@/shared/api/query-roots'
 import type { Asset, AssetInput, AssetType } from '@/shared/api/generated/model'
+
+import { ASSET_TYPES_STALE_TIME } from './const'
 
 export const assetKeys = {
   all: ['assets'] as const,
@@ -42,4 +48,53 @@ export async function updateAsset(id: string, body: AssetInput, idempotencyKey?:
 
 export async function deleteAsset(id: string) {
   return apiFetch<undefined>(path`/assets/${id}`, { method: 'DELETE' })
+}
+
+// --- Hooks (what features and widgets call) ---------------------------------
+
+/** The tenant's equipment types. */
+export function useListAssetTypes() {
+  return useQuery({
+    queryKey: assetTypeKeys.all,
+    queryFn: ({ signal }) => listAssetTypes(signal),
+    staleTime: ASSET_TYPES_STALE_TIME,
+  })
+}
+
+// Client pages and job pages show equipment: both refresh after a change.
+
+/** Adds equipment to a location. */
+export function useCreateAsset() {
+  const idempotency = useIdempotencyKeys()
+  return useMutation({
+    mutationFn: ({ locationId, body }: { locationId: string; body: AssetInput }) =>
+      createAsset(locationId, body, idempotency.keyFor({ locationId, body })),
+    onSuccess: (_asset, variables, _result, { client }) => {
+      idempotency.forget({ locationId: variables.locationId, body: variables.body })
+      void invalidateRoots(client, JOB_DATA_ROOTS)
+    },
+  })
+}
+
+/** Saves equipment (full replacement; the custom fields are those of its type). */
+export function useUpdateAsset() {
+  const idempotency = useIdempotencyKeys()
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: AssetInput }) =>
+      updateAsset(id, body, idempotency.keyFor({ id, body })),
+    onSuccess: (_asset, variables, _result, { client }) => {
+      idempotency.forget({ id: variables.id, body: variables.body })
+      void invalidateRoots(client, JOB_DATA_ROOTS)
+    },
+  })
+}
+
+/** Deletes equipment. */
+export function useDeleteAsset() {
+  return useMutation({
+    mutationFn: (id: string) => deleteAsset(id),
+    onSuccess: (_nothing, _id, _result, { client }) => {
+      void invalidateRoots(client, JOB_DATA_ROOTS)
+    },
+  })
 }

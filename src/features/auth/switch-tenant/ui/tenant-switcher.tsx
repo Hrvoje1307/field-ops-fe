@@ -1,5 +1,8 @@
+import { useNavigate } from '@tanstack/react-router'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'sonner'
 
+import { roleHome, useSwitchTenant } from '@/entities/auth'
 import type { MeMembershipsItem } from '@/shared/api/generated/model'
 import {
   DropdownMenuGroup,
@@ -9,8 +12,6 @@ import {
   DropdownMenuSeparator,
 } from '@/shared/ui/dropdown-menu'
 
-import { useSwitchTenant } from '../model/use-switch-tenant'
-
 interface TenantSwitcherProps {
   memberships: MeMembershipsItem[]
   currentTenantId: string
@@ -19,6 +20,7 @@ interface TenantSwitcherProps {
 /** Tenant list for the user menu; renders nothing with a single membership. */
 export function TenantSwitcher({ memberships, currentTenantId }: TenantSwitcherProps) {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const switchTenant = useSwitchTenant()
   if (memberships.length < 2) return null
 
@@ -29,7 +31,20 @@ export function TenantSwitcher({ memberships, currentTenantId }: TenantSwitcherP
         <DropdownMenuRadioGroup
           value={currentTenantId}
           onValueChange={(tenantId) => {
-            if (tenantId !== currentTenantId) switchTenant.mutate({ tenantId })
+            if (tenantId === currentTenantId) return
+            // The new tokens replace the session (the hook); the app's session watcher
+            // reloads /me, and we go to the role's home (the role may differ per tenant)
+            switchTenant.mutate(
+              { tenantId },
+              {
+                onSuccess: (tokens) => {
+                  void navigate({ to: roleHome(tokens.role) })
+                },
+                onError: () => {
+                  toast.error(t('auth.switchTenant.failed'))
+                },
+              },
+            )
           }}
         >
           {memberships.map((membership) => (

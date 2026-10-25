@@ -1,6 +1,9 @@
+import { useQuery } from '@tanstack/react-query'
+
 import { apiFetch } from '@/shared/api/api-fetch'
 import type { CustomFieldDefinition, ListCustomFieldsParams } from '@/shared/api/generated/model'
 
+import { CUSTOM_FIELDS_STALE_TIME } from './const'
 import { prepareDefinitions } from './lib/definitions'
 import type { CustomFieldScope } from './model/types'
 
@@ -28,4 +31,19 @@ export async function listCustomFieldDefinitions(
     signal,
   })
   return prepareDefinitions(definitions)
+}
+
+// --- Hooks (what features and widgets call) ---------------------------------
+
+/** The tenant's field definitions for an entity (and asset type), in display order. */
+export function useListCustomFieldDefinitions(
+  scope: CustomFieldScope,
+  { enabled = true }: { enabled?: boolean } = {},
+) {
+  return useQuery({
+    queryKey: customFieldKeys.list(scope),
+    queryFn: ({ signal }) => listCustomFieldDefinitions(scope, signal),
+    staleTime: CUSTOM_FIELDS_STALE_TIME,
+    enabled,
+  })
 }

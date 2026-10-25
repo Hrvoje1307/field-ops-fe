@@ -1,15 +1,9 @@
-import { useQuery } from '@tanstack/react-query'
 import { Link } from '@tanstack/react-router'
 import { cn } from 'cn'
 import { type ReactNode, useId } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import {
-  BOARD_STALE_TIME,
-  type DispatchBoardColumnsItem,
-  dispatchKeys,
-  getDispatchBoard,
-} from '@/entities/dispatch'
+import { type DispatchBoardColumnsItem, useGetDispatchBoard } from '@/entities/dispatch'
 import { JobNumber, type JobSummary, PriorityMark, StatusBadge } from '@/entities/job'
 import { TechnicianChip } from '@/entities/technician'
 import { useTenantFormat } from '@/shared/lib/tenant-format'
@@ -32,13 +26,7 @@ export function DayBoard({
   jobActions?: (job: JobSummary) => ReactNode
 }) {
   const { t } = useTranslation()
-  const board = useQuery({
-    queryKey: dispatchKeys.board(date),
-    queryFn: async ({ signal }) => {
-      return getDispatchBoard(date, signal)
-    },
-    staleTime: BOARD_STALE_TIME,
-  })
+  const board = useGetDispatchBoard(date)
 
   if (board.isPending) {
     return (
