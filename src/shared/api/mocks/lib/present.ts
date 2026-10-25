@@ -5,12 +5,14 @@
 import type {
   Asset,
   AssignedTechnician,
+  Attachment,
   ChecklistItem,
   Client,
   ClientSummary,
   Contact,
   Invitation,
   Job,
+  JobMaterial,
   JobReport,
   JobSummary,
   Location,
@@ -25,7 +27,10 @@ import type {
 
 import type {
   AssetRow,
+  AttachmentRow,
   ChecklistItemRow,
+  MaterialRow,
+  ReportRow,
   ClientRow,
   ContactRow,
   HistoryRow,
@@ -304,7 +309,7 @@ export function presentJobSummary(db: MockDb, t: TenantData, row: JobRow): JobSu
   }
 }
 
-function presentChecklistItem(row: ChecklistItemRow): ChecklistItem {
+export function presentChecklistItem(row: ChecklistItemRow): ChecklistItem {
   return {
     id: row.id,
     position: row.position,
@@ -316,9 +321,52 @@ function presentChecklistItem(row: ChecklistItemRow): ChecklistItem {
   }
 }
 
-function presentReport(t: TenantData, jobId: string): JobReport | null {
-  const report = t.reports.find((r) => r.jobId === jobId)
-  if (!report) return null
+/** What an attachment looks like in a response (file bytes and bookkeeping stay out). */
+export function presentAttachment(row: AttachmentRow): Attachment {
+  return {
+    id: row.id,
+    ownerType: row.ownerType,
+    ownerId: row.ownerId,
+    kind: row.kind,
+    fileName: row.fileName ?? null,
+    mime: row.mime,
+    sizeBytes: row.sizeBytes,
+    takenAt: row.takenAt ?? null,
+    createdAt: row.createdAt,
+  }
+}
+
+/** A confirmed file that is there to be seen (a generated one only once it is ready). */
+export function isAvailable(row: AttachmentRow, now: number = Date.now()): boolean {
+  return (
+    !row.deletedAt &&
+    row.state === 'confirmed' &&
+    (row.availableAt === null || Date.parse(row.availableAt) <= now)
+  )
+}
+
+/** Money as cents, for sums in the mock (the API's amounts are decimal strings). */
+const cents = (amount: string) => Math.round(Number(amount) * 100)
+
+export function presentMaterial(row: MaterialRow): JobMaterial {
+  return {
+    id: row.id,
+    catalogItemId: row.catalogItemId ?? null,
+    sku: row.sku ?? null,
+    name: row.name,
+    quantity: row.quantity,
+    unit: row.unit,
+    unitPrice: row.unitPrice,
+    lineTotal: row.lineTotal,
+  }
+}
+
+export function presentReportOf(t: TenantData, report: ReportRow): JobReport {
+  const { jobId } = report
+  const materials = t.materials.filter((m) => m.jobId === jobId)
+  const pdf = report.pdfAttachmentId
+    ? t.attachments.find((a) => a.id === report.pdfAttachmentId)
+    : undefined
   return {
     jobId,
     workDone: report.workDone ?? null,
@@ -326,17 +374,26 @@ function presentReport(t: TenantData, jobId: string): JobReport | null {
     finishedAt: report.finishedAt ?? null,
     labourMinutes: report.labourMinutes ?? null,
     signedByName: report.signedByName ?? null,
-    signatureAttachmentId: null,
-    pdfAttachmentId: null,
+    signatureAttachmentId: report.signatureAttachmentId,
+    pdfAttachmentId: pdf && isAvailable(pdf) ? pdf.id : null,
     completedAt: report.completedAt ?? null,
-    materials: [],
+    materials: materials.map(presentMaterial),
     checklist: t.checklistItems
       .filter((item) => item.jobId === jobId)
       .sort((a, b) => a.position - b.position)
       .map(presentChecklistItem),
-    photos: [],
-    totalMaterials: '0.00',
+    photos: t.attachments
+      .filter(
+        (a) => a.ownerType === 'job' && a.ownerId === jobId && a.kind === 'photo' && isAvailable(a),
+      )
+      .map(presentAttachment),
+    totalMaterials: (materials.reduce((sum, m) => sum + cents(m.lineTotal), 0) / 100).toFixed(2),
   }
+}
+
+function presentReport(t: TenantData, jobId: string): JobReport | null {
+  const report = t.reports.find((r) => r.jobId === jobId)
+  return report ? presentReportOf(t, report) : null
 }
 
 export function presentJob(db: MockDb, t: TenantData, row: JobRow, viewer: Viewer): Job {

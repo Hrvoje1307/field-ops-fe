@@ -6,11 +6,17 @@ import { newId } from './ids'
 export interface MockResult {
   status: number
   body?: unknown
+  /** A plain-text or HTML body (instead of JSON), with its media type. */
+  text?: { content: string; contentType: string }
   headers?: Record<string, string>
 }
 
 export const ok = (body: unknown): MockResult => ({ status: 200, body })
 export const created = (body: unknown): MockResult => ({ status: 201, body })
+export const html = (content: string): MockResult => ({
+  status: 200,
+  text: { content, contentType: 'text/html; charset=utf-8' },
+})
 export const noContent = (): MockResult => ({ status: 204 })
 export const accepted = (): MockResult => ({ status: 202 })
 

@@ -1,5 +1,6 @@
 import type {
   AssetType,
+  CatalogItem,
   ChecklistTemplate,
   CustomFieldDefinition,
   Depot,
@@ -26,6 +27,7 @@ import type {
   InvitationRow,
   JobRow,
   LocationRow,
+  MaterialRow,
   MembershipRow,
   ReportRow,
   TechnicianRow,
@@ -273,6 +275,12 @@ export function buildTenant(
   const history: HistoryRow[] = []
   const checklistItems: ChecklistItemRow[] = []
   const reports: ReportRow[] = []
+  const materials: MaterialRow[] = []
+  const catalogItems: CatalogItem[] = seed.catalog.map((item) => ({
+    id: id(),
+    ...item,
+    isActive: true,
+  }))
 
   for (const j of seed.jobs) {
     buildJob(j)
@@ -408,7 +416,27 @@ export function buildTenant(
         labourMinutes: durationMin * Math.max(1, techs.length),
         signedByName: clientSeed.contacts[0]?.name ?? null,
         completedAt,
+        signatureAttachmentId: null,
+        pdfAttachmentId: null,
       })
+      for (const used of j.materials ?? []) {
+        const item = required(
+          catalogItems.find((candidate) => candidate.sku === used.sku),
+          `catalog item "${used.sku}"`,
+        )
+        const quantity = Number(used.quantity)
+        materials.push({
+          id: id(),
+          jobId,
+          catalogItemId: item.id,
+          sku: item.sku,
+          name: item.name,
+          quantity: used.quantity,
+          unit: item.unit,
+          unitPrice: item.price,
+          lineTotal: (Math.round(Number(item.price) * 100 * quantity) / 100).toFixed(2),
+        })
+      }
     }
   }
 
@@ -470,6 +498,9 @@ export function buildTenant(
       history,
       checklistItems,
       reports,
+      materials,
+      catalogItems,
+      attachments: [],
       jobSequence,
       usage: [{ month: today.slice(0, 7), ...seed.usage }],
       routePlans: [],

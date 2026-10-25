@@ -84,6 +84,8 @@ export interface JobSeed {
   window?: [string, string]
   rescheduleNote?: string
   workDone?: string
+  /** Materials used by a completed job: catalog SKU and quantity. */
+  materials?: { sku: string; quantity: string }[]
   customFields?: CustomFieldValues
   createdDaysAgo?: number
   locked?: boolean
@@ -124,6 +126,7 @@ export interface TenantSeed {
   }
   skills: string[]
   technicians: { user: string; color: string; skills: string[] }[]
+  catalog: { sku: string; name: string; unit: string; price: string }[]
   checklists: { name: string; items: { label: string; required?: boolean }[] }[]
   jobTypes: {
     name: string

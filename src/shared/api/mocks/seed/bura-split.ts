@@ -48,6 +48,12 @@ export const buraSplit: TenantSeed = {
     { user: 'bura.ante', color: '#0ea5e9', skills: ['Klima uređaji', 'Dizalice topline'] },
     { user: 'bura.mia', color: '#f59e0b', skills: ['Plinski bojleri', 'Klima uređaji'] },
   ],
+  catalog: [
+    { sku: 'FIL-AC', name: 'Filter za klima uređaj', unit: 'kom', price: '12.00' },
+    { sku: 'R32-KG', name: 'Radna tvar R32', unit: 'kg', price: '28.00' },
+    { sku: 'CIJEV-CU', name: 'Bakrena cijev 1/4"', unit: 'm', price: '4.20' },
+    { sku: 'RAD-H', name: 'Radni sat servisera', unit: 'h', price: '32.00' },
+  ],
   checklists: [
     {
       name: 'Servis klime',
@@ -779,6 +785,7 @@ export const buraSplit: TenantSeed = {
       time: '10:00',
       techs: ['bura.mia'],
       workDone: 'Očišćen plamenik, analiza dimnih plinova u granicama.',
+      materials: [{ sku: 'RAD-H', quantity: '1.5' }],
     },
     {
       client: 'lucica',

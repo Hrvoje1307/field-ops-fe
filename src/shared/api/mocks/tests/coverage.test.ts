@@ -55,7 +55,12 @@ afterAll(() => {
         .replace(API_URL, '')
         .replace(/:(\w+)/g, '{$1}')}`,
   )
-  expect(mocked.filter((operation) => !calledOperations.has(operation))).toEqual([])
+  // The mock's object storage is outside the contract (the real one is S3)
+  expect(
+    mocked.filter(
+      (operation) => !operation.includes('/mock-storage/') && !calledOperations.has(operation),
+    ),
+  ).toEqual([])
 })
 
 describe('every mocked operation matches the contract', () => {
@@ -90,6 +95,62 @@ describe('every mocked operation matches the contract', () => {
       ).status,
     ).toBe(200)
     expect((await owner.post(`/route-plans/${plan.body.id}/publish`)).status).toBe(200)
+  })
+
+  it('reports: report, checklist, materials, catalog, files, signature, complete, print', async () => {
+    const t = tenantBySlug('alarmko')
+    const job = t.jobs.find((row) => row.status === 'on_site')
+    if (!job) throw new Error('Seed needs an on_site job')
+    const ivan = await loginAs(USERS.ivan)
+    const base = `/jobs/${job.id}`
+    expect((await ivan.get(`${base}/report`)).status).toBe(200)
+    expect((await ivan.put(`${base}/report`, { workDone: 'Gotovo.' })).status).toBe(200)
+    const list = (await ivan.get<{ id: string }[]>(`${base}/checklist`)).body
+    expect(
+      (
+        await ivan.put(
+          `${base}/checklist`,
+          list.map((item) => ({ id: item.id, isDone: true })),
+        )
+      ).status,
+    ).toBe(200)
+    const catalog = (await ivan.get<{ items: { id: string }[] }>('/catalog-items')).body
+    const material = await ivan.post<{ id: string }>(`${base}/materials`, {
+      catalogItemId: catalog.items[0]?.id,
+      quantity: '1',
+    })
+    expect(material.status).toBe(201)
+    expect((await ivan.get(`${base}/materials`)).status).toBe(200)
+    expect((await ivan.del(`${base}/materials/${material.body.id}`)).status).toBe(204)
+
+    const png = new Uint8Array([137, 80, 78, 71])
+    const target = await ivan.post<{
+      attachmentId: string
+      uploadUrl: string
+      headers: Record<string, string>
+    }>('/attachments/upload-url', {
+      ownerType: 'job',
+      ownerId: job.id,
+      kind: 'signature',
+      mime: 'image/png',
+      sizeBytes: png.byteLength,
+    })
+    expect(target.status).toBe(201)
+    await fetch(target.body.uploadUrl, {
+      method: 'PUT',
+      headers: target.body.headers,
+      body: png as unknown as BodyInit,
+    })
+    const id = target.body.attachmentId
+    expect((await ivan.post('/attachments', { attachmentId: id })).status).toBe(200)
+    expect((await ivan.get(`/attachments?ownerType=job&ownerId=${job.id}`)).status).toBe(200)
+    expect((await ivan.get(`/attachments/${id}/url`)).status).toBe(200)
+    expect(
+      (await ivan.post(`${base}/signature`, { attachmentId: id, signedByName: 'Marko' })).status,
+    ).toBe(200)
+    expect((await ivan.get(`${base}/report/print`)).status).toBe(200)
+    expect((await ivan.post(`${base}/complete`, { sendReportToClient: false })).status).toBe(200)
+    expect((await ivan.del(`/attachments/${id}`)).status).toBe(204)
   })
 
   it('auth', async () => {

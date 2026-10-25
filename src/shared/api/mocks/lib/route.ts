@@ -194,6 +194,12 @@ function parseBody(
 }
 
 function toResponse(result: MockResult): Response {
+  if (result.text) {
+    return new HttpResponse(result.text.content, {
+      status: result.status,
+      headers: { 'Content-Type': result.text.contentType, ...result.headers },
+    })
+  }
   if (result.body === undefined)
     return new HttpResponse(null, { status: result.status, headers: result.headers })
   return new HttpResponse(JSON.stringify(result.body), {

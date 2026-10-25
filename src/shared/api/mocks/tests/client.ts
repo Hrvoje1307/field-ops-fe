@@ -44,7 +44,8 @@ export async function api<T = unknown>(
     body: body === undefined ? undefined : JSON.stringify(body),
   })
   const text = await response.text()
-  const parsed: unknown = text ? JSON.parse(text) : undefined
+  const isJson = (response.headers.get('content-type') ?? '').includes('json')
+  const parsed: unknown = text ? (isJson ? JSON.parse(text) : text) : undefined
   calledOperations.add(
     `${method.toUpperCase()} ${matchPathTemplate(new URL(path, API_URL).pathname) ?? path}`,
   )

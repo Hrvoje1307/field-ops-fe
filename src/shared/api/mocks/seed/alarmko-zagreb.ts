@@ -45,6 +45,12 @@ export const alarmkoZagreb: TenantSeed = {
     { user: 'alarmko.luka', color: '#16a34a', skills: ['Videonadzor', 'Alarmni sustavi'] },
     { user: 'alarmko.petra', color: '#db2777', skills: ['Alarmni sustavi', 'Videonadzor'] },
   ],
+  catalog: [
+    { sku: 'AKU-12-7', name: 'Akumulator 12 V 7 Ah', unit: 'kom', price: '18.50' },
+    { sku: 'KAB-4X0.22', name: 'Kabel 4×0,22 mm²', unit: 'm', price: '0.65' },
+    { sku: 'MK-01', name: 'Magnetski kontakt', unit: 'kom', price: '9.90' },
+    { sku: 'RAD-H', name: 'Radni sat tehničara', unit: 'h', price: '35.00' },
+  ],
   checklists: [
     {
       name: 'Ugradnja',
@@ -772,6 +778,7 @@ export const alarmkoZagreb: TenantSeed = {
       time: '09:00',
       techs: ['alarmko.ivan'],
       workDone: 'Zamijenjen akumulator, testirane sve zone.',
+      materials: [{ sku: 'AKU-12-7', quantity: '1' }],
     },
     {
       client: 'culic',
@@ -781,6 +788,10 @@ export const alarmkoZagreb: TenantSeed = {
       day: -2,
       time: '12:00',
       techs: ['alarmko.petra'],
+      materials: [
+        { sku: 'MK-01', quantity: '1' },
+        { sku: 'KAB-4X0.22', quantity: '12.5' },
+      ],
     },
     {
       client: 'vidovic',

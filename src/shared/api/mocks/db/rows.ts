@@ -6,6 +6,8 @@
 import type {
   AssetType,
   Asset,
+  Attachment,
+  CatalogItem,
   ChecklistItem,
   ChecklistTemplate,
   Client,
@@ -14,6 +16,7 @@ import type {
   Depot,
   Invitation,
   Job,
+  JobMaterial,
   JobReport,
   JobType,
   Location,
@@ -29,9 +32,9 @@ import type {
 /**
  * Bump when the stored shape changes: older data in localStorage is then reseeded
  * instead of being read with missing fields. (2: invitation tokens, spec 0.2.0;
- * 3: custom fields of every type in both tenants; 4: route plans)
+ * 3: custom fields of every type in both tenants; 4: route plans; 5: reports, materials, catalog and attachments)
  */
-export const MOCK_DB_SCHEMA_VERSION = 4
+export const MOCK_DB_SCHEMA_VERSION = 5
 
 /** Response types mark timestamps readonly; stored rows are written by the mock. */
 type Mutable<T> = { -readonly [K in keyof T]: T[K] }
@@ -172,7 +175,23 @@ export type ReportRow = Pick<
   | 'labourMinutes'
   | 'signedByName'
   | 'completedAt'
->
+> & {
+  signatureAttachmentId: string | null
+  /** The PDF of a completed job; it appears on the report once it is ready. */
+  pdfAttachmentId: string | null
+}
+
+export type MaterialRow = JobMaterial & { jobId: string }
+
+export type AttachmentRow = Attachment & {
+  deletedAt: string | null
+  /** Created by `upload-url`; usable only after the file was uploaded and confirmed. */
+  state: 'pending' | 'uploaded' | 'confirmed'
+  /** A generated file (the report PDF) shows up at this instant. */
+  availableAt: string | null
+  /** The bytes of a small file as a data URL (signatures); larger files keep none. */
+  preview: string | null
+}
 
 export interface TenantData {
   tenant: Mutable<Tenant>
@@ -193,6 +212,9 @@ export interface TenantData {
   history: HistoryRow[]
   checklistItems: ChecklistItemRow[]
   reports: ReportRow[]
+  materials: MaterialRow[]
+  catalogItems: CatalogItem[]
+  attachments: AttachmentRow[]
   /** Last job number per year. */
   jobSequence: Record<string, number>
   usage: Usage[]
