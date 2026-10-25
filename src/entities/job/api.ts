@@ -8,6 +8,7 @@ import type {
   JobSummaryPage,
   ListJobsParams,
   StatusHistoryEntry,
+  TechnicianDay,
   TransitionRequest,
 } from '@/shared/api/generated/model'
 
@@ -18,6 +19,8 @@ export const jobKeys = {
   list: (params: ListJobsParams) => ['jobs', 'list', params] as const,
   detail: (id: string) => ['jobs', 'detail', id] as const,
   history: (id: string) => ['jobs', 'detail', id, 'history'] as const,
+  /** The signed-in technician's day (under `jobs`, so job changes refresh it). */
+  myDay: (date: string) => ['jobs', 'my-day', date] as const,
 }
 
 // --- GET (used as queryFn) ---------------------------------------------------
@@ -28,6 +31,11 @@ export async function listJobs(params: ListJobsParams, signal?: AbortSignal) {
 
 export async function getJob(id: string, signal?: AbortSignal) {
   return apiFetch<Job>(path`/jobs/${id}`, { signal })
+}
+
+/** The signed-in technician's jobs on a day, in visit order. */
+export async function getMyDay(date: string, signal?: AbortSignal) {
+  return apiFetch<TechnicianDay>('/me/jobs', { query: { date }, signal })
 }
 
 /** Oldest first. */

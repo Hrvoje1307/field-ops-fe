@@ -27,6 +27,7 @@ export {
   toClientBody,
 } from './model/client-form'
 export { handleClientConflict } from './model/conflict'
+export { CallButton } from './ui/call-button'
 export { ClientFields } from './ui/client-fields'
 export { ClientMatch } from './ui/client-match'
 export { ClientProfileFields } from './ui/client-profile-fields'
