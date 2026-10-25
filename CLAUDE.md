@@ -14,7 +14,7 @@ Backend is a separate .NET API built by another developer. This repo only talks 
 
 ## Stack
 
-Vite + React + TypeScript (strict), Feature-Sliced Design (see Architecture), TanStack Router (file-based routes in `src/app/routes`), TanStack Query, Orval-generated types, Tailwind CSS, shadcn/ui-style components on Radix, react-hook-form + zod, react-i18next (Croatian first), MSW for a mock API, Vitest + Testing Library, Playwright.
+Vite + React + TypeScript (strict), Feature-Sliced Design (see Architecture), TanStack Router (file-based routes in `src/app/routes`), TanStack Query, Orval-generated types, Tailwind CSS, shadcn/ui-style components on Radix, react-hook-form + zod, @dnd-kit (drag and drop, via `shared/ui/drag-board`), react-i18next (Croatian first), MSW for a mock API, Vitest + Testing Library, Playwright.
 
 Hosting: Vercel (SPA rewrite to index.html). API on AWS, DB on Supabase; the frontend never talks to Supabase directly.
 
@@ -47,10 +47,10 @@ Rules:
 ```
 src/
   app/        providers, router setup, global styles, route files (src/app/routes)
-  pages/      one slice per screen, a group of widgets: jobs-list, job-detail, clients-list, client-detail, day-overview, field-day, field-job, login
+  pages/      one slice per screen, a group of widgets: jobs-list, job-detail, clients-list, client-detail, day-overview, route-plan, field-day, field-job, login
   widgets/    groups of features: app-shell (office rail, field header), job-detail, client-detail, day-overview, field-job, technician-day-column, job-queue
-  features/   components that call the backend, grouped: auth/sign-in, auth/sign-out, job/list, job/details, job/history, job/change-status, job/quick-create, job/client-jobs, job/assign, job/field-status, schedule/day-board, field/day, field/job, client/list, client/details, client/create, client/edit, location/edit, asset/edit
-  entities/   one folder per API area: auth, tenant, job, dispatch, client, location, asset, technician, job-type, custom-field (query keys, request functions, cache times; presentational UI like StatusBadge; model helpers)
+  features/   components that call the backend, grouped: auth/sign-in, auth/sign-out, job/list, job/details, job/history, job/change-status, job/quick-create, job/client-jobs, job/assign, job/field-status, schedule/day-board, schedule/route-plan, field/day, field/job, client/list, client/details, client/create, client/edit, location/edit, asset/edit
+  entities/   one folder per API area: auth, tenant, job, dispatch (board and route plans), client, location, asset, technician, job-type, custom-field (query keys, request functions, cache times; presentational UI like StatusBadge; model helpers)
   shared/     UI and helpers that never call the backend: api (fetcher, apiFetch, generated types, mocks), ui (shadcn components), lib (datetime, phone, cn), i18n, config (env)
 ```
 

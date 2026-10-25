@@ -314,3 +314,63 @@ Note the asymmetry with `LocationInput.accessCodes` (0.2.0), where `null` means 
 **Frontend does:** only offers scheduling for `new`, `scheduled`, `confirmed` and `on_hold`, and shows skills, days off, hours, crew size and overlaps as warnings that don't block saving.
 
 **We propose:** document the accepted statuses on the operation, and decide whether skills, days off and hours are errors or only warnings. We prefer warnings only: a dispatcher may know better (a swap, a favour, an emergency).
+
+## 30. A `version` on `JobSummary`
+
+**Spec says:** `AssignRequest.version` is optional, and `JobSummary` (the dispatch board's card) has no `version`; only `Job` does.
+
+**Mock does:** accepts `/assign` without a `version` and applies it.
+
+**Frontend does:** a drag and drop on the board sends `/assign` without `version`, because the card has none (reading the job first would make the check meaningless: it would compare the job with itself a moment ago). Two dispatchers moving the same card overwrite each other.
+
+**We propose:** add `version` to `JobSummary` so the board can send what the user saw and get a `409` when the job changed.
+
+## 31. What `sequence` does in `/assign`
+
+**Spec says:** `sequence`: "Position in the lead technician's day (board ordering)". Nothing says whether it is a plain number saved on that job or an insertion point that makes room for the job, nor how it combines with `scheduledStart` when the order and the times disagree.
+
+**Mock does:** treats it as an insertion point (the others in that technician's day are numbered again); the board lists jobs by `sequence`, then start time.
+
+**Frontend does:** a drop sends the technician, the day, `scheduledStart: null` (the position decides the order now) and `sequence` = the index it was dropped at.
+
+**We propose:** insertion semantics (the server renumbers), documented on the operation. If it is only a stored number, the frontend has to send one request per job whose position changed.
+
+## 32. Discarding a draft route plan, and drafts piling up
+
+**Spec says:** `POST /route-plans/optimize` stores a `draft`; publishing makes the day's earlier published plan `discarded`. There is no endpoint to discard a draft, and nothing says what happens to an earlier draft of the same day when a new one is made. The board has one `draftPlanId`.
+
+**Mock does:** a new draft makes the day's earlier drafts `discarded`.
+
+**Frontend does:** shows the board's `draftPlanId` as "the draft"; there is no "discard" button.
+
+**We propose:** say which draft the board reports when there are several, and either discard older drafts on optimize (as the mock does) or add `DELETE /route-plans/{id}`.
+
+## 33. What `/route-plans/optimize` accepts and returns
+
+**Spec says:** takes `date`, `technicianIds` and `jobIds`; "Locked jobs and multi-person jobs stay fixed with their current assignee". Not said: which job statuses are accepted, where a route starts and ends (a depot per technician? `Route.depotId` is optional), whether `Stop.sequence` starts at 0 or 1, and how a locked job that is not in `jobIds` counts.
+
+**Mock does:** accepts `new`, `scheduled`, `confirmed` and `on_hold` jobs (400 otherwise); every route starts and ends at the tenant's first depot; `sequence` starts at 1; a fixed job whose assignees are not chosen is unassigned with reason `other`.
+
+**Frontend does:** offers the queue and the day's scheduled and confirmed jobs, all chosen, with the technicians who work that day; locked and crew jobs are offered too.
+
+**We propose:** document accepted statuses, the start and end of a route, and the base of `sequence`.
+
+## 34. What `PUT /route-plans/{id}` checks, and concurrent edits
+
+**Spec says:** "Manual corrections to a draft. Server recomputes ETAs only for routes that changed." `409` if the plan is not a draft. No `version`, no mention of what a correction may not do.
+
+**Mock does:** `400` for a job that is not part of the plan, a technician that is unknown or inactive, or a single-person job in two routes; jobs left out of every route become `unassigned` with reason `other`; skills, working days and hours are not checked.
+
+**Frontend does:** every drag sends the whole routes; ETAs come from the response.
+
+**We propose:** warnings, not errors, for skills and hours (as in #29); a `version` or `updatedAt` on the plan so two dispatchers correcting the same draft get a `409` instead of overwriting each other.
+
+## 35. What publishing does to jobs that already have a status
+
+**Spec says:** publish "applies the plan: assignments, scheduledStart, jobs → `scheduled`".
+
+**Mock does:** `new` and `on_hold` jobs become `scheduled`; `scheduled` and `confirmed` keep their status (a client who confirmed stays confirmed) and get the new time and technician; jobs the plan left unassigned are untouched.
+
+**Frontend does:** shows what the API returns on the board.
+
+**We propose:** document it; a confirmed job whose time changes probably needs the client told again.

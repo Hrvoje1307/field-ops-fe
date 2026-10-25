@@ -99,7 +99,13 @@ Each step follows the workflow in `CLAUDE.md`: plan first, wait for OK, then bui
 
 Each step adds the mock handlers its screens need, as `CLAUDE.md` requires.
 
-- [ ] **Step 11: dispatch board (drag and drop, route plans)**
+- [x] **Step 11: dispatch board (drag and drop, route plans)**
+  - The day board: cards move between the queue and the technicians' columns and within a day, by pointer or keyboard (`@dnd-kit`; announcements in Croatian). A drop saves at once: the technician, the board's day and the position (`sequence`), no start time; skills and day-off warnings follow without blocking. Locked jobs, jobs for several people and jobs under way stay put; a padlock locks and unlocks scheduled jobs. The scheduling panel stays the way to set an exact time.
+  - "Optimiraj dan": choose technicians (those working that day) and jobs (the queue and scheduled jobs, locked and crew ones included, they stay with their people), a few seconds of solver, then the draft's own page `/plans/$planId`. Off, with the reason, when `Me.features` has no `route_optimization`; 402 and 502 are worded.
+  - The plan page: a column per technician with arrival, departure and drive for each stop, route and plan totals, the jobs the plan could not place with the reason (the six contract reasons) and the API's detail. A draft is corrected by dragging (each change is saved with `PUT`, times come back recalculated) and published after a confirmation; a published or discarded plan is read-only. The day links to its draft or published plan.
+  - Entities: route plan requests and hooks in `entities/dispatch` (409 refetches and tells the user); `canSchedule` moved to `entities/job`, `scheduleWarnings` and `warningText` to `entities/technician`. Shared: `DragBoard`/`DragList`/`DragItem`/`DragColumn`, `resolveMove`, `formatDistance`.
+  - Mock: `POST /route-plans/optimize` (a stand-in solver: cheapest insertion by travel time, locked and crew jobs fixed, skills, working days and hours, windows, coordinates, the contract's reasons), `GET`/`PUT`/`publish`, 402 for `basic`, usage count, 409 when not a draft; the board reports `draftPlanId` and `publishedPlanId`; `/assign` with `sequence` makes room in the day.
+  - Backend questions #30–#35. Playwright for both tenants (optimizing only for Alarmko: Bura's plan is `basic`, where it checks the button is off).
 - [ ] **Step 12: field report, photos, signature, complete, print**
 - [ ] **Step 13: tenant settings**
 - [ ] **Step 14: live updates (SignalR)**
