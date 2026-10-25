@@ -2,6 +2,7 @@ import { JobScheduleAction } from '@/features/job/assign'
 import { StatusMenu } from '@/features/job/change-status'
 import { JobDetails } from '@/features/job/details'
 import { JobHistory } from '@/features/job/history'
+import { JobMessages } from '@/features/job/messages'
 import { ReportView } from '@/features/job/report-view'
 
 /** A job for the office: its details with the status menu, scheduling, report and history. */
@@ -13,6 +14,7 @@ export function JobDetailView({ jobId }: { jobId: string }) {
       history={<JobHistory jobId={jobId} />}
       scheduleAction={<JobScheduleAction jobId={jobId} />}
       report={<ReportView jobId={jobId} />}
+      messages={<JobMessages jobId={jobId} />}
     />
   )
 }

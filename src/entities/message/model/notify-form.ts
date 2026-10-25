@@ -11,7 +11,8 @@ export interface NotifyFormValues {
   channel: MessageChannel
   /** A template of the tenant's, or text written for this once. */
   source: 'template' | 'text'
-  templateKey: MessageTemplateKey | ''
+  /** A key of the contract, or empty before one is chosen. */
+  templateKey: string
   body: string
   /** Empty for everyone who can be reached. */
   contactId: string
@@ -58,7 +59,7 @@ export function toNotifyBody(values: NotifyFormValues): NotifyClientBody {
   return {
     channel: values.channel,
     ...(values.source === 'template' && values.templateKey !== ''
-      ? { templateKey: values.templateKey }
+      ? { templateKey: values.templateKey as MessageTemplateKey }
       : { body: values.body.trim() }),
     ...(values.contactId === '' ? {} : { contactId: values.contactId }),
   }

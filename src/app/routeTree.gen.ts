@@ -16,6 +16,7 @@ import { Route as AuthedOfficeRouteImport } from './routes/_authed/_office'
 import { Route as AuthedFieldRouteImport } from './routes/_authed/field'
 import { Route as PTokenRouteImport } from './routes/p.$token'
 import { Route as AuthedOfficeIndexRouteImport } from './routes/_authed/_office/index'
+import { Route as AuthedOfficeMessagesRouteImport } from './routes/_authed/_office/messages'
 import { Route as AuthedOfficeSettingsRouteImport } from './routes/_authed/_office/settings'
 import { Route as AuthedFieldIndexRouteImport } from './routes/_authed/field/index'
 import { Route as AuthedOfficeClientsIndexRouteImport } from './routes/_authed/_office/clients/index'
@@ -69,6 +70,11 @@ const PTokenRoute = PTokenRouteImport.update({
 const AuthedOfficeIndexRoute = AuthedOfficeIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AuthedOfficeRoute,
+} as any)
+const AuthedOfficeMessagesRoute = AuthedOfficeMessagesRouteImport.update({
+  id: '/messages',
+  path: '/messages',
   getParentRoute: () => AuthedOfficeRoute,
 } as any)
 const AuthedOfficeSettingsRoute = AuthedOfficeSettingsRouteImport.update({
@@ -197,6 +203,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/field': typeof AuthedFieldRouteWithChildren
   '/p/$token': typeof PTokenRoute
+  '/messages': typeof AuthedOfficeMessagesRoute
   '/settings': typeof AuthedOfficeSettingsRouteWithChildren
   '/field/': typeof AuthedFieldIndexRoute
   '/clients/$clientId': typeof AuthedOfficeClientsClientIdRoute
@@ -224,6 +231,7 @@ export interface FileRoutesByTo {
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/p/$token': typeof PTokenRoute
+  '/messages': typeof AuthedOfficeMessagesRoute
   '/field': typeof AuthedFieldIndexRoute
   '/clients/$clientId': typeof AuthedOfficeClientsClientIdRoute
   '/clients/new': typeof AuthedOfficeClientsNewRoute
@@ -253,6 +261,7 @@ export interface FileRoutesById {
   '/_authed/_office': typeof AuthedOfficeRouteWithChildren
   '/_authed/field': typeof AuthedFieldRouteWithChildren
   '/p/$token': typeof PTokenRoute
+  '/_authed/_office/messages': typeof AuthedOfficeMessagesRoute
   '/_authed/_office/settings': typeof AuthedOfficeSettingsRouteWithChildren
   '/_authed/_office/': typeof AuthedOfficeIndexRoute
   '/_authed/field/': typeof AuthedFieldIndexRoute
@@ -284,6 +293,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/field'
     | '/p/$token'
+    | '/messages'
     | '/settings'
     | '/field/'
     | '/clients/$clientId'
@@ -311,6 +321,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/login'
     | '/p/$token'
+    | '/messages'
     | '/field'
     | '/clients/$clientId'
     | '/clients/new'
@@ -339,6 +350,7 @@ export interface FileRouteTypes {
     | '/_authed/_office'
     | '/_authed/field'
     | '/p/$token'
+    | '/_authed/_office/messages'
     | '/_authed/_office/settings'
     | '/_authed/_office/'
     | '/_authed/field/'
@@ -419,6 +431,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AuthedOfficeIndexRouteImport
+      parentRoute: typeof AuthedOfficeRoute
+    }
+    '/_authed/_office/messages': {
+      id: '/_authed/_office/messages'
+      path: '/messages'
+      fullPath: '/messages'
+      preLoaderRoute: typeof AuthedOfficeMessagesRouteImport
       parentRoute: typeof AuthedOfficeRoute
     }
     '/_authed/_office/settings': {
@@ -602,6 +621,7 @@ const AuthedOfficeSettingsRouteWithChildren =
   AuthedOfficeSettingsRoute._addFileChildren(AuthedOfficeSettingsRouteChildren)
 
 interface AuthedOfficeRouteChildren {
+  AuthedOfficeMessagesRoute: typeof AuthedOfficeMessagesRoute
   AuthedOfficeSettingsRoute: typeof AuthedOfficeSettingsRouteWithChildren
   AuthedOfficeIndexRoute: typeof AuthedOfficeIndexRoute
   AuthedOfficeClientsClientIdRoute: typeof AuthedOfficeClientsClientIdRoute
@@ -614,6 +634,7 @@ interface AuthedOfficeRouteChildren {
 }
 
 const AuthedOfficeRouteChildren: AuthedOfficeRouteChildren = {
+  AuthedOfficeMessagesRoute: AuthedOfficeMessagesRoute,
   AuthedOfficeSettingsRoute: AuthedOfficeSettingsRouteWithChildren,
   AuthedOfficeIndexRoute: AuthedOfficeIndexRoute,
   AuthedOfficeClientsClientIdRoute: AuthedOfficeClientsClientIdRoute,

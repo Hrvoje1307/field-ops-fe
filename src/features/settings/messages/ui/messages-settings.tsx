@@ -24,7 +24,6 @@ import {
 } from '@/entities/message-template'
 import { isConflict } from '@/shared/api/api-error'
 import { reportSaveError } from '@/shared/lib/report-save-error'
-import { unicodeOnlyCharacters } from '@/shared/lib/sms'
 import { useDebouncedValue } from '@/shared/lib/use-debounced-value'
 import { Alert, AlertAction, AlertDescription } from '@/shared/ui/alert'
 import { Badge } from '@/shared/ui/badge'
@@ -39,6 +38,7 @@ import {
 import { ConfirmDialog } from '@/shared/ui/confirm-dialog'
 import { Field, FieldError, FieldLabel } from '@/shared/ui/field'
 import { FormSheet } from '@/shared/ui/form-sheet'
+import { MessagePreview } from '@/shared/ui/message-preview'
 import { Skeleton } from '@/shared/ui/skeleton'
 import { Textarea } from '@/shared/ui/textarea'
 import { TextField } from '@/shared/ui/text-field'
@@ -335,53 +335,14 @@ function Preview({ channel }: { channel: MessageTemplate['channel'] }) {
   const body = useWatch<TemplateFormValues, 'body'>({ name: 'body' })
   const shown = useDebouncedValue(body, 400)
   const preview = usePreviewMessageTemplate(shown)
-  const data = preview.data
-  const unicode = data && channel === 'sms' ? unicodeOnlyCharacters(data.rendered) : []
-
   return (
-    <section aria-label={t('settings.messages.preview.title')} className="space-y-2">
-      <h3 className="text-sm font-medium">{t('settings.messages.preview.title')}</h3>
-      {preview.isError ? (
-        <Alert variant="destructive">
-          <AlertDescription>{t('settings.messages.preview.failed')}</AlertDescription>
-        </Alert>
-      ) : !data ? (
-        <p className="text-sm text-muted-foreground">
-          {shown.trim() === '' ? '' : t('settings.messages.preview.loading')}
-        </p>
-      ) : (
-        <div className="space-y-2" aria-live="polite">
-          <p
-            data-testid="message-preview"
-            className="rounded-lg border bg-muted/40 p-3 text-sm whitespace-pre-wrap"
-          >
-            {data.rendered}
-          </p>
-          {channel === 'sms' && (
-            <p className="text-sm text-muted-foreground">
-              {t('settings.messages.preview.length', { count: data.length })} ·{' '}
-              {t('settings.messages.preview.segments', { count: data.smsSegments })}
-            </p>
-          )}
-          {unicode.length > 0 && (
-            <Alert>
-              <AlertDescription>
-                {t('settings.messages.preview.unicode', { characters: unicode.join(' ') })}
-              </AlertDescription>
-            </Alert>
-          )}
-          {data.unknownPlaceholders.length > 0 && (
-            <Alert>
-              <AlertDescription>
-                {t('settings.messages.preview.unknown', {
-                  names: data.unknownPlaceholders.map((name) => `{${name}}`).join(', '),
-                })}
-              </AlertDescription>
-            </Alert>
-          )}
-        </div>
-      )}
-    </section>
+    <MessagePreview
+      title={t('settings.messages.preview.title')}
+      channel={channel}
+      text={shown}
+      data={preview.data}
+      isError={preview.isError}
+    />
   )
 }
 

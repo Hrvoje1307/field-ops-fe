@@ -36,6 +36,8 @@ interface Slots {
   scheduleAction?: ReactNode
   /** The work report, shown once the job has been started on site. */
   report?: ReactNode
+  /** What the client has been sent, and a way to send them something. */
+  messages?: ReactNode
 }
 
 /** Statuses from which there is a report to show: on site, done, invoiced. */
@@ -75,7 +77,14 @@ export function JobDetails({ jobId, ...slots }: { jobId: string } & Slots) {
   return <JobDetail job={job.data} {...slots} />
 }
 
-function JobDetail({ job, actions, history, scheduleAction, report }: { job: Job } & Slots) {
+function JobDetail({
+  job,
+  actions,
+  history,
+  scheduleAction,
+  report,
+  messages,
+}: { job: Job } & Slots) {
   const { t } = useTranslation()
   const { formatRelativeDateTime } = useTenantFormat()
   // The track shows when each step was reached
@@ -150,6 +159,7 @@ function JobDetail({ job, actions, history, scheduleAction, report }: { job: Job
           {report && REPORT_STATUSES.includes(job.status) && (
             <div className="rounded-xl border p-4">{report}</div>
           )}
+          {messages && <div className="rounded-xl border p-4">{messages}</div>}
           {history && <Section title={t('job.history.title')}>{history}</Section>}
         </div>
         <div className="min-w-0 space-y-6">
