@@ -251,17 +251,30 @@ function putReport(client: QueryClient, report: JobReport) {
   client.setQueryData(reportKeys.job(report.jobId), report)
 }
 
-/** Saves the draft fields; the saved report replaces the cached one. A 409 refetches and tells the user. */
+/**
+ * Saves the draft fields. What is sent shows in the cached report at once (so coming
+ * back to the screen before the answer shows what was typed) and is taken back if the
+ * save fails; the saved report replaces it. A 409 refetches and tells the user.
+ */
 export function useSaveJobReport(jobId: string) {
   const idempotency = useIdempotencyKeys()
   return useMutation({
     mutationFn: (body: JobReportInput) => saveJobReport(jobId, body, idempotency.keyFor(body)),
-    onSuccess: (report, body, _result, { client }) => {
+    onMutate: async (body, { client }) => {
+      const before = client.getQueryData<JobReport>(reportKeys.job(jobId))
+      if (before) putReport(client, { ...before, ...body })
+      // Not reverting: a fetch that is on its way must not undo what was just put there
+      await client.cancelQueries({ queryKey: reportKeys.job(jobId) }, { revert: false })
+      return { before }
+    },
+    onSuccess: (report, body, _context, { client }) => {
       idempotency.forget(body)
       putReport(client, report)
     },
-    onError: (error, _body, _result, { client }) =>
-      isConflict(error) ? handleReportConflict(client) : undefined,
+    onError: (error, _body, context, { client }) => {
+      if (context?.before) putReport(client, context.before)
+      return isConflict(error) ? handleReportConflict(client) : undefined
+    },
   })
 }
 
@@ -275,7 +288,6 @@ export function useUpdateChecklist(jobId: string) {
     scope: { id: `checklist-${jobId}` },
     mutationFn: (changes: UpdateJobChecklistBodyItem[]) => updateJobChecklist(jobId, changes),
     onMutate: async (changes, { client }) => {
-      await client.cancelQueries({ queryKey: reportKeys.job(jobId) })
       const before = client.getQueryData<JobReport>(reportKeys.job(jobId))
       if (before) {
         const isDone = new Map(changes.map((change) => [change.id, change.isDone]))
@@ -287,6 +299,7 @@ export function useUpdateChecklist(jobId: string) {
           })),
         })
       }
+      await client.cancelQueries({ queryKey: reportKeys.job(jobId) }, { revert: false })
       return { before }
     },
     onSuccess: (checklist, _changes, _before, { client }) => {

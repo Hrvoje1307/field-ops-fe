@@ -58,6 +58,46 @@ describe('useSaveJobReport', () => {
     )
   })
 
+  it('shows what is sent in the cached report at once, and takes it back when the save fails', async () => {
+    const job = await onSiteJob()
+    const report = await getJobReport(job.id)
+    let offline = false
+    let slow = true
+    server.use(
+      http.put(`${API}/jobs/:id/report`, async () => {
+        if (offline) return HttpResponse.error()
+        if (slow) await new Promise((resolve) => setTimeout(resolve, 300))
+        return undefined
+      }),
+    )
+    const { queryClient, wrapper } = queryWrapper()
+    queryClient.setQueryData(reportKeys.job(job.id), report)
+    const { result } = renderHook(() => useSaveJobReport(job.id), { wrapper })
+    const cached = () =>
+      queryClient.getQueryData<{ workDone: string | null }>(reportKeys.job(job.id))?.workDone
+
+    let pending: Promise<unknown> = Promise.resolve()
+    let answered = false
+    act(() => {
+      pending = result.current.mutateAsync({ workDone: 'Upisano' }).then(() => {
+        answered = true
+      })
+    })
+    // Before the answer is in (it takes 300 ms)
+    await waitFor(() => {
+      expect(cached()).toBe('Upisano')
+    })
+    expect(answered).toBe(false)
+    await act(() => pending)
+    slow = false
+
+    offline = true
+    await act(async () => {
+      await result.current.mutateAsync({ workDone: 'Neće proći' }).catch(() => undefined)
+    })
+    expect(cached()).toBe('Upisano')
+  })
+
   it('409: tells the user and refreshes job data', async () => {
     const warning = vi.spyOn(toast, 'warning')
     server.use(

@@ -306,9 +306,6 @@ export const reportHandlers = [
       }
       const now = toIsoInstant(Date.now())
       report.completedAt = now
-      report.startedAt ??=
-        t.history.find((h) => h.jobId === job.id && h.toStatus === 'on_site')?.changedAt ?? null
-      report.finishedAt ??= now
       job.status = 'completed'
       job.completedAt = now
       recordTransition(t, job, auth, 'on_site', 'completed', { lat: body?.lat, lng: body?.lng })

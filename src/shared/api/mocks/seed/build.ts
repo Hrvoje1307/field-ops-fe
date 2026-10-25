@@ -19,6 +19,7 @@ import { countryFromLocale } from '@/shared/lib/phone'
 
 import type {
   AssetRow,
+  AttachmentRow,
   AssignmentRow,
   ChecklistItemRow,
   ClientRow,
@@ -62,6 +63,11 @@ function required<T>(value: T | undefined, what: string): T {
   if (value === undefined) throw new Error(`Seed error: unknown ${what}`)
   return value
 }
+
+/** A scribble standing in for a signature drawn on a phone. */
+const SIGNATURE_PREVIEW = `data:image/svg+xml;utf8,${encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="256" height="112" viewBox="0 0 256 112"><rect width="100%" height="100%" fill="white"/><path d="M20 70 C40 20 60 100 90 50 S140 20 160 70 S210 90 236 40" fill="none" stroke="#111827" stroke-width="3" stroke-linecap="round"/></svg>',
+)}`
 
 export function buildTenant(
   seed: TenantSeed,
@@ -275,6 +281,7 @@ export function buildTenant(
   const history: HistoryRow[] = []
   const checklistItems: ChecklistItemRow[] = []
   const reports: ReportRow[] = []
+  const attachments: AttachmentRow[] = []
   const materials: MaterialRow[] = []
   const catalogItems: CatalogItem[] = seed.catalog.map((item) => ({
     id: id(),
@@ -408,6 +415,8 @@ export function buildTenant(
     })
 
     if (isDone) {
+      const signatureId = id()
+      const pdfId = id()
       reports.push({
         jobId,
         workDone: j.workDone ?? `${jobType.name}: radovi izvršeni prema nalogu.`,
@@ -416,8 +425,38 @@ export function buildTenant(
         labourMinutes: durationMin * Math.max(1, techs.length),
         signedByName: clientSeed.contacts[0]?.name ?? null,
         completedAt,
-        signatureAttachmentId: null,
-        pdfAttachmentId: null,
+        signatureAttachmentId: signatureId,
+        pdfAttachmentId: pdfId,
+      })
+      attachments.push({
+        id: signatureId,
+        ownerType: 'job',
+        ownerId: jobId,
+        kind: 'signature',
+        fileName: 'signature.png',
+        mime: 'image/png',
+        sizeBytes: SIGNATURE_PREVIEW.length,
+        takenAt: null,
+        createdAt: completedAt ?? timeOf.completed,
+        deletedAt: null,
+        state: 'confirmed',
+        availableAt: null,
+        preview: SIGNATURE_PREVIEW,
+      })
+      attachments.push({
+        id: pdfId,
+        ownerType: 'job',
+        ownerId: jobId,
+        kind: 'pdf',
+        fileName: `${jobId}.pdf`,
+        mime: 'application/pdf',
+        sizeBytes: 48_000,
+        takenAt: null,
+        createdAt: completedAt ?? timeOf.completed,
+        deletedAt: null,
+        state: 'confirmed',
+        availableAt: null,
+        preview: null,
       })
       for (const used of j.materials ?? []) {
         const item = required(
@@ -500,7 +539,7 @@ export function buildTenant(
       reports,
       materials,
       catalogItems,
-      attachments: [],
+      attachments,
       jobSequence,
       usage: [{ month: today.slice(0, 7), ...seed.usage }],
       routePlans: [],
