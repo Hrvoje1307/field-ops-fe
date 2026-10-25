@@ -14,7 +14,7 @@ Backend is a separate .NET API built by another developer. This repo only talks 
 
 ## Stack
 
-Vite + React + TypeScript (strict), Feature-Sliced Design (see Architecture), TanStack Router (file-based routes in `src/app/routes`), TanStack Query, Orval-generated types, Tailwind CSS, shadcn/ui-style components on Radix, react-hook-form + zod, @dnd-kit (drag and drop, via `shared/ui/drag-board`), react-i18next (Croatian first), MSW for a mock API, Vitest + Testing Library, Playwright.
+Vite + React + TypeScript (strict), Feature-Sliced Design (see Architecture), TanStack Router (file-based routes in `src/app/routes`), TanStack Query, Orval-generated types, Tailwind CSS, shadcn/ui-style components on Radix, react-hook-form + zod, @dnd-kit (drag and drop, via `shared/ui/drag-board`), react-i18next (Croatian first), @microsoft/signalr (live updates, via `shared/api/realtime`), MSW for a mock API, Vitest + Testing Library, Playwright.
 
 Hosting: Vercel (SPA rewrite to index.html). API on AWS, DB on Supabase; the frontend never talks to Supabase directly.
 
@@ -49,8 +49,8 @@ src/
   app/        providers, router setup, global styles, route files (src/app/routes)
   pages/      one slice per screen, a group of widgets: jobs-list, job-detail, clients-list, client-detail, day-overview, route-plan, field-day, field-job, field-report, settings-company, settings-job-types, settings-checklists, settings-custom-fields, settings-messages, settings-team, settings-skills, settings-depots, settings-equipment-types, login
   widgets/    groups of features: app-shell (office rail, field header), settings-shell, job-detail, client-detail, day-overview, field-job, field-report, technician-day-column, job-queue
-  features/   components that call the backend, grouped: auth/sign-in, auth/sign-out, job/list, job/details, job/history, job/change-status, job/quick-create, job/client-jobs, job/assign, job/field-status, job/report-form, job/report-view, schedule/day-board, schedule/route-plan, field/day, field/job, client/list, client/details, client/create, client/edit, location/edit, asset/edit, settings/company, settings/usage, settings/job-types, settings/checklists, settings/custom-fields, settings/messages, settings/team, settings/skills, settings/depots, settings/equipment-types
-  entities/   one folder per API area: auth, tenant, job, dispatch (board and route plans), report (reports, materials, files), client, location, asset (equipment and its types), technician, member (team and invitations), skill, depot, job-type, checklist-template, message-template, custom-field (query keys, request functions, cache times; presentational UI like StatusBadge; model helpers)
+  features/   components that call the backend, grouped: auth/sign-in, auth/sign-out, job/list, job/details, job/history, job/change-status, job/quick-create, job/client-jobs, job/assign, job/field-status, job/report-form, job/report-view, schedule/day-board, schedule/route-plan, field/day, field/job, client/list, client/details, client/create, client/edit, location/edit, asset/edit, live/updates, settings/company, settings/usage, settings/job-types, settings/checklists, settings/custom-fields, settings/messages, settings/team, settings/skills, settings/depots, settings/equipment-types
+  entities/   one folder per API area: auth, tenant, job, dispatch (board and route plans), report (reports, materials, files), client, location, asset (equipment and its types), technician, member (team and invitations), realtime (the SignalR connection: status, events, refreshing the cache), skill, depot, job-type, checklist-template, message-template, custom-field (query keys, request functions, cache times; presentational UI like StatusBadge; model helpers)
   shared/     UI and helpers that never call the backend: api (fetcher, apiFetch, generated types, mocks), ui (shadcn components), lib (datetime, phone, cn), i18n, config (env)
 ```
 

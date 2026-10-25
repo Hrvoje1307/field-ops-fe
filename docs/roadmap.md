@@ -130,7 +130,13 @@ Each step adds the mock handlers its screens need, as `CLAUDE.md` requires.
   - [x] **13e: team.** `/settings/team`: the members with role ("Vlasnik", "Dispečer", "Monter"), "(vi)" on yourself, "Neaktivan", last sign-in and, for technicians, their hours, working days ("pon–pet"), depot and skills; change a member's role and whether they can sign in (not your own; a 409 says the company needs an active owner). "Podaci o monteru": colour, hours, working days, depot, skills, active; a member who has the role but no data gets it with the same form (create), the others are replaced. Invitations: invite by e-mail and role; when the server returns the link (no e-mail) it is shown with a copy button, also in the list; revoke asks first. A technician made active or inactive shows or hides their column on the day board at once.
     - Entities: new `entities/member` (members, invitations); `entities/technician` gets create/update and the form model. Shared: `weekdayName`, `formatWeekdays`.
     - Backend question #49. Playwright for both tenants.
-- [ ] **Step 14: live updates (SignalR)**
+- [x] **Step 14: live updates (SignalR)**
+  - The signed-in area keeps a SignalR connection to `/hubs/dispatch` (one per company; switching company reconnects, signing out stops it), with the access token, and tries again for as long as it is down (0, 2, 5, 10, then every 30 s, renewing the token first). The SignalR client is a chunk of its own.
+  - An event marks all job data stale (jobs, clients, the board, technicians' days, reports) and what is on screen refetches: the event only has the job's new date, so a board cannot know the old day. A burst, or the echo of our own write, refreshes once; a connection back after a break refreshes too. No polling.
+  - A technician gets "Raspored je promijenjen." / "Objavljen je plan za …" for changes that were not their own (one at a time); after ten seconds of no live updates everyone sees a notice that the data may be behind.
+  - Entities: new `entities/realtime` (`useRealtime`, the channel of status and events, own-write tracking, the refresher). Feature `live/updates`. Shared: `startHub` (`shared/api/realtime`), `env.hubUrl` (`VITE_HUB_URL` overrides).
+  - Mock: the hub speaks the real SignalR protocol over MSW's WebSocket support (negotiate, handshake, pings); events are found by comparing the tenant before and after every write; the office hears its tenant, a technician their jobs and published plans; tenants are separate; the browser console has `__fieldopsDropHub(ms)` to cut it, with an outage.
+  - Backend question #50. Playwright for both tenants: the board, a job's page and a technician's phone follow another session; a cut connection catches up.
 - [ ] **Step 15: public appointment page and client messages**
 
 ## Separate
