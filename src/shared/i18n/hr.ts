@@ -827,7 +827,50 @@ export const hr = {
     },
   },
   public: {
+    greeting: 'Dobar dan, {{name}}',
+    greetingPlain: 'Dobar dan',
+    job: {
+      heading: 'Nalog {{number}} · {{type}}',
+      when: 'Termin',
+      where: 'Adresa',
+      noDate: 'Termin još nije određen.',
+      window: 'monter stiže između {{from}} i {{to}}',
+    },
+    status: {
+      scheduled: 'Termin čeka vašu potvrdu.',
+      confirmed: 'Termin je potvrđen. Vidimo se!',
+      reschedule_requested: 'Zatražili ste novi termin. Javit ćemo vam se.',
+      en_route: 'Monter je na putu.',
+      done: 'Posao je obavljen. Hvala vam!',
+      cancelled: 'Nalog je otkazan.',
+    },
+    confirm: 'Potvrđujem termin',
+    questions: 'Pitanja? Nazovite',
+    problem: {
+      conflict:
+        'Termin se u međuvremenu promijenio i više se ne može potvrditi. Prikazano je stanje kakvo je sada.',
+      failed: 'Nije uspjelo. Pokušajte ponovno ili nazovite tvrtku.',
+    },
+    not_found: {
+      title: 'Poveznica nije ispravna',
+      description: 'Provjerite poveznicu iz poruke ili nazovite tvrtku koja vam ju je poslala.',
+    },
+    gone: {
+      title: 'Poveznica je istekla',
+      description: 'Ova poveznica više ne vrijedi. Nazovite tvrtku koja vam ju je poslala.',
+    },
+    loadFailed: {
+      title: 'Stranicu nije moguće učitati',
+      description: 'Provjerite internetsku vezu i pokušajte ponovno.',
+    },
     reschedule: {
+      open: 'Tražim drugi termin',
+      intro: 'Recite nam što vam odgovara, a mi ćemo vam se javiti s novim terminom.',
+      note: 'Napomena',
+      noteCount: '{{count}} od {{max}} znakova',
+      dates: 'Dani koji vam odgovaraju (neobavezno)',
+      date: 'Dan {{number}}',
+      send: 'Pošalji zahtjev',
       errors: {
         noteTooLong: 'Napomena ima najviše {{max}} znakova.',
         dateInvalid: 'Upišite ispravan datum.',

@@ -14,6 +14,7 @@ import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthedOfficeRouteImport } from './routes/_authed/_office'
 import { Route as AuthedFieldRouteImport } from './routes/_authed/field'
+import { Route as PTokenRouteImport } from './routes/p.$token'
 import { Route as AuthedOfficeIndexRouteImport } from './routes/_authed/_office/index'
 import { Route as AuthedOfficeSettingsRouteImport } from './routes/_authed/_office/settings'
 import { Route as AuthedFieldIndexRouteImport } from './routes/_authed/field/index'
@@ -59,6 +60,11 @@ const AuthedFieldRoute = AuthedFieldRouteImport.update({
   id: '/field',
   path: '/field',
   getParentRoute: () => AuthedRoute,
+} as any)
+const PTokenRoute = PTokenRouteImport.update({
+  id: '/p/$token',
+  path: '/p/$token',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AuthedOfficeIndexRoute = AuthedOfficeIndexRouteImport.update({
   id: '/',
@@ -190,6 +196,7 @@ export interface FileRoutesByFullPath {
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/field': typeof AuthedFieldRouteWithChildren
+  '/p/$token': typeof PTokenRoute
   '/settings': typeof AuthedOfficeSettingsRouteWithChildren
   '/field/': typeof AuthedFieldIndexRoute
   '/clients/$clientId': typeof AuthedOfficeClientsClientIdRoute
@@ -216,6 +223,7 @@ export interface FileRoutesByTo {
   '/': typeof AuthedOfficeIndexRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
+  '/p/$token': typeof PTokenRoute
   '/field': typeof AuthedFieldIndexRoute
   '/clients/$clientId': typeof AuthedOfficeClientsClientIdRoute
   '/clients/new': typeof AuthedOfficeClientsNewRoute
@@ -244,6 +252,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_authed/_office': typeof AuthedOfficeRouteWithChildren
   '/_authed/field': typeof AuthedFieldRouteWithChildren
+  '/p/$token': typeof PTokenRoute
   '/_authed/_office/settings': typeof AuthedOfficeSettingsRouteWithChildren
   '/_authed/_office/': typeof AuthedOfficeIndexRoute
   '/_authed/field/': typeof AuthedFieldIndexRoute
@@ -274,6 +283,7 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/login'
     | '/field'
+    | '/p/$token'
     | '/settings'
     | '/field/'
     | '/clients/$clientId'
@@ -300,6 +310,7 @@ export interface FileRouteTypes {
     | '/'
     | '/forgot-password'
     | '/login'
+    | '/p/$token'
     | '/field'
     | '/clients/$clientId'
     | '/clients/new'
@@ -327,6 +338,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/_authed/_office'
     | '/_authed/field'
+    | '/p/$token'
     | '/_authed/_office/settings'
     | '/_authed/_office/'
     | '/_authed/field/'
@@ -355,6 +367,7 @@ export interface RootRouteChildren {
   AuthedRoute: typeof AuthedRouteWithChildren
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
+  PTokenRoute: typeof PTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -393,6 +406,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/field'
       preLoaderRoute: typeof AuthedFieldRouteImport
       parentRoute: typeof AuthedRoute
+    }
+    '/p/$token': {
+      id: '/p/$token'
+      path: '/p/$token'
+      fullPath: '/p/$token'
+      preLoaderRoute: typeof PTokenRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authed/_office/': {
       id: '/_authed/_office/'
@@ -642,6 +662,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthedRoute: AuthedRouteWithChildren,
   ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
+  PTokenRoute: PTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
