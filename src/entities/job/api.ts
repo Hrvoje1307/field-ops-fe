@@ -2,6 +2,7 @@ import type { QueryClient, QueryKey } from '@tanstack/react-query'
 
 import { apiFetch, path } from '@/shared/api/api-fetch'
 import type {
+  AssignRequest,
   Job,
   JobCreate,
   JobSummaryPage,
@@ -39,6 +40,14 @@ export async function getJobHistory(id: string, signal?: AbortSignal) {
 /** Status starts as `new`; duration and crew size default to the job type's. */
 export async function createJob(body: JobCreate, idempotencyKey?: string) {
   return apiFetch<Job>('/jobs', { method: 'POST', json: body, idempotencyKey })
+}
+
+/**
+ * Replaces the job's technicians, date and start. With a date a `new` job becomes
+ * `scheduled`; no technicians puts a scheduled job back to `new`.
+ */
+export async function assignJob(id: string, body: AssignRequest, idempotencyKey?: string) {
+  return apiFetch<Job>(path`/jobs/${id}/assign`, { method: 'POST', json: body, idempotencyKey })
 }
 
 /** Moves the job along the status machine. `completed` goes through `/complete`. */

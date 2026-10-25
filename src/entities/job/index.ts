@@ -1,5 +1,6 @@
 export type {
   AssignedTechnician,
+  AssignRequest,
   Job,
   JobCreate,
   JobSource,
@@ -12,6 +13,7 @@ export type {
   TransitionRequest,
 } from '@/shared/api/generated/model'
 export {
+  assignJob,
   createJob,
   getJob,
   getJobHistory,
