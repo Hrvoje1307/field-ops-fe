@@ -64,8 +64,15 @@ export function broadcast(tenantId: string, messages: HubMessage[]): void {
 /** How many sockets are open (tests). */
 export const openConnections = () => connections.size
 
-/** Drops every connection, as a restart of the server would (tests, reseeding). */
-export function dropConnections(): void {
+/** Until when the hub refuses new connections (an outage). */
+let outageUntil = 0
+
+/**
+ * Drops every connection, as a restart of the server would (tests, reseeding). With
+ * `outageMs` the hub stays unreachable for that long: negotiating is a 503.
+ */
+export function dropConnections(outageMs = 0): void {
+  outageUntil = outageMs > 0 ? Date.now() + outageMs : 0
   for (const connection of [...connections]) connection.close(1012, 'restart')
 }
 
@@ -73,6 +80,7 @@ const hubSocket = ws.link(env.hubUrl.replace(/^http/, 'ws'))
 
 export const realtimeHandlers = [
   http.post(`${env.hubUrl}/negotiate`, ({ request }) => {
+    if (Date.now() < outageUntil) return new HttpResponse(null, { status: 503 })
     const auth = authFor(request.url, request.headers.get('Authorization'))
     if (!auth) return new HttpResponse(null, { status: 401 })
     const id = newToken('conn')

@@ -110,6 +110,18 @@ describe('startHub', () => {
     await hub.stop()
   })
 
+  it('keeps trying through an outage and connects when the hub is back', async () => {
+    token = await tokenOf('dispecer@alarmko.test')
+    const { hub, statuses } = connect('dispecer@alarmko.test')
+    await until(() => statuses.includes('connected'))
+    dropConnections(300)
+    await until(() => statuses.filter((s) => s === 'reconnecting').length >= 2)
+    expect(openConnections()).toBe(0)
+    await until(() => statuses.filter((s) => s === 'connected').length >= 2)
+    expect(openConnections()).toBe(1)
+    await hub.stop()
+  })
+
   it('connects again when the server drops it', async () => {
     token = await tokenOf('dispecer@alarmko.test')
     const { hub, statuses } = connect('dispecer@alarmko.test')

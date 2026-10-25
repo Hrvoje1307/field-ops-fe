@@ -1,5 +1,7 @@
 import { createFileRoute, Outlet } from '@tanstack/react-router'
 
+import { useMe } from '@/entities/auth'
+import { useRealtime } from '@/entities/realtime'
 import { useTenantSettings } from '@/entities/tenant'
 import { TenantFormatProvider } from '@/shared/lib/tenant-format-provider'
 import { Spinner } from '@/shared/ui/spinner'
@@ -22,6 +24,8 @@ function FullScreenSpinner() {
 }
 
 function AuthedLayout() {
+  // The live connection lives as long as the signed-in area, one per company
+  useRealtime(useMe().tenant.id)
   return (
     <TenantFormatProvider settings={useTenantSettings()}>
       <Outlet />
