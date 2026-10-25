@@ -343,6 +343,17 @@ export const hr = {
       noActions: 'Nema dostupnih radnji.',
     },
   },
+  report: {
+    conflict: 'Nalog je u međuvremenu promijenjen. Izvještaj se u tom statusu ne može mijenjati.',
+    blockers: {
+      checklist: 'Obavezne stavke kontrolne liste: {{items}}.',
+      signature: 'Potreban je potpis klijenta.',
+      workDone: 'Upišite što je napravljeno.',
+    },
+    photos: {
+      unavailable: 'Fotografija nije dostupna',
+    },
+  },
   schedule: {
     board: {
       title: 'Raspored',

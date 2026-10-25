@@ -15,6 +15,7 @@ export type {
 } from '@/shared/api/generated/model'
 export {
   assignJob,
+  completeJob,
   createJob,
   getJob,
   getJobHistory,
@@ -25,6 +26,7 @@ export {
   listJobs,
   transitionJob,
   useAssignJob,
+  useCompleteJob,
   useCreateJob,
   useGetJob,
   useGetJobHistory,

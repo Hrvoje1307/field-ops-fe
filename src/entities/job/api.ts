@@ -9,6 +9,7 @@ import {
 import { apiFetch, path } from '@/shared/api/api-fetch'
 import type {
   AssignRequest,
+  CompleteJobBody,
   Job,
   JobCreate,
   JobStatus,
@@ -89,6 +90,14 @@ export function isJobDataKey(queryKey: QueryKey): boolean {
 /** Refetches everything that shows job data after a job changed. */
 export function invalidateJobData(queryClient: QueryClient): Promise<void> {
   return invalidateRoots(queryClient, JOB_DATA_ROOTS)
+}
+
+/**
+ * Completes an on-site job once the report is in order (required checklist items, a
+ * signature if the tenant asks for one, the work done); 422 says what is missing.
+ */
+export async function completeJob(id: string, body: CompleteJobBody, idempotencyKey?: string) {
+  return apiFetch<Job>(path`/jobs/${id}/complete`, { method: 'POST', json: body, idempotencyKey })
 }
 
 // --- Hooks (what features and widgets call) ---------------------------------
@@ -214,4 +223,40 @@ export interface TransitionVariables {
   note?: string
   /** Ask the phone for its position and send it (never waits longer than a few seconds). */
   withPosition?: boolean
+}
+
+/**
+ * Completes the job (`withPosition` adds the phone's position when it arrives in time).
+ * The returned job goes into the detail cache and job data refreshes (the report
+ * included). A 409 refetches and tells the user; a 422 is left to the caller, whose
+ * words say what is missing.
+ */
+export function useCompleteJob() {
+  const idempotency = useIdempotencyKeys()
+  return useMutation({
+    mutationFn: async ({
+      id,
+      sendReportToClient,
+      withPosition = false,
+    }: {
+      id: string
+      sendReportToClient: boolean
+      withPosition?: boolean
+    }) => {
+      const body: CompleteJobBody = { sendReportToClient }
+      const position = withPosition ? await currentPosition() : null
+      if (position) {
+        body.lat = position.lat
+        body.lng = position.lng
+      }
+      return completeJob(id, body, idempotency.keyFor({ id, sendReportToClient }))
+    },
+    onSuccess: (job, variables, _result, { client }) => {
+      idempotency.forget({ id: variables.id, sendReportToClient: variables.sendReportToClient })
+      client.setQueryData(jobKeys.detail(job.id), job)
+      void invalidateJobData(client)
+    },
+    onError: (error, _variables, _result, { client }) =>
+      isConflict(error) ? handleJobConflict(client) : undefined,
+  })
 }

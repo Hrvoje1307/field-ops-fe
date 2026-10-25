@@ -8,7 +8,15 @@ import { resetMockDb } from '@/shared/api/mocks/db'
 import { server } from '@/shared/api/mocks/node'
 import { isInvalidated, queryWrapper, signInForTest } from '@/shared/api/test/hook-test-utils'
 
-import { getJob, jobKeys, listJobs, useAssignJob, useCreateJob, useTransitionJob } from './api'
+import {
+  getJob,
+  jobKeys,
+  listJobs,
+  useAssignJob,
+  useCompleteJob,
+  useCreateJob,
+  useTransitionJob,
+} from './api'
 
 const API = 'http://localhost/api/v1'
 
@@ -162,5 +170,113 @@ describe('useCreateJob', () => {
         jobTypes: false,
       })
     })
+  })
+})
+
+describe('useCompleteJob', () => {
+  /** An on-site job that has everything the API asks for. */
+  async function readyJob() {
+    const page = await listJobs({ status: ['on_site'], pageSize: 1 })
+    const summary = page.items[0]
+    if (!summary) throw new Error('Seed needs an on_site job')
+    const id = summary.id
+    const checklist = await apiFetch<{ id: string }[]>(`/jobs/${id}/checklist`)
+    await apiFetch(`/jobs/${id}/checklist`, {
+      method: 'PUT',
+      json: checklist.map((item) => ({ id: item.id, isDone: true })),
+    })
+    await apiFetch(`/jobs/${id}/report`, { method: 'PUT', json: { workDone: 'Gotovo.' } })
+    return id
+  }
+
+  it('puts the completed job in the detail cache and refreshes job data and the report', async () => {
+    // Bura klima does not ask for a signature
+    await signInForTest('ante@bura.test')
+    const page = await listJobs({ status: ['on_site'], pageSize: 1 })
+    const id = page.items[0]?.id ?? ''
+    const checklist = await apiFetch<{ id: string }[]>(`/jobs/${id}/checklist`)
+    await apiFetch(`/jobs/${id}/checklist`, {
+      method: 'PUT',
+      json: checklist.map((item) => ({ id: item.id, isDone: true })),
+    })
+    await apiFetch(`/jobs/${id}/report`, { method: 'PUT', json: { workDone: 'Gotovo.' } })
+    const { queryClient, wrapper } = queryWrapper()
+    seedCache(queryClient)
+    queryClient.setQueryData(['reports', 'job', id], { jobId: id })
+    const { result } = renderHook(() => useCompleteJob(), { wrapper })
+
+    await act(() => result.current.mutateAsync({ id, sendReportToClient: true }))
+
+    expect(queryClient.getQueryData(jobKeys.detail(id))).toMatchObject({
+      id,
+      status: 'completed',
+    })
+    expect(staleness(queryClient).jobs).toBe(true)
+    expect(isInvalidated(queryClient, ['reports', 'job', id])).toBe(true)
+    expect(staleness(queryClient).jobTypes).toBe(false)
+  })
+
+  it('422: what is missing goes to the caller untouched, nothing is toasted', async () => {
+    const warning = vi.spyOn(toast, 'warning')
+    const id = (await listJobs({ status: ['on_site'], pageSize: 1 })).items[0]?.id ?? ''
+    const { wrapper } = queryWrapper()
+    const { result } = renderHook(() => useCompleteJob(), { wrapper })
+
+    await act(async () => {
+      await result.current.mutateAsync({ id, sendReportToClient: true }).catch(() => undefined)
+    })
+
+    await waitFor(() => {
+      expect(result.current.error).toMatchObject({ status: 422 })
+    })
+    expect(warning).not.toHaveBeenCalled()
+  })
+
+  it('409: tells the user and refreshes job data', async () => {
+    const warning = vi.spyOn(toast, 'warning')
+    server.use(
+      http.post(`${API}/jobs/:id/complete`, () =>
+        HttpResponse.json({ status: 409, title: 'Conflict' }, { status: 409 }),
+      ),
+    )
+    const id = await readyJob()
+    const { queryClient, wrapper } = queryWrapper()
+    seedCache(queryClient)
+    const { result } = renderHook(() => useCompleteJob(), { wrapper })
+
+    await act(async () => {
+      await result.current.mutateAsync({ id, sendReportToClient: true }).catch(() => undefined)
+    })
+
+    expect(warning).toHaveBeenCalledOnce()
+    expect(staleness(queryClient).jobs).toBe(true)
+  })
+
+  it('trying again after a network error reuses the idempotency key', async () => {
+    const keys: (string | null)[] = []
+    server.events.on('request:start', ({ request }) => {
+      if (request.method === 'POST' && request.url.endsWith('/complete')) {
+        keys.push(request.headers.get('Idempotency-Key'))
+      }
+    })
+    let failures = 1
+    server.use(
+      http.post(`${API}/jobs/:id/complete`, () =>
+        failures-- > 0 ? HttpResponse.error() : undefined,
+      ),
+    )
+    await signInForTest('ante@bura.test')
+    const id = await readyJob()
+    const { wrapper } = queryWrapper()
+    const { result } = renderHook(() => useCompleteJob(), { wrapper })
+
+    await act(async () => {
+      await result.current.mutateAsync({ id, sendReportToClient: true }).catch(() => undefined)
+    })
+    await act(() => result.current.mutateAsync({ id, sendReportToClient: true }))
+
+    expect(keys).toHaveLength(2)
+    expect(keys[1]).toBe(keys[0])
+    server.events.removeAllListeners()
   })
 })
