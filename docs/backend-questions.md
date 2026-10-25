@@ -374,3 +374,53 @@ Note the asymmetry with `LocationInput.accessCodes` (0.2.0), where `null` means 
 **Frontend does:** shows what the API returns on the board.
 
 **We propose:** document it; a confirmed job whose time changes probably needs the client told again.
+
+## 36. Reading a report that does not exist yet
+
+**Spec says:** `GET /jobs/{id}/report` answers `JobReport` (200) and `Job.report` is optional. Nothing says what a job that has no report yet gets.
+
+**Mock does:** creates an empty report the first time it is read or written (200), and `Job.report` is `null` until then.
+
+**Frontend does:** opens the report screen for a job on site and expects an empty `JobReport` (not 404) to fill in.
+
+**We propose:** document it: an empty report (all fields `null`, the job's checklist copied in, no materials or photos) for a job on site, so the screen never has to treat 404 as "start a new one".
+
+## 37. Who fills in the times at completion, and what `sendReportToClient` does without an email
+
+**Spec says:** `POST /jobs/{id}/complete` validates required checklist items, the signature (if `requireSignature`) and `workDone`, sets `completed`, queues the PDF and the client email. `startedAt`, `finishedAt` and `labourMinutes` are optional on the report.
+
+**Mock does:** nothing with the times; sends no email (it only counts one in the usage when `sendReportToClient` is not `false`).
+
+**Frontend does:** offers the arrival (from the status history) as `startedAt`, and sets `finishedAt` to now when the technician left it empty, both through `PUT /report` before completing. Leaves `labourMinutes` alone.
+
+**We propose:** say whether the API fills `startedAt` (the on-site time) and `finishedAt` (the completion time) itself when they are empty, and what happens to `sendReportToClient: true` when the client has no email (ignored, or a 422?). If the API fills them, the frontend stops doing it.
+
+## 38. What a 422 from `/complete` says, and concurrent edits of one report
+
+**Spec says:** `422` is `ProblemDetails` with "Completion requirements not met". `PUT /jobs/{id}/report` has no `version`.
+
+**Mock does:** one sentence in `detail` listing everything missing (open required checklist items by name, the signature, the work done), `code: job.completion_requirements`.
+
+**Frontend does:** works out what is missing itself from the report (so the button waits and says why) and shows the API's `detail` when it still answers 422. The office and the technician saving the same report at the same time overwrite each other.
+
+**We propose:** a machine-readable list in the 422 (e.g. `errors` with `checklist`, `signature`, `workDone`) so the screen can point at the item, and a `version` (or `updatedAt`) on `JobReport` for `PUT`, answered with `409` like jobs and clients.
+
+## 39. Prices on a report seen by technicians
+
+**Spec says:** `JobMaterial` has `unitPrice` and `lineTotal`; `JobReport.totalMaterials` is a `Money`. Nothing limits them by role.
+
+**Mock does:** technicians see and may set prices (free-text materials take an optional `unitPrice`).
+
+**Frontend does:** shows prices and the sum to technicians and lets them type a price for free-text material.
+
+**We propose:** decide whether technicians see prices (a tenant setting would fit: some companies do not want field staff to see them) and whether they may set one for free-text material.
+
+## 40. How the client learns the PDF is ready, and photo formats
+
+**Spec says:** "The PDF appears on the report as `pdfAttachmentId` when the background job finishes." Photos: `image/jpeg`, `image/png`, `image/webp`, `image/heic`, up to 20 MB; `GET /attachments/{id}/url` gives a link valid 5 minutes and a `thumbnailUrl`.
+
+**Mock does:** `pdfAttachmentId` appears 3 seconds after completion; the PUT to the storage URL insists on exactly the returned headers and the declared size.
+
+**Frontend does:** fetches the report again every 3 seconds for up to 2 minutes after completion until `pdfAttachmentId` is there (step 14's SignalR can replace this). Photos are shrunk in the browser to JPEG with the longest side at most 2000 px when the browser can decode them; otherwise (HEIC in browsers that cannot read it) the file is sent as it is. `takenAt` is the file's last-modified time.
+
+**We propose:** an event (`ReportPdfReady`, thin like the others) so no polling is needed; say whether HEIC is converted and a thumbnail made for it; say whether `takenAt` should come from the photo's EXIF instead.
