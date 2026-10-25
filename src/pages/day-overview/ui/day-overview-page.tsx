@@ -1,19 +1,14 @@
-import { useTranslation } from 'react-i18next'
-
-import { useMe } from '@/entities/auth'
 import { useTenantFormat } from '@/shared/lib/tenant-format'
-import { PagePlaceholder } from '@/shared/ui/page-placeholder'
+import { DayOverview } from '@/widgets/day-overview'
 
-export function DayOverviewPage() {
-  const { t } = useTranslation()
-  const me = useMe()
-  const { formatDate, today } = useTenantFormat()
-  return (
-    <PagePlaceholder title={t('pages.dayOverview.title')}>
-      <p>
-        {me.tenant.name} · {formatDate(today(), { dateStyle: 'full' })}
-      </p>
-      <p>{t('pages.placeholder')}</p>
-    </PagePlaceholder>
-  )
+/** The office home: the day's schedule (today unless another date is in the URL). */
+export function DayOverviewPage({
+  date,
+  onDateChange,
+}: {
+  date?: string
+  onDateChange: (date: string) => void
+}) {
+  const { today } = useTenantFormat()
+  return <DayOverview date={date ?? today()} onDateChange={onDateChange} />
 }

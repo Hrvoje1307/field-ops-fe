@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import type { Job } from '@/entities/job'
@@ -6,13 +7,13 @@ import { useTenantFormat } from '@/shared/lib/tenant-format'
 
 import { Fact, Facts, Section } from './section'
 
-export function ScheduleSection({ job }: { job: Job }) {
+export function ScheduleSection({ job, action }: { job: Job; action?: ReactNode }) {
   const { t } = useTranslation()
   const { formatDate, formatDuration, formatRelativeDay, formatTime } = useTenantFormat()
   const dayAndDate = (date: string) => `${formatRelativeDay(date)} · ${formatDate(date)}`
 
   return (
-    <Section title={t('job.detail.schedule')}>
+    <Section title={t('job.detail.schedule')} action={action}>
       <Facts>
         <Fact label={t('job.detail.date')}>
           {job.scheduledDate ? (

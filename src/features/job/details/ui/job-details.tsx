@@ -36,13 +36,15 @@ interface Slots {
   actions?: ReactNode
   /** The status history, under the job's fields. */
   history?: ReactNode
+  /** In the schedule section, e.g. "Zakaži". */
+  scheduleAction?: ReactNode
 }
 
 /**
  * One job for the office: status track, schedule, client, location (with access
  * codes), equipment and the job's own fields. Actions and history come in as slots.
  */
-export function JobDetails({ jobId, actions, history }: { jobId: string } & Slots) {
+export function JobDetails({ jobId, ...slots }: { jobId: string } & Slots) {
   const { t } = useTranslation()
   const job = useQuery({
     queryKey: jobKeys.detail(jobId),
@@ -75,10 +77,10 @@ export function JobDetails({ jobId, actions, history }: { jobId: string } & Slot
       </Alert>
     )
   }
-  return <JobDetail job={job.data} actions={actions} history={history} />
+  return <JobDetail job={job.data} {...slots} />
 }
 
-function JobDetail({ job, actions, history }: { job: Job } & Slots) {
+function JobDetail({ job, actions, history, scheduleAction }: { job: Job } & Slots) {
   const { t } = useTranslation()
   const { formatRelativeDateTime } = useTenantFormat()
   // The track shows when each step was reached
@@ -159,7 +161,7 @@ function JobDetail({ job, actions, history }: { job: Job } & Slots) {
           {history && <Section title={t('job.history.title')}>{history}</Section>}
         </div>
         <div className="min-w-0 space-y-6">
-          <ScheduleSection job={job} />
+          <ScheduleSection job={job} action={scheduleAction} />
           <ClientSection job={job} />
           <LocationSection job={job} />
           {job.asset && <AssetSection asset={job.asset} />}

@@ -555,7 +555,6 @@ export const hr = {
   },
   pages: {
     placeholder: 'Ovaj ekran stiže u sljedećem koraku.',
-    dayOverview: { title: 'Danas' },
     fieldDay: { title: 'Moj dan' },
   },
   notFound: {
