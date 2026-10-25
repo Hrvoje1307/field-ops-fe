@@ -469,8 +469,18 @@ Note the asymmetry with `LocationInput.accessCodes` (0.2.0), where `null` means 
 
 **Spec says:** `POST /skills` answers 409 (a duplicate name, presumably); `PUT /skills/{id}` lists no error; `DELETE /skills/{id}` is 204 with no 409. `DELETE /depots/{id}` and `DELETE /asset-types/{id}` answer 409. `Depot.lat/lng` are optional. `AssetType.icon` is a free string.
 
-**Mock does:** `POST /skills` with a name that exists is 409, `PUT` with one is 400 on `name`, and a deleted skill is also removed from technicians (job types keep a dangling id). A depot technicians start from and a type that equipment has cannot be deleted (409); deleting an equipment type deletes its custom fields.
+**Mock does:** `POST /skills` with a name that exists is 409, `PUT` with one is 400 on `name`, and a deleted skill is also removed from technicians and from the job types that require it. A depot technicians start from and a type that equipment has cannot be deleted (409); deleting an equipment type deletes its custom fields.
 
 **Frontend does:** shows a taken skill name next to the name for both 409 and 400, words the two depot and type 409s ("technicians still start here", "equipment of this type exists"), and asks before every delete. Coordinates are typed by hand and optional; the icon is a text field that is kept as it is when only the name changes.
 
-**We propose:** say what `PUT /skills` answers for a taken name (400 `name` or 409), what deleting a skill does to the job types that require it and to technicians (refuse with 409 listing them, or remove it from both), whether the backend geocodes a depot's address when `lat/lng` are empty (if not, the screen needs a way to find them, if so the fields can go), and which icon names exist (a list, so the screen can offer them instead of free text). Say too whether deleting an equipment type should take its custom fields' stored values with it.
+**We propose:** say what `PUT /skills` answers for a taken name (400 `name` or 409), what deleting a skill does to the job types that require it and to technicians (remove it from both, as the mock does, or refuse with 409 listing them), whether the backend geocodes a depot's address when `lat/lng` are empty (if not, the screen needs a way to find them, if so the fields can go), and which icon names exist (a list, so the screen can offer them instead of free text). Say too whether deleting an equipment type should take its custom fields' stored values with it.
+
+## 46. Checklist templates and job type deletion
+
+**Spec says:** `DELETE /checklist-templates/{id}` is 204 with no 409, and `JobType.checklistTemplateId` points at one. `PUT /checklist-templates/{id}`: "Affects only jobs created afterwards (items are copied into each job)". `DELETE /job-types/{id}` answers 409 (jobs use it). A job type's `color` is `#rrggbb`.
+
+**Mock does:** deleting a template that job types use takes it off them (their `checklistTemplateId` becomes `null`); jobs keep their copied items. A job type with jobs cannot be deleted (409). Blank names and labels are 400s on `name` and `items[n].label`.
+
+**Frontend does:** offers "Aktivna" as the way to retire a job type (inactive types stay on existing jobs and are not offered for new ones) and says so when a delete is refused; says in the template dialog that existing jobs keep their items; sends the items in the order shown (the contract has no `position` on a template item, so order is the array's); requires at least one item with a label.
+
+**We propose:** say whether deleting a template in use is refused (409) or detaches it, as above; whether a job type that is `isActive: false` still shows in `GET /job-types` (the screen assumes yes, with the flag); whether an empty template is allowed; and whether renaming or reordering a template should reach open jobs.

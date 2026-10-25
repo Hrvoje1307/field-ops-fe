@@ -119,7 +119,9 @@ Each step adds the mock handlers its screens need, as `CLAUDE.md` requires.
   - [x] **13b: skills, depots, equipment types.** `/settings/skills`, `/settings/depots`, `/settings/equipment-types`: a list with add, edit (side panel) and delete (asking first) for each. Skills: a taken name is shown next to the name. Depots: name, address, working hours (closing after opening), optional coordinates (both or none, point or comma). Equipment types: name and the API's icon word, kept when only the name changes. A depot technicians start from and a type with equipment cannot be deleted: the 409 is worded.
     - Entities: `entities/skill` and `entities/depot` (new; requests, one hook per request, form models), equipment type requests and hooks in `entities/asset`. Writes refresh what shows the data (technicians, the board, job types, equipment, custom fields). Shared: `ConfigList`.
     - Backend question #45. Playwright for both tenants.
-  - [ ] 13c: job types
+  - [x] **13c: job types and checklists.** `/settings/job-types`: a list with colour, duration, crew, required skills and checklist, add and edit in a side panel (name, colour picker with the code, duration of at least 5 minutes, 1 to 10 people, skills from `/skills`, a checklist from `/checklist-templates`, messages on or off, active), "Neaktivna" on retired ones, and delete that is refused (and says to deactivate) while jobs of the type exist. An inactive type is not offered for new jobs. `/settings/checklists`: templates with named items, "obavezna", moved up and down and removed; the dialog says existing jobs keep their items. A skill the tenant no longer has is dropped when a type is saved.
+    - Entities: `entities/job-type` (create, update, delete, form model), new `entities/checklist-template`. Shared: `ColorField`. Writes refresh job data, the types and the templates.
+    - Mock: `/checklist-templates` (list, create, replace, delete; blank labels are 400s; delete detaches job types). Backend question #46. Playwright for both tenants.
   - [ ] 13d: custom fields, message templates
   - [ ] 13e: team (members, invitations, technicians)
 - [ ] **Step 14: live updates (SignalR)**
