@@ -26,6 +26,9 @@ import { Route as AuthedOfficeJobsNewRouteImport } from './routes/_authed/_offic
 import { Route as AuthedOfficePlansPlanIdRouteImport } from './routes/_authed/_office/plans/$planId'
 import { Route as AuthedOfficeSettingsIndexRouteImport } from './routes/_authed/_office/settings/index'
 import { Route as AuthedOfficeSettingsCompanyRouteImport } from './routes/_authed/_office/settings/company'
+import { Route as AuthedOfficeSettingsDepotsRouteImport } from './routes/_authed/_office/settings/depots'
+import { Route as AuthedOfficeSettingsEquipmentTypesRouteImport } from './routes/_authed/_office/settings/equipment-types'
+import { Route as AuthedOfficeSettingsSkillsRouteImport } from './routes/_authed/_office/settings/skills'
 import { Route as AuthedFieldJobsJobIdIndexRouteImport } from './routes/_authed/field/jobs/$jobId/index'
 import { Route as AuthedFieldJobsJobIdReportRouteImport } from './routes/_authed/field/jobs/$jobId/report'
 
@@ -116,6 +119,24 @@ const AuthedOfficeSettingsCompanyRoute =
     path: '/company',
     getParentRoute: () => AuthedOfficeSettingsRoute,
   } as any)
+const AuthedOfficeSettingsDepotsRoute =
+  AuthedOfficeSettingsDepotsRouteImport.update({
+    id: '/depots',
+    path: '/depots',
+    getParentRoute: () => AuthedOfficeSettingsRoute,
+  } as any)
+const AuthedOfficeSettingsEquipmentTypesRoute =
+  AuthedOfficeSettingsEquipmentTypesRouteImport.update({
+    id: '/equipment-types',
+    path: '/equipment-types',
+    getParentRoute: () => AuthedOfficeSettingsRoute,
+  } as any)
+const AuthedOfficeSettingsSkillsRoute =
+  AuthedOfficeSettingsSkillsRouteImport.update({
+    id: '/skills',
+    path: '/skills',
+    getParentRoute: () => AuthedOfficeSettingsRoute,
+  } as any)
 const AuthedFieldJobsJobIdIndexRoute =
   AuthedFieldJobsJobIdIndexRouteImport.update({
     id: '/jobs/$jobId/',
@@ -142,6 +163,9 @@ export interface FileRoutesByFullPath {
   '/jobs/new': typeof AuthedOfficeJobsNewRoute
   '/plans/$planId': typeof AuthedOfficePlansPlanIdRoute
   '/settings/company': typeof AuthedOfficeSettingsCompanyRoute
+  '/settings/depots': typeof AuthedOfficeSettingsDepotsRoute
+  '/settings/equipment-types': typeof AuthedOfficeSettingsEquipmentTypesRoute
+  '/settings/skills': typeof AuthedOfficeSettingsSkillsRoute
   '/clients/': typeof AuthedOfficeClientsIndexRoute
   '/jobs/': typeof AuthedOfficeJobsIndexRoute
   '/settings/': typeof AuthedOfficeSettingsIndexRoute
@@ -159,6 +183,9 @@ export interface FileRoutesByTo {
   '/jobs/new': typeof AuthedOfficeJobsNewRoute
   '/plans/$planId': typeof AuthedOfficePlansPlanIdRoute
   '/settings/company': typeof AuthedOfficeSettingsCompanyRoute
+  '/settings/depots': typeof AuthedOfficeSettingsDepotsRoute
+  '/settings/equipment-types': typeof AuthedOfficeSettingsEquipmentTypesRoute
+  '/settings/skills': typeof AuthedOfficeSettingsSkillsRoute
   '/clients': typeof AuthedOfficeClientsIndexRoute
   '/jobs': typeof AuthedOfficeJobsIndexRoute
   '/settings': typeof AuthedOfficeSettingsIndexRoute
@@ -181,6 +208,9 @@ export interface FileRoutesById {
   '/_authed/_office/jobs/new': typeof AuthedOfficeJobsNewRoute
   '/_authed/_office/plans/$planId': typeof AuthedOfficePlansPlanIdRoute
   '/_authed/_office/settings/company': typeof AuthedOfficeSettingsCompanyRoute
+  '/_authed/_office/settings/depots': typeof AuthedOfficeSettingsDepotsRoute
+  '/_authed/_office/settings/equipment-types': typeof AuthedOfficeSettingsEquipmentTypesRoute
+  '/_authed/_office/settings/skills': typeof AuthedOfficeSettingsSkillsRoute
   '/_authed/_office/clients/': typeof AuthedOfficeClientsIndexRoute
   '/_authed/_office/jobs/': typeof AuthedOfficeJobsIndexRoute
   '/_authed/_office/settings/': typeof AuthedOfficeSettingsIndexRoute
@@ -202,6 +232,9 @@ export interface FileRouteTypes {
     | '/jobs/new'
     | '/plans/$planId'
     | '/settings/company'
+    | '/settings/depots'
+    | '/settings/equipment-types'
+    | '/settings/skills'
     | '/clients/'
     | '/jobs/'
     | '/settings/'
@@ -219,6 +252,9 @@ export interface FileRouteTypes {
     | '/jobs/new'
     | '/plans/$planId'
     | '/settings/company'
+    | '/settings/depots'
+    | '/settings/equipment-types'
+    | '/settings/skills'
     | '/clients'
     | '/jobs'
     | '/settings'
@@ -240,6 +276,9 @@ export interface FileRouteTypes {
     | '/_authed/_office/jobs/new'
     | '/_authed/_office/plans/$planId'
     | '/_authed/_office/settings/company'
+    | '/_authed/_office/settings/depots'
+    | '/_authed/_office/settings/equipment-types'
+    | '/_authed/_office/settings/skills'
     | '/_authed/_office/clients/'
     | '/_authed/_office/jobs/'
     | '/_authed/_office/settings/'
@@ -374,6 +413,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedOfficeSettingsCompanyRouteImport
       parentRoute: typeof AuthedOfficeSettingsRoute
     }
+    '/_authed/_office/settings/depots': {
+      id: '/_authed/_office/settings/depots'
+      path: '/depots'
+      fullPath: '/settings/depots'
+      preLoaderRoute: typeof AuthedOfficeSettingsDepotsRouteImport
+      parentRoute: typeof AuthedOfficeSettingsRoute
+    }
+    '/_authed/_office/settings/equipment-types': {
+      id: '/_authed/_office/settings/equipment-types'
+      path: '/equipment-types'
+      fullPath: '/settings/equipment-types'
+      preLoaderRoute: typeof AuthedOfficeSettingsEquipmentTypesRouteImport
+      parentRoute: typeof AuthedOfficeSettingsRoute
+    }
+    '/_authed/_office/settings/skills': {
+      id: '/_authed/_office/settings/skills'
+      path: '/skills'
+      fullPath: '/settings/skills'
+      preLoaderRoute: typeof AuthedOfficeSettingsSkillsRouteImport
+      parentRoute: typeof AuthedOfficeSettingsRoute
+    }
     '/_authed/field/jobs/$jobId/': {
       id: '/_authed/field/jobs/$jobId/'
       path: '/jobs/$jobId'
@@ -393,11 +453,18 @@ declare module '@tanstack/react-router' {
 
 interface AuthedOfficeSettingsRouteChildren {
   AuthedOfficeSettingsCompanyRoute: typeof AuthedOfficeSettingsCompanyRoute
+  AuthedOfficeSettingsDepotsRoute: typeof AuthedOfficeSettingsDepotsRoute
+  AuthedOfficeSettingsEquipmentTypesRoute: typeof AuthedOfficeSettingsEquipmentTypesRoute
+  AuthedOfficeSettingsSkillsRoute: typeof AuthedOfficeSettingsSkillsRoute
   AuthedOfficeSettingsIndexRoute: typeof AuthedOfficeSettingsIndexRoute
 }
 
 const AuthedOfficeSettingsRouteChildren: AuthedOfficeSettingsRouteChildren = {
   AuthedOfficeSettingsCompanyRoute: AuthedOfficeSettingsCompanyRoute,
+  AuthedOfficeSettingsDepotsRoute: AuthedOfficeSettingsDepotsRoute,
+  AuthedOfficeSettingsEquipmentTypesRoute:
+    AuthedOfficeSettingsEquipmentTypesRoute,
+  AuthedOfficeSettingsSkillsRoute: AuthedOfficeSettingsSkillsRoute,
   AuthedOfficeSettingsIndexRoute: AuthedOfficeSettingsIndexRoute,
 }
 
