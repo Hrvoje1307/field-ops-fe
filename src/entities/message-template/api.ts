@@ -15,7 +15,8 @@ import { MESSAGE_PREVIEW_STALE_TIME, MESSAGE_TEMPLATES_STALE_TIME } from './cons
 
 export const messageTemplateKeys = {
   all: ['message-templates'] as const,
-  preview: (body: string) => ['message-templates', 'preview', body] as const,
+  preview: (body: string, jobId?: string) =>
+    ['message-templates', 'preview', body, jobId ?? null] as const,
 }
 
 // --- GET / reads (used as queryFn) -------------------------------------------
@@ -76,11 +77,14 @@ export function useListMessageTemplates() {
   })
 }
 
-/** What `body` looks like with sample data. Waits while there is nothing to show. */
-export function usePreviewMessageTemplate(body: string) {
+/**
+ * What `body` looks like with sample data, or with this job's own words when `jobId` is
+ * given. Waits while there is nothing to show.
+ */
+export function usePreviewMessageTemplate(body: string, jobId?: string) {
   return useQuery({
-    queryKey: messageTemplateKeys.preview(body),
-    queryFn: ({ signal }) => previewMessageTemplate({ body }, signal),
+    queryKey: messageTemplateKeys.preview(body, jobId),
+    queryFn: ({ signal }) => previewMessageTemplate({ body, ...(jobId ? { jobId } : {}) }, signal),
     enabled: body.trim() !== '',
     staleTime: MESSAGE_PREVIEW_STALE_TIME,
     // The last preview stays up while the next one is on its way

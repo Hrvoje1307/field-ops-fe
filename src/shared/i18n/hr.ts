@@ -813,6 +813,29 @@ export const hr = {
       removedOption: 'Vrijednost „{{value}}” više nije ponuđena. Odaberite novu.',
     },
   },
+  message: {
+    status: {
+      queued: 'U redu',
+      sent: 'Poslano',
+      delivered: 'Dostavljeno',
+      failed: 'Nije poslano',
+      undeliverable: 'Nije dostavljeno',
+    },
+    errors: {
+      templateRequired: 'Odaberite vrstu poruke.',
+      bodyRequired: 'Upišite tekst poruke.',
+    },
+  },
+  public: {
+    reschedule: {
+      errors: {
+        noteTooLong: 'Napomena ima najviše {{max}} znakova.',
+        dateInvalid: 'Upišite ispravan datum.',
+        datePast: 'Odaberite dan od danas nadalje.',
+        dateTwice: 'Taj dan je već odabran.',
+      },
+    },
+  },
   live: {
     down: 'Osvježavanje u stvarnom vremenu je prekinuto. Podaci na zaslonu možda nisu najnoviji; veza se pokušava obnoviti.',
     scheduleChanged: 'Raspored je promijenjen.',

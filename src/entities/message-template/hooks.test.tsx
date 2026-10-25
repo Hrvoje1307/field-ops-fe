@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { ApiError } from '@/shared/api/api-error'
+import { apiFetch } from '@/shared/api/api-fetch'
 import { resetMockDb } from '@/shared/api/mocks/db'
 import { server } from '@/shared/api/mocks/node'
 import { isInvalidated, queryWrapper, signInForTest } from '@/shared/api/test/hook-test-utils'
@@ -130,6 +131,21 @@ describe('usePreviewMessageTemplate', () => {
         unknownPlaceholders: ['x'],
         smsSegments: 1,
       })
+    })
+  })
+
+  it('with a job, fills the text from the job and asks for it by that job', async () => {
+    const { wrapper } = queryWrapper()
+    const jobs = await apiFetch<{ items: { id: string; number: string }[] }>('/jobs', {
+      query: { pageSize: 1 },
+    })
+    const job = jobs.items[0]
+    if (!job) throw new Error('Seed needs a job')
+    const { result } = renderHook(() => usePreviewMessageTemplate('Nalog {broj_naloga}', job.id), {
+      wrapper,
+    })
+    await waitFor(() => {
+      expect(result.current.data?.rendered).toBe(`Nalog ${job.number}`)
     })
   })
 
