@@ -51,6 +51,7 @@ export const paymentRequired = (code: string, detail?: string) =>
   problem(402, 'Payment required', code, detail)
 export const badGateway = (code: string, detail?: string) =>
   problem(502, 'Bad gateway', code, detail)
+export const gone = (code = 'link.gone', detail?: string) => problem(410, 'Gone', code, detail)
 export const notFound = () => problem(404, 'Not found', 'not_found')
 export const conflict = (code: string, detail?: string) => problem(409, 'Conflict', code, detail)
 export const unprocessable = (code: string, detail?: string) =>

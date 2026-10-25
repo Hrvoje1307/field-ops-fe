@@ -217,6 +217,8 @@ export const jobHandlers = [
         locationId: body.locationId,
         jobTypeId: body.jobTypeId,
         rescheduleRequestedAt: null,
+        publicToken: null,
+        publicTokenExpiresAt: null,
         createdBy: auth.user.id,
       }
       t.jobs.push(job)

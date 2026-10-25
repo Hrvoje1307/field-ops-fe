@@ -453,6 +453,29 @@ describe('every mocked operation matches the contract', () => {
     )
     expect((await owner.del(`/message-templates/${messageTemplate.id}`)).status).toBe(204)
 
+    // Messages and the client's page
+    const jobForMessages = t.jobs.find(
+      (j) =>
+        j.status === 'scheduled' &&
+        j.scheduledDate &&
+        t.contacts.some((c) => c.clientId === j.clientId && c.phone && c.receivesSms),
+    )
+    expect((await owner.get('/messages')).status).toBe(200)
+    expect(
+      (
+        await owner.post(`/jobs/${jobForMessages?.id ?? ''}/notify`, {
+          channel: 'sms',
+          templateKey: 'on_the_way',
+        })
+      ).status,
+    ).toBe(202)
+    const publicToken = jobForMessages?.publicToken ?? ''
+    expect((await owner.get(`/public/jobs/${publicToken}`)).status).toBe(200)
+    expect((await owner.post(`/public/jobs/${publicToken}/confirm`)).status).toBe(200)
+    expect((await owner.post(`/public/jobs/${publicToken}/reschedule-request`, {})).status).toBe(
+      202,
+    )
+
     expect((await owner.get('/custom-fields?entity=client')).status).toBe(200)
     const fieldInput = {
       entity: 'job',

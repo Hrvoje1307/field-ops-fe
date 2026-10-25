@@ -98,10 +98,13 @@ export function effectiveTemplates(t: TenantData): MessageTemplate[] {
 const PLACEHOLDER = /\{([^{}\s]*)\}/g
 
 /** The text with the placeholders replaced, and the ones that are not known. */
-export function renderBody(body: string): { rendered: string; unknown: string[] } {
+export function renderBody(
+  body: string,
+  values: Record<string, string> = PLACEHOLDER_SAMPLES,
+): { rendered: string; unknown: string[] } {
   const unknown: string[] = []
   const rendered = body.replace(PLACEHOLDER, (whole: string, name: string) => {
-    const sample = PLACEHOLDER_SAMPLES[name]
+    const sample = values[name]
     if (sample !== undefined) return sample
     if (!unknown.includes(name)) unknown.push(name)
     return whole

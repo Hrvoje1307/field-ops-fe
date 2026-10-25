@@ -28,7 +28,7 @@ import {
 } from './problems'
 
 /** Path parameters used by the spec's templates (always present when the route matched). */
-type PathParams = Readonly<Record<'id' | 'userId', string>>
+type PathParams = Readonly<Record<'id' | 'userId' | 'token', string>>
 
 export interface PublicContext<TBody = unknown, TQuery = Record<string, never>> {
   request: Request

@@ -2,6 +2,7 @@ import type { MessageTemplateInput } from '@/shared/api/generated/model'
 
 import { OFFICE_ROLES } from '../lib/access'
 import { newId } from '../lib/ids'
+import { placeholderValues } from '../lib/messages'
 import { effectiveTemplates, renderBody, smsSegments } from '../lib/message-templates'
 import { conflict, created, FieldErrors, MESSAGES, noContent, notFound, ok } from '../lib/problems'
 import { route } from '../lib/route'
@@ -51,11 +52,22 @@ export const messageTemplateHandlers = [
   route<{ body: string; jobId?: string }>(
     'post',
     '/message-templates/preview',
-    ({ auth, body }) => {
-      if (body.jobId && !auth.t.jobs.some((j) => j.id === body.jobId && !j.deletedAt)) {
-        throw notFound()
-      }
-      const { rendered, unknown } = renderBody(body.body)
+    ({ db, auth, body }) => {
+      const job = body.jobId
+        ? auth.t.jobs.find((j) => j.id === body.jobId && !j.deletedAt)
+        : undefined
+      if (body.jobId && !job) throw notFound()
+      // With a job, what its client would get (the link is the page the message would carry)
+      const values = job
+        ? placeholderValues(
+            db,
+            auth.t,
+            job,
+            auth.t.contacts.find((c) => c.clientId === job.clientId && c.isPrimary && !c.deletedAt),
+            job.publicToken ?? 'preview',
+          )
+        : undefined
+      const { rendered, unknown } = renderBody(body.body, values)
       const { length, segments } = smsSegments(rendered)
       return ok({ rendered, length, smsSegments: segments, unknownPlaceholders: unknown })
     },

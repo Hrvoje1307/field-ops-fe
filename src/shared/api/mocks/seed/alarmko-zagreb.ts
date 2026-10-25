@@ -55,7 +55,7 @@ export const alarmkoZagreb: TenantSeed = {
     {
       key: 'on_the_way',
       channel: 'sms',
-      body: 'Alarmko: monter {monter} je krenuo prema vama i stiže uskoro. Nalog {broj_naloga}.',
+      body: 'Alarmko: monter {monter} je krenuo prema vama. Nalog {broj_naloga}. Pratite: {link}',
     },
   ],
   checklists: [

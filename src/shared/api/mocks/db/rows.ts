@@ -20,6 +20,7 @@ import type {
   JobReport,
   JobType,
   Location,
+  Message,
   MessageTemplate,
   Role,
   RoutePlan,
@@ -33,9 +34,9 @@ import type {
 /**
  * Bump when the stored shape changes: older data in localStorage is then reseeded
  * instead of being read with missing fields. (2: invitation tokens, spec 0.2.0;
- * 3: custom fields of every type in both tenants; 4: route plans; 5: reports, materials, catalog and attachments; 6: message templates)
+ * 3: custom fields of every type in both tenants; 4: route plans; 5: reports, materials, catalog and attachments; 6: message templates; 7: messages and public links)
  */
-export const MOCK_DB_SCHEMA_VERSION = 6
+export const MOCK_DB_SCHEMA_VERSION = 7
 
 /** Response types mark timestamps readonly; stored rows are written by the mock. */
 type Mutable<T> = { -readonly [K in keyof T]: T[K] }
@@ -151,6 +152,9 @@ export type JobRow = Mutable<
     locationId: string
     jobTypeId: string
     rescheduleRequestedAt: string | null
+    /** The secret of the client's link (`/p/<token>`), made when the first message goes out. */
+    publicToken: string | null
+    publicTokenExpiresAt: string | null
     createdBy: string | null
   }
 
@@ -161,6 +165,17 @@ export interface AssignmentRow {
   /** Position in the lead technician's day. */
   sequence: number | null
   assignedAt: string
+}
+
+/**
+ * A message as stored: what it will be once it has been sent and delivered. `status`,
+ * `sentAt` and `deliveredAt` are worked out from the time when it is presented.
+ */
+export type MessageRow = Omit<Message, 'status' | 'sentAt' | 'deliveredAt'> & {
+  /** How it ends: delivered, or one of the two ways it fails. */
+  outcome: 'delivered' | 'failed' | 'undeliverable'
+  sentAt: string
+  deliveredAt: string | null
 }
 
 export type HistoryRow = StatusHistoryEntry & { jobId: string }
@@ -204,6 +219,7 @@ export interface TenantData {
   checklistTemplates: ChecklistTemplate[]
   /** The tenant's own message templates; the platform defaults are not stored. */
   messageTemplates: MessageTemplate[]
+  messages: MessageRow[]
   assetTypes: AssetType[]
   customFields: CustomFieldDefinition[]
   clients: ClientRow[]

@@ -35,6 +35,7 @@ import type {
   TenantData,
   UserRow,
 } from '../db/rows'
+import { seedMessages } from './messages'
 import type { JobSeed, TenantSeed } from './types'
 
 export interface SeedContext {
@@ -386,6 +387,8 @@ export function buildTenant(
       locationId: location.id,
       jobTypeId: jobType.id,
       rescheduleRequestedAt: j.rescheduleNote ? at(0, '07:30') : null,
+      publicToken: null,
+      publicTokenExpiresAt: null,
       createdBy: officeUser.id,
     })
 
@@ -526,6 +529,13 @@ export function buildTenant(
       invitations,
       jobTypes,
       checklistTemplates,
+      messages: seedMessages({
+        jobs,
+        contacts,
+        company: seed.name,
+        timeZone: tz,
+        id,
+      }),
       messageTemplates: seed.messageTemplates.map((template) => ({
         id: id(),
         locale: seed.locale,
