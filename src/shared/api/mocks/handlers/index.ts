@@ -2,6 +2,7 @@ import { assetHandlers } from './assets'
 import { authHandlers } from './auth'
 import { clientHandlers } from './clients'
 import { configurationHandlers } from './configuration'
+import { dispatchHandlers } from './dispatch'
 import { fieldHandlers } from './field'
 import { jobHandlers } from './jobs'
 import { locationHandlers } from './locations'
@@ -20,6 +21,7 @@ export const handlers = [
   ...locationHandlers,
   ...assetHandlers,
   ...jobHandlers,
+  ...dispatchHandlers,
   ...fieldHandlers,
   ...configurationHandlers,
 ]

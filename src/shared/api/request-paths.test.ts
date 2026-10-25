@@ -12,7 +12,9 @@ const SOURCES = import.meta.glob<string>('../../entities/*/api.ts', {
   import: 'default',
   eager: true,
 })
-const CALL = /apiFetch<[^>]*>\(\s*(?:path`([^`]*)`|'([^']*)')\s*(?:,\s*\{([^}]*)\})?\s*\)/g
+// Options may hold one level of nested braces, e.g. { query: { date }, signal }
+const CALL =
+  /apiFetch<[^>]*>\(\s*(?:path`([^`]*)`|'([^']*)')\s*(?:,\s*\{((?:[^{}]|\{[^{}]*\})*)\})?\s*\)/g
 
 /** `/jobs/${id}/history` and `/jobs/{id}/history` → `/jobs/{}/history`. */
 const normalize = (path: string) => path.replace(/\$\{[^}]*\}|\{[^}]*\}/g, '{}')

@@ -57,6 +57,12 @@ afterAll(() => {
 })
 
 describe('every mocked operation matches the contract', () => {
+  it('dispatch', async () => {
+    const board = await owner.get<{ columns: unknown[] }>(`/dispatch/board?date=${today()}`)
+    expect(board.status).toBe(200)
+    expect(board.body.columns.length).toBeGreaterThan(0)
+  })
+
   it('auth', async () => {
     const tokens = (
       await api<TokenResponse>('post', '/auth/login', {
