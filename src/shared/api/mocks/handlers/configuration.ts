@@ -1,4 +1,6 @@
 import type {
+  ChecklistTemplate,
+  ChecklistTemplateInput,
   CustomFieldDefinition,
   CustomFieldDefinitionInput,
   JobTypeInput,
@@ -33,6 +35,24 @@ function validateJobType(t: TenantData, body: JobTypeInput): void {
     errors.add('checklistTemplateId', MESSAGES.notFound)
   }
   errors.throwIfAny()
+}
+
+/** A template from input: blank labels are 400s on the item, `required` defaults to false. */
+function templateFrom(id: string, body: ChecklistTemplateInput): ChecklistTemplate {
+  const errors = new FieldErrors()
+  if (body.name.trim() === '') errors.add('name', MESSAGES.required)
+  body.items.forEach((item, index) => {
+    if (item.label.trim() === '') errors.add(`items[${String(index)}].label`, MESSAGES.required)
+  })
+  errors.throwIfAny()
+  return {
+    id,
+    name: body.name.trim(),
+    items: body.items.map((item) => ({
+      label: item.label.trim(),
+      required: item.required ?? false,
+    })),
+  }
 }
 
 /** Definition from input; collects 400 errors (asset type scope, options for select types). */
@@ -116,6 +136,51 @@ export const configurationHandlers = [
         throw conflict('job_type.in_use', 'Jobs of this type exist; deactivate it instead.')
       }
       auth.t.jobTypes = auth.t.jobTypes.filter((jt) => jt.id !== params.id)
+      return noContent()
+    },
+    { roles: OFFICE_ROLES },
+  ),
+
+  // --- checklist templates ---
+  route('get', '/checklist-templates', ({ auth }) => ok(auth.t.checklistTemplates), {
+    roles: OFFICE_ROLES,
+  }),
+
+  route<ChecklistTemplateInput>(
+    'post',
+    '/checklist-templates',
+    ({ auth, body }) => {
+      const template = templateFrom(newId(), body)
+      auth.t.checklistTemplates.push(template)
+      return created(template)
+    },
+    { roles: OFFICE_ROLES },
+  ),
+
+  route<ChecklistTemplateInput>(
+    'put',
+    '/checklist-templates/{id}',
+    ({ auth, body, params }) => {
+      const index = auth.t.checklistTemplates.findIndex((c) => c.id === params.id)
+      if (index < 0) throw notFound()
+      // Jobs already created keep the items they were given
+      const template = templateFrom(params.id, body)
+      auth.t.checklistTemplates[index] = template
+      return ok(template)
+    },
+    { roles: OFFICE_ROLES },
+  ),
+
+  route(
+    'delete',
+    '/checklist-templates/{id}',
+    ({ auth, params }) => {
+      if (!auth.t.checklistTemplates.some((c) => c.id === params.id)) throw notFound()
+      auth.t.checklistTemplates = auth.t.checklistTemplates.filter((c) => c.id !== params.id)
+      // The contract has no 409 here: job types that used it simply have none from now on
+      for (const jobType of auth.t.jobTypes) {
+        if (jobType.checklistTemplateId === params.id) jobType.checklistTemplateId = null
+      }
       return noContent()
     },
     { roles: OFFICE_ROLES },

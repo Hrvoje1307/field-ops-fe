@@ -417,6 +417,23 @@ describe('every mocked operation matches the contract', () => {
     expect((await owner.del(`/job-types/${jobType.id}`)).status).toBe(204)
     expect((await owner.del(`/job-types/${t.jobTypes[0]?.id ?? ''}`)).status).toBe(409) // jobs use it
 
+    expect((await owner.get('/checklist-templates')).status).toBe(200)
+    const template = (
+      await owner.post<{ id: string }>('/checklist-templates', {
+        name: 'Zatvaranje',
+        items: [{ label: 'Pokupiti alat' }],
+      })
+    ).body
+    expect(
+      (
+        await owner.put(`/checklist-templates/${template.id}`, {
+          name: 'Zatvaranje',
+          items: [{ label: 'Pokupiti alat', required: true }],
+        })
+      ).status,
+    ).toBe(200)
+    expect((await owner.del(`/checklist-templates/${template.id}`)).status).toBe(204)
+
     expect((await owner.get('/custom-fields?entity=client')).status).toBe(200)
     const fieldInput = {
       entity: 'job',
