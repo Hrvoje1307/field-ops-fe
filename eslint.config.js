@@ -85,10 +85,13 @@ const fsdBoundaries = {
 
 // ---------------------------------------------------------------------------
 // Where the backend is called
-//   entities/<area>/api.ts   query keys and request functions (apiFetch + path)
-//   features                 useQuery / useMutation with those functions, inline
-//   app                      route guards (fetchMe, fetchTenant) and the QueryClient
-//   pages, widgets, shared   never: they compose and render
+//   entities/<area>/api.ts   query keys, request functions (apiFetch + path), cache times
+//                            and the hooks: useGetJob, useListClients, useCreateJob…
+//   features, widgets, pages call those hooks and add only what is theirs (toasts,
+//                            navigation, closing a panel); they never touch TanStack
+//                            Query, keys or cache times
+//   app                      the QueryClient and the route guards (fetchMe, fetchTenant)
+//   shared                   never
 // Generated code is used for its types only (@/shared/api/generated/model).
 // ---------------------------------------------------------------------------
 const generatedRequests = {
@@ -98,7 +101,7 @@ const generatedRequests = {
 }
 const apiFetchOutsideEntities = {
   name: '@/shared/api/api-fetch',
-  message: 'Requests are written in entities/<area>/api.ts; use those functions.',
+  message: 'Requests are written in entities/<area>/api.ts; call the entity hooks.',
 }
 const queryHooks = {
   name: '@tanstack/react-query',
@@ -116,8 +119,21 @@ const queryHooks = {
     'mutationOptions',
   ],
   message:
-    'Data is read and written in features (useQuery / useMutation with entity request functions). Pages, widgets and shared only compose and render.',
+    'Call the entity hooks (useGetJob, useCreateJob…); only entities and the app use TanStack Query directly.',
 }
+/** Keys and cache times belong to the entity hook that uses them. */
+const entityInternals = {
+  group: ['@/entities/*'],
+  importNamePattern: '(Keys|_STALE_TIME)$',
+  message: 'Query keys and cache times stay inside the entity; call its hook.',
+}
+
+const uiLayers = [
+  'src/features/**/*.{ts,tsx}',
+  'src/widgets/**/*.{ts,tsx}',
+  'src/pages/**/*.{ts,tsx}',
+]
+const tests = ['**/*.test.{ts,tsx}']
 
 const backendCalls = [
   {
@@ -126,8 +142,8 @@ const backendCalls = [
     rules: { 'no-restricted-imports': ['error', { patterns: [generatedRequests] }] },
   },
   {
-    name: 'backend/features-and-app',
-    files: ['src/features/**/*.{ts,tsx}', 'src/app/**/*.{ts,tsx}'],
+    name: 'backend/app',
+    files: ['src/app/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-imports': [
         'error',
@@ -136,8 +152,33 @@ const backendCalls = [
     },
   },
   {
-    name: 'backend/compose-only',
-    files: ['src/pages/**/*.{ts,tsx}', 'src/widgets/**/*.{ts,tsx}', 'src/shared/**/*.{ts,tsx}'],
+    name: 'backend/features-widgets-pages',
+    files: uiLayers,
+    ignores: tests,
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [apiFetchOutsideEntities, queryHooks],
+          patterns: [generatedRequests, entityInternals],
+        },
+      ],
+    },
+  },
+  {
+    // Tests may read keys (to look at the cache) but use the hooks like the code does
+    name: 'backend/features-widgets-pages-tests',
+    files: ['src/{features,widgets,pages}/**/*.test.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        { paths: [apiFetchOutsideEntities, queryHooks], patterns: [generatedRequests] },
+      ],
+    },
+  },
+  {
+    name: 'backend/shared',
+    files: ['src/shared/**/*.{ts,tsx}'],
     ignores: ['src/shared/api/**'],
     rules: {
       'no-restricted-imports': [
