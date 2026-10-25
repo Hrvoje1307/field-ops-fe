@@ -484,3 +484,13 @@ Note the asymmetry with `LocationInput.accessCodes` (0.2.0), where `null` means 
 **Frontend does:** offers "Aktivna" as the way to retire a job type (inactive types stay on existing jobs and are not offered for new ones) and says so when a delete is refused; says in the template dialog that existing jobs keep their items; sends the items in the order shown (the contract has no `position` on a template item, so order is the array's); requires at least one item with a label.
 
 **We propose:** say whether deleting a template in use is refused (409) or detaches it, as above; whether a job type that is `isActive: false` still shows in `GET /job-types` (the screen assumes yes, with the flag); whether an empty template is allowed; and whether renaming or reordering a template should reach open jobs.
+
+## 47. Custom field definitions: order, options and scope
+
+**Spec says:** `sortOrder` is an integer on each definition; `key` is `^[a-z][a-z0-9_]{0,62}$` and, with `entity` and `type`, immutable (422); `options` are `{ value, label }`; `assetTypeId` is "only for entity=asset"; `DELETE` keeps the values in JSONB but hides them. `GET /custom-fields?entity=asset` without `assetTypeId` returns every type's fields.
+
+**Mock does:** a key is unique per entity and asset type (409 on create, 400 on `key` on update); a field without an asset type applies to all types; a field with one wins over a same-key field for all types.
+
+**Frontend does:** puts a field up or down by renumbering the list in tens and saving the fields whose number changed (one request each, in turn); a new field goes after the last. Keys are suggested from the label and checked against the pattern; a new option gets a stored value made from its label (never one that exists in that field), a renamed option keeps its value. A deleted option is not removed from stored values (the forms already show "no longer offered").
+
+**We propose:** a bulk `PUT /custom-fields/order` (list of ids) so a move is one request and cannot stop half way; say whether the same key may exist for two asset types and for "all types" at once (the screen allows it, the forms show one per key); and what a removed option does to stored values (kept and shown as "no longer offered", as the forms assume, or cleared).
