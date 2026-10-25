@@ -153,10 +153,12 @@ test('own sign-out goes to plain /login', async ({ page }) => {
 })
 
 test('switching tenant reloads the data and shows the other company', async ({ page }) => {
+  // Technicians of each mock tenant (seed), shown as columns on the home page
+  const technicians = ['Ivan Horvat', 'Ante Vuković'] as const
   await signIn(page, SHARED_DISPATCHER)
   await expectSignedInAs(page, TENANTS[0].name)
   const main = page.getByRole('main')
-  await expect(main.getByText(TENANTS[0].name, { exact: false })).toBeVisible()
+  await expect(main.getByText(technicians[0])).toBeVisible()
 
   const meRequest = page.waitForRequest((request) => request.url() === `${API_URL}/me`)
   await openUserMenu(page)
@@ -164,9 +166,9 @@ test('switching tenant reloads the data and shows the other company', async ({ p
   await meRequest
 
   await expectSignedInAs(page, TENANTS[1].name)
-  // Page content comes from the reloaded /me, not from the old tenant's cache
-  await expect(main.getByText(TENANTS[1].name, { exact: false })).toBeVisible()
-  await expect(main.getByText(TENANTS[0].name, { exact: false })).toHaveCount(0)
+  // Page content comes from the other tenant's data, not from the old tenant's cache
+  await expect(main.getByText(technicians[1])).toBeVisible()
+  await expect(main.getByText(technicians[0])).toHaveCount(0)
 
   await page.reload()
   await expectSignedInAs(page, TENANTS[1].name)
