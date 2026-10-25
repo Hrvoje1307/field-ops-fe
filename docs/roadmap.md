@@ -84,11 +84,17 @@ Each step follows the workflow in `CLAUDE.md`: plan first, wait for OK, then bui
   - Toasts moved to the top centre: at the bottom right they covered side panels' buttons.
   - Backend question #29. Playwright for both tenants (the skill warning needs a technician lacking a skill: only Bura's seed has one).
 
+- [x] **Step 10: field day and field job on the phone**
+  - `/field` ("Moj dan"): the technician's own day (date in the URL, arrows, today) as large cards in visit order: time or planned arrival, client, address, job type, priority, status; call the client's primary contact and navigate with one tap.
+  - `/field/jobs/$jobId`: location with a navigation button, access notes and access codes (large, masked until tapped), contacts to call, description and the office's note, equipment with its fields, the job's own fields. One big action fixed at the bottom: the next step of `allowedTransitions` (Označi: na putu → na lokaciji); "Više" for the rest (on hold with a required reason). Completing waits for step 12. A job of another technician is "not found".
+  - The phone's position goes with the arrival steps (`lat`/`lng`) when it arrives within a few seconds; no permission or signal never stops the change. A 409 refetches and keeps the dialog's reason; retries reuse the idempotency key.
+  - Entities: `getMyDay`, `splitTransitions` (primary step by display order, `completed` never offered), `CallButton`. Shared: `currentPosition`, a router test helper.
+  - No new mock handlers. Playwright for both tenants on a phone viewport (the access-code test only runs for Alarmko: Bura's seed has no such job for its technician).
+
 ## Next
 
 Each step adds the mock handlers its screens need, as `CLAUDE.md` requires.
 
-- [ ] **Step 10: field day and field job on the phone**
 - [ ] **Step 11: dispatch board (drag and drop, route plans)**
 - [ ] **Step 12: field report, photos, signature, complete, print**
 - [ ] **Step 13: tenant settings**
