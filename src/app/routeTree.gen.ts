@@ -33,6 +33,7 @@ import { Route as AuthedOfficeSettingsEquipmentTypesRouteImport } from './routes
 import { Route as AuthedOfficeSettingsJobTypesRouteImport } from './routes/_authed/_office/settings/job-types'
 import { Route as AuthedOfficeSettingsMessagesRouteImport } from './routes/_authed/_office/settings/messages'
 import { Route as AuthedOfficeSettingsSkillsRouteImport } from './routes/_authed/_office/settings/skills'
+import { Route as AuthedOfficeSettingsTeamRouteImport } from './routes/_authed/_office/settings/team'
 import { Route as AuthedFieldJobsJobIdIndexRouteImport } from './routes/_authed/field/jobs/$jobId/index'
 import { Route as AuthedFieldJobsJobIdReportRouteImport } from './routes/_authed/field/jobs/$jobId/report'
 
@@ -165,6 +166,12 @@ const AuthedOfficeSettingsSkillsRoute =
     path: '/skills',
     getParentRoute: () => AuthedOfficeSettingsRoute,
   } as any)
+const AuthedOfficeSettingsTeamRoute =
+  AuthedOfficeSettingsTeamRouteImport.update({
+    id: '/team',
+    path: '/team',
+    getParentRoute: () => AuthedOfficeSettingsRoute,
+  } as any)
 const AuthedFieldJobsJobIdIndexRoute =
   AuthedFieldJobsJobIdIndexRouteImport.update({
     id: '/jobs/$jobId/',
@@ -198,6 +205,7 @@ export interface FileRoutesByFullPath {
   '/settings/job-types': typeof AuthedOfficeSettingsJobTypesRoute
   '/settings/messages': typeof AuthedOfficeSettingsMessagesRoute
   '/settings/skills': typeof AuthedOfficeSettingsSkillsRoute
+  '/settings/team': typeof AuthedOfficeSettingsTeamRoute
   '/clients/': typeof AuthedOfficeClientsIndexRoute
   '/jobs/': typeof AuthedOfficeJobsIndexRoute
   '/settings/': typeof AuthedOfficeSettingsIndexRoute
@@ -222,6 +230,7 @@ export interface FileRoutesByTo {
   '/settings/job-types': typeof AuthedOfficeSettingsJobTypesRoute
   '/settings/messages': typeof AuthedOfficeSettingsMessagesRoute
   '/settings/skills': typeof AuthedOfficeSettingsSkillsRoute
+  '/settings/team': typeof AuthedOfficeSettingsTeamRoute
   '/clients': typeof AuthedOfficeClientsIndexRoute
   '/jobs': typeof AuthedOfficeJobsIndexRoute
   '/settings': typeof AuthedOfficeSettingsIndexRoute
@@ -251,6 +260,7 @@ export interface FileRoutesById {
   '/_authed/_office/settings/job-types': typeof AuthedOfficeSettingsJobTypesRoute
   '/_authed/_office/settings/messages': typeof AuthedOfficeSettingsMessagesRoute
   '/_authed/_office/settings/skills': typeof AuthedOfficeSettingsSkillsRoute
+  '/_authed/_office/settings/team': typeof AuthedOfficeSettingsTeamRoute
   '/_authed/_office/clients/': typeof AuthedOfficeClientsIndexRoute
   '/_authed/_office/jobs/': typeof AuthedOfficeJobsIndexRoute
   '/_authed/_office/settings/': typeof AuthedOfficeSettingsIndexRoute
@@ -279,6 +289,7 @@ export interface FileRouteTypes {
     | '/settings/job-types'
     | '/settings/messages'
     | '/settings/skills'
+    | '/settings/team'
     | '/clients/'
     | '/jobs/'
     | '/settings/'
@@ -303,6 +314,7 @@ export interface FileRouteTypes {
     | '/settings/job-types'
     | '/settings/messages'
     | '/settings/skills'
+    | '/settings/team'
     | '/clients'
     | '/jobs'
     | '/settings'
@@ -331,6 +343,7 @@ export interface FileRouteTypes {
     | '/_authed/_office/settings/job-types'
     | '/_authed/_office/settings/messages'
     | '/_authed/_office/settings/skills'
+    | '/_authed/_office/settings/team'
     | '/_authed/_office/clients/'
     | '/_authed/_office/jobs/'
     | '/_authed/_office/settings/'
@@ -514,6 +527,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedOfficeSettingsSkillsRouteImport
       parentRoute: typeof AuthedOfficeSettingsRoute
     }
+    '/_authed/_office/settings/team': {
+      id: '/_authed/_office/settings/team'
+      path: '/team'
+      fullPath: '/settings/team'
+      preLoaderRoute: typeof AuthedOfficeSettingsTeamRouteImport
+      parentRoute: typeof AuthedOfficeSettingsRoute
+    }
     '/_authed/field/jobs/$jobId/': {
       id: '/_authed/field/jobs/$jobId/'
       path: '/jobs/$jobId'
@@ -540,6 +560,7 @@ interface AuthedOfficeSettingsRouteChildren {
   AuthedOfficeSettingsJobTypesRoute: typeof AuthedOfficeSettingsJobTypesRoute
   AuthedOfficeSettingsMessagesRoute: typeof AuthedOfficeSettingsMessagesRoute
   AuthedOfficeSettingsSkillsRoute: typeof AuthedOfficeSettingsSkillsRoute
+  AuthedOfficeSettingsTeamRoute: typeof AuthedOfficeSettingsTeamRoute
   AuthedOfficeSettingsIndexRoute: typeof AuthedOfficeSettingsIndexRoute
 }
 
@@ -553,6 +574,7 @@ const AuthedOfficeSettingsRouteChildren: AuthedOfficeSettingsRouteChildren = {
   AuthedOfficeSettingsJobTypesRoute: AuthedOfficeSettingsJobTypesRoute,
   AuthedOfficeSettingsMessagesRoute: AuthedOfficeSettingsMessagesRoute,
   AuthedOfficeSettingsSkillsRoute: AuthedOfficeSettingsSkillsRoute,
+  AuthedOfficeSettingsTeamRoute: AuthedOfficeSettingsTeamRoute,
   AuthedOfficeSettingsIndexRoute: AuthedOfficeSettingsIndexRoute,
 }
 
