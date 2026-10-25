@@ -362,6 +362,9 @@ export const hr = {
       loadFailed: 'Raspored nije moguće učitati.',
       noTechnicians: 'Tvrtka još nema aktivnih montera.',
     },
+    plan: {
+      conflict: 'Plan je u međuvremenu promijenjen. Prikazani su najnoviji podaci.',
+    },
     assign: {
       schedule: 'Zakaži',
       reschedule: 'Promijeni termin',
