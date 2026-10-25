@@ -8,8 +8,18 @@ function requireEnv(name: 'VITE_API_URL'): string {
   return value
 }
 
+const apiUrl = requireEnv('VITE_API_URL').replace(/\/$/, '')
+
 export const env = {
-  apiUrl: requireEnv('VITE_API_URL').replace(/\/$/, ''),
+  apiUrl,
+  /**
+   * The SignalR hub. The contract names the path (`/hubs/dispatch`), not the host: it is
+   * taken to be at the API's origin, outside `/api/v1`. `VITE_HUB_URL` overrides.
+   */
+  hubUrl: (import.meta.env.VITE_HUB_URL ?? `${new URL(apiUrl).origin}/hubs/dispatch`).replace(
+    /\/$/,
+    '',
+  ),
   apiMock: import.meta.env.VITE_API_MOCK === 'true',
   googleMapsKey: import.meta.env.VITE_GOOGLE_MAPS_KEY ?? '',
 } as const

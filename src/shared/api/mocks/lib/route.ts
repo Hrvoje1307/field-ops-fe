@@ -3,11 +3,14 @@ import { delay, http, HttpResponse, type HttpHandler } from 'msw'
 
 import type { Role } from '@/shared/api/generated/model'
 import { env } from '@/shared/config/env'
+import { toIsoInstant } from '@/shared/lib/datetime'
 
 import { getDb, saveDb } from '../db'
-import type { MockDb } from '../db/rows'
+import type { MockDb, TenantData } from '../db/rows'
 import { authenticate, type AuthContext } from './auth'
 import { withIdempotency } from './idempotency'
+import { broadcast } from './realtime'
+import { eventsBetween, snapshotOf, type TenantSnapshot } from './realtime-events'
 import {
   derefSchema,
   operationParameters,
@@ -246,6 +249,8 @@ function define(
     }
 
     let result: MockResult
+    // What a write changed is told to the tenant's open connections, like the real hub does
+    let watched: { tenantId: string; t: TenantData; before: TenantSnapshot } | null = null
     try {
       // Ids that aren't UUIDs can't exist
       for (const parameter of operationParameters(method, template)) {
@@ -263,6 +268,9 @@ function define(
       } else {
         const auth = authenticate(request, db)
         if (options.roles && !options.roles.includes(auth.role)) throw forbidden()
+        if (method !== 'get') {
+          watched = { tenantId: auth.tenantId, t: auth.t, before: snapshotOf(auth.t) }
+        }
         const key = method === 'get' ? null : request.headers.get('Idempotency-Key')
         result = key
           ? await withIdempotency(
@@ -280,6 +288,12 @@ function define(
     }
 
     if (method !== 'get') saveDb()
+    if (watched) {
+      broadcast(
+        watched.tenantId,
+        eventsBetween(watched.before, snapshotOf(watched.t), toIsoInstant(Date.now())),
+      )
+    }
     return toResponse(result)
   })
 }
