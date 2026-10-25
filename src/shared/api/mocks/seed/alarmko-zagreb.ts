@@ -51,6 +51,13 @@ export const alarmkoZagreb: TenantSeed = {
     { sku: 'MK-01', name: 'Magnetski kontakt', unit: 'kom', price: '9.90' },
     { sku: 'RAD-H', name: 'Radni sat tehničara', unit: 'h', price: '35.00' },
   ],
+  messageTemplates: [
+    {
+      key: 'on_the_way',
+      channel: 'sms',
+      body: 'Alarmko: monter {monter} je krenuo prema vama i stiže uskoro. Nalog {broj_naloga}.',
+    },
+  ],
   checklists: [
     {
       name: 'Ugradnja',

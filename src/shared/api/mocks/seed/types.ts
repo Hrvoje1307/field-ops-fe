@@ -9,6 +9,8 @@ import type {
   CustomFieldValues,
   JobSource,
   JobStatus,
+  MessageChannel,
+  MessageTemplateKey,
   Priority,
   Role,
   TenantSettings,
@@ -128,6 +130,14 @@ export interface TenantSeed {
   technicians: { user: string; color: string; skills: string[] }[]
   catalog: { sku: string; name: string; unit: string; price: string }[]
   checklists: { name: string; items: { label: string; required?: boolean }[] }[]
+  /** Templates the tenant has customised; everything else is a platform default. */
+  messageTemplates: {
+    key: MessageTemplateKey
+    channel: MessageChannel
+    body: string
+    subject?: string | null
+    isActive?: boolean
+  }[]
   jobTypes: {
     name: string
     color: string

@@ -434,6 +434,25 @@ describe('every mocked operation matches the contract', () => {
     ).toBe(200)
     expect((await owner.del(`/checklist-templates/${template.id}`)).status).toBe(204)
 
+    expect((await owner.get('/message-templates')).status).toBe(200)
+    const message = {
+      key: 'reschedule_ack',
+      channel: 'sms',
+      locale: 'hr-HR',
+      body: 'Termin je promijenjen.',
+      isActive: true,
+    }
+    const messageTemplate = (await owner.post<{ id: string }>('/message-templates', message)).body
+    expect((await owner.post('/message-templates', message)).status).toBe(409) // already written
+    expect(
+      (await owner.put(`/message-templates/${messageTemplate.id}`, { ...message, isActive: false }))
+        .status,
+    ).toBe(200)
+    expect((await owner.post('/message-templates/preview', { body: 'Bok {klijent}' })).status).toBe(
+      200,
+    )
+    expect((await owner.del(`/message-templates/${messageTemplate.id}`)).status).toBe(204)
+
     expect((await owner.get('/custom-fields?entity=client')).status).toBe(200)
     const fieldInput = {
       entity: 'job',

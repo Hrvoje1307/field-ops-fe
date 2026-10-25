@@ -20,6 +20,7 @@ import type {
   JobReport,
   JobType,
   Location,
+  MessageTemplate,
   Role,
   RoutePlan,
   Skill,
@@ -32,9 +33,9 @@ import type {
 /**
  * Bump when the stored shape changes: older data in localStorage is then reseeded
  * instead of being read with missing fields. (2: invitation tokens, spec 0.2.0;
- * 3: custom fields of every type in both tenants; 4: route plans; 5: reports, materials, catalog and attachments)
+ * 3: custom fields of every type in both tenants; 4: route plans; 5: reports, materials, catalog and attachments; 6: message templates)
  */
-export const MOCK_DB_SCHEMA_VERSION = 5
+export const MOCK_DB_SCHEMA_VERSION = 6
 
 /** Response types mark timestamps readonly; stored rows are written by the mock. */
 type Mutable<T> = { -readonly [K in keyof T]: T[K] }
@@ -201,6 +202,8 @@ export interface TenantData {
   invitations: InvitationRow[]
   jobTypes: JobType[]
   checklistTemplates: ChecklistTemplate[]
+  /** The tenant's own message templates; the platform defaults are not stored. */
+  messageTemplates: MessageTemplate[]
   assetTypes: AssetType[]
   customFields: CustomFieldDefinition[]
   clients: ClientRow[]

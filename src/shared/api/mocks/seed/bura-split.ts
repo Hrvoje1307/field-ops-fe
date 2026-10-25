@@ -54,6 +54,7 @@ export const buraSplit: TenantSeed = {
     { sku: 'CIJEV-CU', name: 'Bakrena cijev 1/4"', unit: 'm', price: '4.20' },
     { sku: 'RAD-H', name: 'Radni sat servisera', unit: 'h', price: '32.00' },
   ],
+  messageTemplates: [],
   checklists: [
     {
       name: 'Servis klime',

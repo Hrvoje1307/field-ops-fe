@@ -7,6 +7,7 @@ import { dispatchHandlers } from './dispatch'
 import { fieldHandlers } from './field'
 import { jobHandlers } from './jobs'
 import { locationHandlers } from './locations'
+import { messageTemplateHandlers } from './message-templates'
 import { reportHandlers } from './reports'
 import { routePlanHandlers } from './route-plans'
 import { technicianHandlers } from './technicians'
@@ -30,4 +31,5 @@ export const handlers = [
   ...attachmentHandlers,
   ...fieldHandlers,
   ...configurationHandlers,
+  ...messageTemplateHandlers,
 ]
