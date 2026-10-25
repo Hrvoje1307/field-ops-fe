@@ -350,6 +350,23 @@ export function useUploadJobFile(jobId: string) {
   })
 }
 
+/**
+ * Uploads the company's logo; the caller links the returned file to the tenant. Trying
+ * again with the same `file` resumes the upload that failed.
+ */
+export function useUploadTenantLogo(tenantId: string) {
+  return useMutation({
+    mutationFn: (file: Blob) =>
+      uploadAttachment({
+        ownerType: 'tenant',
+        ownerId: tenantId,
+        kind: 'logo',
+        file,
+        fileName: file instanceof File ? file.name : undefined,
+      }),
+  })
+}
+
 export function useDeleteAttachment(jobId: string) {
   return useMutation({
     mutationFn: (attachmentId: string) => deleteAttachment(attachmentId),

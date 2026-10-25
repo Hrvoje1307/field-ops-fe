@@ -25,6 +25,7 @@ export {
   useSignReport,
   useUpdateChecklist,
   useUploadJobFile,
+  useUploadTenantLogo,
 } from './api'
 export { blockerText, type CompletionBlocker, completionBlockers } from './lib/completion'
 export { AttachmentImage } from './ui/attachment-image'

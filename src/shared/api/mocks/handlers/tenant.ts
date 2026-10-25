@@ -54,6 +54,18 @@ export const tenantHandlers = [
       if (!isValidTimeZone(body.timezone)) errors.add('timezone', MESSAGES.notAllowed)
       if (!isValidLocale(body.locale)) errors.add('locale', MESSAGES.notAllowed)
       if (!/^[A-Z]{3}$/.test(body.currency)) errors.add('currency', MESSAGES.invalidFormat)
+      // The logo is a confirmed `logo` file of the tenant itself
+      const logo = body.logoAttachmentId
+        ? auth.t.attachments.find(
+            (a) =>
+              a.id === body.logoAttachmentId &&
+              !a.deletedAt &&
+              a.state === 'confirmed' &&
+              a.ownerType === 'tenant' &&
+              a.kind === 'logo',
+          )
+        : undefined
+      if (body.logoAttachmentId && !logo) errors.add('logoAttachmentId', MESSAGES.notFound)
       errors.throwIfAny()
 
       const tenant = auth.t.tenant
@@ -64,6 +76,7 @@ export const tenantHandlers = [
         email: body.email ?? null,
         iban: body.iban ?? null,
         logoAttachmentId: body.logoAttachmentId ?? null,
+        logoUrl: logo?.preview ?? null,
         locale: body.locale,
         timezone: body.timezone,
         currency: body.currency,

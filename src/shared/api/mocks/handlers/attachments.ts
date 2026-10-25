@@ -204,6 +204,13 @@ export const attachmentHandlers = [
     if (row.kind === 'signature' && bytes.byteLength <= PREVIEW_LIMIT_BYTES) {
       row.preview = `data:${row.mime};base64,${toBase64(bytes)}`
     }
+    // The tenant's logo is shown by its address (`Tenant.logoUrl`), so it needs one
+    if (row.kind === 'logo') {
+      row.preview =
+        bytes.byteLength <= PREVIEW_LIMIT_BYTES
+          ? `data:${row.mime};base64,${toBase64(bytes)}`
+          : placeholder(row)
+    }
     saveDb()
     return new HttpResponse(null, { status: 200 })
   }),
