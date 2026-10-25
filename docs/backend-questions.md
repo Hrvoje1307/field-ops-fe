@@ -434,3 +434,33 @@ Note the asymmetry with `LocationInput.accessCodes` (0.2.0), where `null` means 
 **Frontend does:** the browser `PUT`s photo and signature bytes straight to `uploadUrl` with the returned headers (`Content-Type`) and no bearer token, and opens files from the presigned `GET` links.
 
 **We propose:** the storage bucket (S3) allows `PUT` and `GET` from the frontend origins (production, Vercel previews, `localhost:5173`) with the signed headers, and exposes `ETag` if it matters to you. Without it every photo and signature fails in the browser even though the API calls work.
+
+## 42. No `version` on the configuration entities
+
+**Spec says:** `PUT /tenant`, `/depots/{id}`, `/skills/{id}`, `/job-types/{id}`, `/asset-types/{id}`, `/custom-fields/{id}`, `/message-templates/{id}` and `/technicians/{id}` take no `version` and return no 409 for a stale write (clients, locations and jobs do).
+
+**Mock does:** the last save wins.
+
+**Frontend does:** sends the whole object it loaded with the changes typed on top, so a second person's change to another field of the same record is lost when the first person saves.
+
+**We propose:** the same optimistic `version` as on clients, at least on `PUT /tenant` (one big object with many settings) and on job types.
+
+## 43. Who may change the configuration
+
+**Spec says:** only `PUT /tenant` and `/users` say "Owner only". Nothing is said for depots, skills, job types, equipment types, custom fields, message templates, invitations or technicians.
+
+**Mock does:** `PUT /tenant` and `/users` are owner only; the rest is open to the office (owner and dispatcher).
+
+**Frontend does:** shows "Postavke" only to the owner and sends dispatchers away from `/settings`, until the rights are known. A dispatcher can therefore not change anything there even where the API would let them.
+
+**We propose:** say per endpoint whether a dispatcher may write (it is common that a dispatcher edits job types and message templates but not the company or the team), and whether a dispatcher may at least read them.
+
+## 44. The company logo and sender name
+
+**Spec says:** `Tenant.logoAttachmentId` (set by `PUT /tenant`) and read-only `logoUrl`; the upload accepts `kind: logo` with the same mime list as other files (JPEG, PNG, WebP, HEIC, PDF, up to 20 MB). `smsSenderName` is "alphanumeric sender ID", max 11.
+
+**Mock does:** a logo is a confirmed `logo` file of the company in JPEG, PNG or WebP; `logoUrl` is its address. Any text up to 11 characters is a sender name.
+
+**Frontend does:** takes pictures in JPEG, PNG or WebP up to 2 MB, uploads at once, and links the file when the settings are saved. A replaced or removed logo's old file is left alone.
+
+**We propose:** say which formats a logo may be (a PDF or HEIC logo is of no use on a report), how long `logoUrl` is valid (if it is a presigned link the page needs to fetch it again), whether the old logo file is deleted when another is linked, and what a sender name may contain (spaces? the 11-character limit counts which characters?).

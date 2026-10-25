@@ -112,7 +112,14 @@ Each step adds the mock handlers its screens need, as `CLAUDE.md` requires.
   - Entities: `entities/report` (report, checklist, materials, catalog, upload, signature, print hooks) and `useCompleteJob`; `useGetTenant`. Shared: `SignaturePad`, `shrinkPhoto`, print window helper.
   - Mock: report, checklist, materials, catalog, attachments (upload-url, a storage `PUT` that insists on the signed headers and the declared size, confirm, list, link, delete), signature, `/complete` with the contract's 422 rules and a PDF that appears after a delay, a printable HTML report; a catalog per tenant; completed jobs have a signature and a PDF.
   - Backend questions #36–#41. Playwright on the phone for both tenants (Alarmko needs the signature, Bura does not) and for the office.
-- [ ] **Step 13: tenant settings**
+- [ ] **Step 13: tenant settings** (in five small parts, each committed on its own)
+  - [x] **13a: company.** `/settings` (owner only; the menu item and the route both) with a list of sections and `/settings/company`: name, OIB, address, phone, email, IBAN, logo (uploaded at once, linked on save), language and country, time zone, currency, signature required, job number prefix, report colour and footer, reminder time, SMS sender, quiet hours, "on the way" SMS, link validity, and this month's usage. Saving refreshes the session (the shell's name), and everything shown in the tenant's time zone. 400s land next to their inputs.
+    - Entities: `useUpdateTenant`, `useGetTenantUsage`, the form model (`entities/tenant`), `useUploadTenantLogo` (`entities/report`, next to the other file uploads). Shared: `CheckboxField`, `FormSection`, time zone and currency options.
+    - Mock: the logo (a confirmed `logo` file of the company; `logoUrl` follows it). Backend questions #42–#44. Playwright for both tenants, a dispatcher and a technician.
+  - [ ] 13b: skills, depots, equipment types
+  - [ ] 13c: job types
+  - [ ] 13d: custom fields, message templates
+  - [ ] 13e: team (members, invitations, technicians)
 - [ ] **Step 14: live updates (SignalR)**
 - [ ] **Step 15: public appointment page and client messages**
 
