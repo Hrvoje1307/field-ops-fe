@@ -3,7 +3,7 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { apiFetch, path } from '@/shared/api/api-fetch'
 import { useIdempotencyKeys } from '@/shared/api/idempotency'
 import { invalidateRoots, JOB_DATA_ROOTS } from '@/shared/api/query-roots'
-import type { Asset, AssetInput, AssetType } from '@/shared/api/generated/model'
+import type { Asset, AssetInput, AssetType, AssetTypeInput } from '@/shared/api/generated/model'
 
 import { ASSET_TYPES_STALE_TIME } from './const'
 
@@ -48,6 +48,24 @@ export async function updateAsset(id: string, body: AssetInput, idempotencyKey?:
 
 export async function deleteAsset(id: string) {
   return apiFetch<undefined>(path`/assets/${id}`, { method: 'DELETE' })
+}
+
+export async function createAssetType(body: AssetTypeInput, idempotencyKey?: string) {
+  return apiFetch<AssetType>('/asset-types', { method: 'POST', json: body, idempotencyKey })
+}
+
+/** Full replacement: an `icon` left out is cleared. */
+export async function updateAssetType(id: string, body: AssetTypeInput, idempotencyKey?: string) {
+  return apiFetch<AssetType>(path`/asset-types/${id}`, {
+    method: 'PUT',
+    json: body,
+    idempotencyKey,
+  })
+}
+
+/** 409 while equipment of that type exists; its custom fields go with it. */
+export async function deleteAssetType(id: string) {
+  return apiFetch<undefined>(path`/asset-types/${id}`, { method: 'DELETE' })
 }
 
 // --- Hooks (what features and widgets call) ---------------------------------
@@ -96,5 +114,38 @@ export function useDeleteAsset() {
     onSuccess: (_nothing, _id, _result, { client }) => {
       void invalidateRoots(client, JOB_DATA_ROOTS)
     },
+  })
+}
+
+/** The type's name is shown on equipment, and its custom fields hang on it. */
+const ASSET_TYPE_ROOTS = [...JOB_DATA_ROOTS, 'assets', 'asset-types', 'custom-fields']
+
+export function useCreateAssetType() {
+  const idempotency = useIdempotencyKeys()
+  return useMutation({
+    mutationFn: (body: AssetTypeInput) => createAssetType(body, idempotency.keyFor(body)),
+    onSuccess: (_saved, body, _result, { client }) => {
+      idempotency.forget(body)
+      void invalidateRoots(client, ASSET_TYPE_ROOTS)
+    },
+  })
+}
+
+export function useUpdateAssetType() {
+  const idempotency = useIdempotencyKeys()
+  return useMutation({
+    mutationFn: (request: { id: string; body: AssetTypeInput }) =>
+      updateAssetType(request.id, request.body, idempotency.keyFor(request)),
+    onSuccess: (_saved, request, _result, { client }) => {
+      idempotency.forget(request)
+      void invalidateRoots(client, ASSET_TYPE_ROOTS)
+    },
+  })
+}
+
+export function useDeleteAssetType() {
+  return useMutation({
+    mutationFn: (id: string) => deleteAssetType(id),
+    onSuccess: (_nothing, _id, _result, { client }) => invalidateRoots(client, ASSET_TYPE_ROOTS),
   })
 }
