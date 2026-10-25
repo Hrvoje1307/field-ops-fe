@@ -1,6 +1,7 @@
 import { type ReactNode } from 'react'
 
 import { useMe } from '@/entities/auth'
+import { LiveUpdates } from '@/features/live/updates'
 import { useTenantFormat } from '@/shared/lib/tenant-format'
 
 import { UserMenu } from './user-menu'
@@ -23,7 +24,10 @@ export function FieldShell({ children }: { children: ReactNode }) {
         </div>
         <UserMenu />
       </header>
-      <main className="flex-1 p-4">{children}</main>
+      <main className="flex-1 p-4">
+        <LiveUpdates />
+        {children}
+      </main>
     </div>
   )
 }

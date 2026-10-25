@@ -811,6 +811,11 @@ export const hr = {
       removedOption: 'Vrijednost „{{value}}” više nije ponuđena. Odaberite novu.',
     },
   },
+  live: {
+    down: 'Osvježavanje u stvarnom vremenu je prekinuto. Podaci na zaslonu možda nisu najnoviji; veza se pokušava obnoviti.',
+    scheduleChanged: 'Raspored je promijenjen.',
+    planPublished: 'Objavljen je plan za {{date}}.',
+  },
   shell: {
     nav: {
       label: 'Glavna navigacija',

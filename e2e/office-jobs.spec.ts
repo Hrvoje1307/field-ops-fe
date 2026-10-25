@@ -194,7 +194,11 @@ for (const tenant of TENANTS) {
       await page.goto(`/jobs/${job.id}`)
       await expect(headerStatus(page)).toHaveText('Zakazan')
 
-      // Someone else confirms the job; this page still has the old version
+      // Someone else confirms the job while the live connection is down (with it up, the page
+      // would hear of it at once); this page still has the old version
+      await page.evaluate(() => {
+        ;(window as unknown as { __fieldopsDropHub: (ms: number) => void }).__fieldopsDropHub(8000)
+      })
       const elsewhere = await apiPost(page, tenant.owner, `/jobs/${job.id}/transition`, {
         to: 'confirmed',
         version: job.version,

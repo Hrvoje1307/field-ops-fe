@@ -4,6 +4,7 @@ import { type ReactNode, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { useMe } from '@/entities/auth'
+import { LiveUpdates } from '@/features/live/updates'
 import { Button } from '@/shared/ui/button'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/shared/ui/sheet'
 
@@ -101,7 +102,10 @@ export function OfficeShell({ children }: { children: ReactNode }) {
           </p>
           <UserMenu />
         </header>
-        <main className="flex-1 p-4 md:p-8">{children}</main>
+        <main className="flex-1 p-4 md:p-8">
+          <LiveUpdates />
+          {children}
+        </main>
       </div>
     </div>
   )
