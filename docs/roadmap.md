@@ -91,6 +91,10 @@ Each step follows the workflow in `CLAUDE.md`: plan first, wait for OK, then bui
   - Entities: `getMyDay`, `splitTransitions` (primary step by display order, `completed` never offered), `CallButton`. Shared: `currentPosition`, a router test helper.
   - No new mock handlers. Playwright for both tenants on a phone viewport (the access-code test only runs for Alarmko: Bura's seed has no such job for its technician).
 
+- [x] **Restructure: entity hooks**
+  - Features, widgets and pages no longer write `queryKey`, `queryFn`, `staleTime` or `useMutation` themselves: each entity's `api.ts` has one hook per request (`useGetJob`, `useListClients`, `useListCustomFieldDefinitions`, `useCreateJob`, `useTransitionJob`, `useUpdateClient`, `useLogin`…) holding the key, request, cache time, idempotency key and cache refresh. A 409 on a job or client write is handled in the hook (refetch and message); features keep their own UI (dialogs, toasts, navigation).
+  - ESLint fails when features, widgets or pages import TanStack Query's hooks, a `*Keys` object or a `*_STALE_TIME`.
+
 ## Next
 
 Each step adds the mock handlers its screens need, as `CLAUDE.md` requires.

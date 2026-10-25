@@ -58,11 +58,12 @@ Where the backend is called (enforced by ESLint):
 
 - **entities/<area>/** (one folder per API area, e.g. `/auth/login` and `/auth/switch-tenant` both in `entities/auth`):
   - `const.ts`: cache times (`JOB_DETAIL_STALE_TIME`…) and other constants.
-  - `api.ts`: query keys (`jobKeys.detail(id)` → `['jobs', 'detail', id]`; every key starts with the area's name), GET request functions used as `queryFn`, POST/PUT/DELETE request functions used as `mutationFn`, and cache helpers (`invalidateJobData`, `fetchMe(queryClient)` for route guards). Requests are written out with `apiFetch` and `path`: ``apiFetch<Job>(path`/jobs/${id}`, { signal })``.
-- **features**: call the backend. `useQuery({ queryKey, queryFn, staleTime })` and `useMutation({ mutationFn })` are written inline in the feature with the entity's keys, request functions and cache times. Two features reading the same data use the same key, so they share the cache.
-- **widgets** group features, **pages** group widgets (a page may use a single feature directly when there is nothing to compose); neither calls the backend. Data flows in by id (the feature reads it), not through props loaded above.
-- **shared** never calls the backend (`shared/api` provides the means).
-- Exception: session data (`useMe` in `entities/auth`, `useTenantSettings` in `entities/tenant`) is read anywhere in the signed-in area; the route guard loads it first.
+  - `api.ts`: query keys (`jobKeys.detail(id)` → `['jobs', 'detail', id]`; every key starts with the area's name), request functions written out with `apiFetch` and `path` (``apiFetch<Job>(path`/jobs/${id}`, { signal })``), and **one hook per request** that holds the key, `queryFn`, cache time, idempotency key and cache refresh: `useGetJob(id)`, `useListClients(params)`, `useListCustomFieldDefinitions(scope)`, `useCreateJob()`, `useTransitionJob()`… Writes refresh what they change (the saved record goes into the cache, job data is invalidated) and a 409 refetches and tells the user.
+  - Route guards use plain functions (`fetchMe(queryClient)`).
+- **features, widgets, pages** call those hooks, e.g. `const definitions = useListCustomFieldDefinitions(scope)`, and add only what is theirs: toasts, navigation, closing a panel, form errors. They never import `useQuery` / `useMutation` / `useQueryClient`, a `*Keys` object, a `*_STALE_TIME` or `apiFetch` (ESLint fails). Two features reading the same data share the cache because the hook is the same.
+- **widgets** group features, **pages** group widgets (a page may use a single feature directly when there is nothing to compose). Data flows in by id (the feature reads it), not through props loaded above.
+- **app** owns the `QueryClient` and the route guards. **shared** never calls the backend (`shared/api` provides the means).
+- Session data (`useMe` in `entities/auth`, `useTenantSettings` in `entities/tenant`) is read anywhere in the signed-in area like any other hook; the route guard loads it first.
 
 Rules:
 
