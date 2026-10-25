@@ -25,9 +25,11 @@ import { Route as AuthedOfficeJobsJobIdRouteImport } from './routes/_authed/_off
 import { Route as AuthedOfficeJobsNewRouteImport } from './routes/_authed/_office/jobs/new'
 import { Route as AuthedOfficePlansPlanIdRouteImport } from './routes/_authed/_office/plans/$planId'
 import { Route as AuthedOfficeSettingsIndexRouteImport } from './routes/_authed/_office/settings/index'
+import { Route as AuthedOfficeSettingsChecklistsRouteImport } from './routes/_authed/_office/settings/checklists'
 import { Route as AuthedOfficeSettingsCompanyRouteImport } from './routes/_authed/_office/settings/company'
 import { Route as AuthedOfficeSettingsDepotsRouteImport } from './routes/_authed/_office/settings/depots'
 import { Route as AuthedOfficeSettingsEquipmentTypesRouteImport } from './routes/_authed/_office/settings/equipment-types'
+import { Route as AuthedOfficeSettingsJobTypesRouteImport } from './routes/_authed/_office/settings/job-types'
 import { Route as AuthedOfficeSettingsSkillsRouteImport } from './routes/_authed/_office/settings/skills'
 import { Route as AuthedFieldJobsJobIdIndexRouteImport } from './routes/_authed/field/jobs/$jobId/index'
 import { Route as AuthedFieldJobsJobIdReportRouteImport } from './routes/_authed/field/jobs/$jobId/report'
@@ -113,6 +115,12 @@ const AuthedOfficeSettingsIndexRoute =
     path: '/',
     getParentRoute: () => AuthedOfficeSettingsRoute,
   } as any)
+const AuthedOfficeSettingsChecklistsRoute =
+  AuthedOfficeSettingsChecklistsRouteImport.update({
+    id: '/checklists',
+    path: '/checklists',
+    getParentRoute: () => AuthedOfficeSettingsRoute,
+  } as any)
 const AuthedOfficeSettingsCompanyRoute =
   AuthedOfficeSettingsCompanyRouteImport.update({
     id: '/company',
@@ -129,6 +137,12 @@ const AuthedOfficeSettingsEquipmentTypesRoute =
   AuthedOfficeSettingsEquipmentTypesRouteImport.update({
     id: '/equipment-types',
     path: '/equipment-types',
+    getParentRoute: () => AuthedOfficeSettingsRoute,
+  } as any)
+const AuthedOfficeSettingsJobTypesRoute =
+  AuthedOfficeSettingsJobTypesRouteImport.update({
+    id: '/job-types',
+    path: '/job-types',
     getParentRoute: () => AuthedOfficeSettingsRoute,
   } as any)
 const AuthedOfficeSettingsSkillsRoute =
@@ -162,9 +176,11 @@ export interface FileRoutesByFullPath {
   '/jobs/$jobId': typeof AuthedOfficeJobsJobIdRoute
   '/jobs/new': typeof AuthedOfficeJobsNewRoute
   '/plans/$planId': typeof AuthedOfficePlansPlanIdRoute
+  '/settings/checklists': typeof AuthedOfficeSettingsChecklistsRoute
   '/settings/company': typeof AuthedOfficeSettingsCompanyRoute
   '/settings/depots': typeof AuthedOfficeSettingsDepotsRoute
   '/settings/equipment-types': typeof AuthedOfficeSettingsEquipmentTypesRoute
+  '/settings/job-types': typeof AuthedOfficeSettingsJobTypesRoute
   '/settings/skills': typeof AuthedOfficeSettingsSkillsRoute
   '/clients/': typeof AuthedOfficeClientsIndexRoute
   '/jobs/': typeof AuthedOfficeJobsIndexRoute
@@ -182,9 +198,11 @@ export interface FileRoutesByTo {
   '/jobs/$jobId': typeof AuthedOfficeJobsJobIdRoute
   '/jobs/new': typeof AuthedOfficeJobsNewRoute
   '/plans/$planId': typeof AuthedOfficePlansPlanIdRoute
+  '/settings/checklists': typeof AuthedOfficeSettingsChecklistsRoute
   '/settings/company': typeof AuthedOfficeSettingsCompanyRoute
   '/settings/depots': typeof AuthedOfficeSettingsDepotsRoute
   '/settings/equipment-types': typeof AuthedOfficeSettingsEquipmentTypesRoute
+  '/settings/job-types': typeof AuthedOfficeSettingsJobTypesRoute
   '/settings/skills': typeof AuthedOfficeSettingsSkillsRoute
   '/clients': typeof AuthedOfficeClientsIndexRoute
   '/jobs': typeof AuthedOfficeJobsIndexRoute
@@ -207,9 +225,11 @@ export interface FileRoutesById {
   '/_authed/_office/jobs/$jobId': typeof AuthedOfficeJobsJobIdRoute
   '/_authed/_office/jobs/new': typeof AuthedOfficeJobsNewRoute
   '/_authed/_office/plans/$planId': typeof AuthedOfficePlansPlanIdRoute
+  '/_authed/_office/settings/checklists': typeof AuthedOfficeSettingsChecklistsRoute
   '/_authed/_office/settings/company': typeof AuthedOfficeSettingsCompanyRoute
   '/_authed/_office/settings/depots': typeof AuthedOfficeSettingsDepotsRoute
   '/_authed/_office/settings/equipment-types': typeof AuthedOfficeSettingsEquipmentTypesRoute
+  '/_authed/_office/settings/job-types': typeof AuthedOfficeSettingsJobTypesRoute
   '/_authed/_office/settings/skills': typeof AuthedOfficeSettingsSkillsRoute
   '/_authed/_office/clients/': typeof AuthedOfficeClientsIndexRoute
   '/_authed/_office/jobs/': typeof AuthedOfficeJobsIndexRoute
@@ -231,9 +251,11 @@ export interface FileRouteTypes {
     | '/jobs/$jobId'
     | '/jobs/new'
     | '/plans/$planId'
+    | '/settings/checklists'
     | '/settings/company'
     | '/settings/depots'
     | '/settings/equipment-types'
+    | '/settings/job-types'
     | '/settings/skills'
     | '/clients/'
     | '/jobs/'
@@ -251,9 +273,11 @@ export interface FileRouteTypes {
     | '/jobs/$jobId'
     | '/jobs/new'
     | '/plans/$planId'
+    | '/settings/checklists'
     | '/settings/company'
     | '/settings/depots'
     | '/settings/equipment-types'
+    | '/settings/job-types'
     | '/settings/skills'
     | '/clients'
     | '/jobs'
@@ -275,9 +299,11 @@ export interface FileRouteTypes {
     | '/_authed/_office/jobs/$jobId'
     | '/_authed/_office/jobs/new'
     | '/_authed/_office/plans/$planId'
+    | '/_authed/_office/settings/checklists'
     | '/_authed/_office/settings/company'
     | '/_authed/_office/settings/depots'
     | '/_authed/_office/settings/equipment-types'
+    | '/_authed/_office/settings/job-types'
     | '/_authed/_office/settings/skills'
     | '/_authed/_office/clients/'
     | '/_authed/_office/jobs/'
@@ -406,6 +432,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedOfficeSettingsIndexRouteImport
       parentRoute: typeof AuthedOfficeSettingsRoute
     }
+    '/_authed/_office/settings/checklists': {
+      id: '/_authed/_office/settings/checklists'
+      path: '/checklists'
+      fullPath: '/settings/checklists'
+      preLoaderRoute: typeof AuthedOfficeSettingsChecklistsRouteImport
+      parentRoute: typeof AuthedOfficeSettingsRoute
+    }
     '/_authed/_office/settings/company': {
       id: '/_authed/_office/settings/company'
       path: '/company'
@@ -425,6 +458,13 @@ declare module '@tanstack/react-router' {
       path: '/equipment-types'
       fullPath: '/settings/equipment-types'
       preLoaderRoute: typeof AuthedOfficeSettingsEquipmentTypesRouteImport
+      parentRoute: typeof AuthedOfficeSettingsRoute
+    }
+    '/_authed/_office/settings/job-types': {
+      id: '/_authed/_office/settings/job-types'
+      path: '/job-types'
+      fullPath: '/settings/job-types'
+      preLoaderRoute: typeof AuthedOfficeSettingsJobTypesRouteImport
       parentRoute: typeof AuthedOfficeSettingsRoute
     }
     '/_authed/_office/settings/skills': {
@@ -452,18 +492,22 @@ declare module '@tanstack/react-router' {
 }
 
 interface AuthedOfficeSettingsRouteChildren {
+  AuthedOfficeSettingsChecklistsRoute: typeof AuthedOfficeSettingsChecklistsRoute
   AuthedOfficeSettingsCompanyRoute: typeof AuthedOfficeSettingsCompanyRoute
   AuthedOfficeSettingsDepotsRoute: typeof AuthedOfficeSettingsDepotsRoute
   AuthedOfficeSettingsEquipmentTypesRoute: typeof AuthedOfficeSettingsEquipmentTypesRoute
+  AuthedOfficeSettingsJobTypesRoute: typeof AuthedOfficeSettingsJobTypesRoute
   AuthedOfficeSettingsSkillsRoute: typeof AuthedOfficeSettingsSkillsRoute
   AuthedOfficeSettingsIndexRoute: typeof AuthedOfficeSettingsIndexRoute
 }
 
 const AuthedOfficeSettingsRouteChildren: AuthedOfficeSettingsRouteChildren = {
+  AuthedOfficeSettingsChecklistsRoute: AuthedOfficeSettingsChecklistsRoute,
   AuthedOfficeSettingsCompanyRoute: AuthedOfficeSettingsCompanyRoute,
   AuthedOfficeSettingsDepotsRoute: AuthedOfficeSettingsDepotsRoute,
   AuthedOfficeSettingsEquipmentTypesRoute:
     AuthedOfficeSettingsEquipmentTypesRoute,
+  AuthedOfficeSettingsJobTypesRoute: AuthedOfficeSettingsJobTypesRoute,
   AuthedOfficeSettingsSkillsRoute: AuthedOfficeSettingsSkillsRoute,
   AuthedOfficeSettingsIndexRoute: AuthedOfficeSettingsIndexRoute,
 }
