@@ -45,7 +45,8 @@ test.describe(alarmko.name, () => {
 
     // The draft's own page
     await expect(page).toHaveURL(/\/plans\/[0-9a-f-]+$/)
-    await expect(page.getByRole('heading', { level: 1 })).toContainText('Sutra')
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('Plan ruta')
+    await expect(page.getByText(/^Sutra, /)).toBeVisible()
     await expect(page.getByTestId('plan-status')).toHaveText('Nacrt')
     await expect(stops(page).first()).toBeVisible()
     const planId = page.url().split('/').pop() ?? ''

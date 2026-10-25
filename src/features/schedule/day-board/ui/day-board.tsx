@@ -1,5 +1,5 @@
 import { cn } from 'cn'
-import { type ReactNode, useCallback, useMemo, useState } from 'react'
+import { type ReactNode, useCallback, useMemo } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
@@ -17,7 +17,7 @@ import {
   useListTechnicians,
   warningText,
 } from '@/entities/technician'
-import { applyMove, baseId, type DragMove, withCopies } from '@/shared/lib/drag-move'
+import { baseId, type DragMove, withCopies } from '@/shared/lib/drag-move'
 import { useTenantFormat } from '@/shared/lib/tenant-format'
 import { Alert, AlertAction, AlertDescription } from '@/shared/ui/alert'
 import { Button } from '@/shared/ui/button'
@@ -26,6 +26,7 @@ import { Skeleton } from '@/shared/ui/skeleton'
 
 import { dropRequest, isDraggable, lockRequest, QUEUE_ID } from '../lib/drop'
 import { minutesBetween } from '../lib/minutes'
+import { usePendingMove } from '../model/pending-move'
 import { JobCardBody } from './job-card'
 
 const ACTIVE = { includeInactive: false }
@@ -73,7 +74,7 @@ export function DayBoard({
     <LoadedBoard
       date={date}
       board={board.data}
-      refreshing={board.isFetching}
+      boardStamp={board.dataUpdatedAt}
       jobActions={jobActions}
     />
   )
@@ -82,13 +83,13 @@ export function DayBoard({
 function LoadedBoard({
   date,
   board,
-  refreshing,
+  boardStamp,
   jobActions,
 }: {
   date: string
   board: DispatchBoard
-  /** The board is being fetched again (after a save). */
-  refreshing: boolean
+  /** When this board was fetched; a newer one replaces a card shown where it was dropped. */
+  boardStamp: number
   jobActions?: (job: JobSummary) => ReactNode
 }) {
   const { t } = useTranslation()
@@ -96,7 +97,7 @@ function LoadedBoard({
   const assign = useAssignJob()
   const technicians = useListTechnicians(ACTIVE)
   const jobTypes = useListJobTypes()
-  const [pending, setPending] = useState<DragMove | null>(null)
+  const pending = usePendingMove(boardStamp)
 
   const jobs = useMemo(
     () =>
@@ -119,9 +120,9 @@ function LoadedBoard({
       }),
     [board],
   )
-  // The card sits where it was dropped until the save and the refetch are over; if the
-  // save fails the board is what the server has
-  const layout = pending && (assign.isPending || refreshing) ? applyMove(saved, pending) : saved
+  // The card sits where it was dropped until the board is fetched again; if the save
+  // fails it goes back at once
+  const layout = pending.apply(saved)
 
   const nameOf = useCallback(
     (id: string) => {
@@ -161,7 +162,7 @@ function LoadedBoard({
 
   function save(job: JobSummary, move: DragMove | null, body: ReturnType<typeof dropRequest>) {
     if (!body) return
-    setPending(move)
+    if (move) pending.begin(move)
     assign.mutate(
       { id: job.id, body },
       {
@@ -177,6 +178,7 @@ function LoadedBoard({
           }
         },
         onError: (error) => {
+          pending.clear()
           if (!isConflict(error)) toast.error(t('schedule.assign.failed'))
         },
       },
@@ -190,7 +192,7 @@ function LoadedBoard({
   }
 
   function onToggleLock(job: JobSummary) {
-    setPending(null)
+    pending.clear()
     assign.mutate(
       { id: job.id, body: lockRequest(job) },
       {

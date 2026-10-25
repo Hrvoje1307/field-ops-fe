@@ -83,7 +83,8 @@ describe('RoutePlanView', () => {
     const plan = await draftPlan()
     await renderPlan(plan.id)
     expect(await screen.findByTestId('plan-status')).toHaveTextContent('Nacrt')
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Sutra')
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Plan ruta')
+    expect(screen.getByText(/^Sutra, /)).toBeInTheDocument()
     expect(screen.getByText(/^Ukupno:/)).toBeInTheDocument()
 
     const routes = await screen.findAllByTestId('plan-route')

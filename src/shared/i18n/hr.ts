@@ -371,7 +371,6 @@ export const hr = {
     plan: {
       conflict: 'Plan je u međuvremenu promijenjen. Prikazani su najnoviji podaci.',
       title: 'Plan ruta',
-      forDay: 'Plan za {{day}}',
       back: 'Natrag na dan',
       loadFailed: 'Plan nije moguće učitati.',
       notFound: 'Plan ne postoji.',

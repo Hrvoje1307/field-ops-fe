@@ -188,13 +188,15 @@ function LoadedPlan({ plan }: { plan: RoutePlan }) {
             {t('schedule.plan.back')}
           </Link>
           <h1 className="flex flex-wrap items-center gap-2 text-2xl font-semibold tracking-tight">
-            {t('schedule.plan.forDay', {
-              day: `${formatRelativeDay(plan.date)}, ${formatDate(plan.date, { day: 'numeric', month: 'long', year: 'numeric' })}`,
-            })}
+            {t('schedule.plan.title')}
             <Badge variant={draft ? 'secondary' : 'outline'} data-testid="plan-status">
               {t(`schedule.plan.status.${plan.status}`)}
             </Badge>
           </h1>
+          <p className="text-sm font-medium">
+            {formatRelativeDay(plan.date)},{' '}
+            {formatDate(plan.date, { day: 'numeric', month: 'long', year: 'numeric' })}
+          </p>
           {plan.totalDistanceM != null && plan.totalDurationS != null && (
             <p className="text-sm text-muted-foreground">
               {t('schedule.plan.totals', {
