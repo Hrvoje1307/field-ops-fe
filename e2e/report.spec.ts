@@ -183,6 +183,9 @@ test.describe('the office', () => {
     await expect(report).toContainText('Kabel 4×0,22')
     await expect(report).toContainText('Ukupno:')
 
+    // The PDF of a completed job is a plain link (its address carries the access)
+    await expect(report.getByRole('link', { name: 'Preuzmi PDF' })).toHaveAttribute('href', /.+/)
+
     // The printable report opens in a new window, fetched with the token
     const popup = context.waitForEvent('page')
     await report.getByRole('button', { name: 'Ispiši izvještaj' }).click()

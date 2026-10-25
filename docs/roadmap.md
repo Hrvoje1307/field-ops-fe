@@ -111,7 +111,7 @@ Each step adds the mock handlers its screens need, as `CLAUDE.md` requires.
   - Office job page: the report read-only (work done, times, checklist, materials, photos, signature), "Ispiši izvještaj" (fetched with the token, shown as a blob URL in the window the click opened) and the PDF once it is ready (the report is looked at again every few seconds after completion).
   - Entities: `entities/report` (report, checklist, materials, catalog, upload, signature, print hooks) and `useCompleteJob`; `useGetTenant`. Shared: `SignaturePad`, `shrinkPhoto`, print window helper.
   - Mock: report, checklist, materials, catalog, attachments (upload-url, a storage `PUT` that insists on the signed headers and the declared size, confirm, list, link, delete), signature, `/complete` with the contract's 422 rules and a PDF that appears after a delay, a printable HTML report; a catalog per tenant; completed jobs have a signature and a PDF.
-  - Backend questions #36–#40. Playwright on the phone for both tenants (Alarmko needs the signature, Bura does not) and for the office.
+  - Backend questions #36–#41. Playwright on the phone for both tenants (Alarmko needs the signature, Bura does not) and for the office.
 - [ ] **Step 13: tenant settings**
 - [ ] **Step 14: live updates (SignalR)**
 - [ ] **Step 15: public appointment page and client messages**

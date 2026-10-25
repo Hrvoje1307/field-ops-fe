@@ -424,3 +424,13 @@ Note the asymmetry with `LocationInput.accessCodes` (0.2.0), where `null` means 
 **Frontend does:** fetches the report again every 3 seconds for up to 2 minutes after completion until `pdfAttachmentId` is there (step 14's SignalR can replace this). Photos are shrunk in the browser to JPEG with the longest side at most 2000 px when the browser can decode them; otherwise (HEIC in browsers that cannot read it) the file is sent as it is. `takenAt` is the file's last-modified time.
 
 **We propose:** an event (`ReportPdfReady`, thin like the others) so no polling is needed; say whether HEIC is converted and a thumbnail made for it; say whether `takenAt` should come from the photo's EXIF instead.
+
+## 41. CORS of the file storage
+
+**Spec says:** `POST /attachments/upload-url` returns a `uploadUrl` (`PUT`) and the exact `headers` to send; question #19 asks for CORS on the API for the frontend's origins.
+
+**Mock does:** serves the "storage" from the API's own origin, so CORS never shows.
+
+**Frontend does:** the browser `PUT`s photo and signature bytes straight to `uploadUrl` with the returned headers (`Content-Type`) and no bearer token, and opens files from the presigned `GET` links.
+
+**We propose:** the storage bucket (S3) allows `PUT` and `GET` from the frontend origins (production, Vercel previews, `localhost:5173`) with the signed headers, and exposes `ETag` if it matters to you. Without it every photo and signature fails in the browser even though the API calls work.
