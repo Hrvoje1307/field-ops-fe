@@ -16,6 +16,7 @@ export function SelectField({
   options,
   emptyLabel,
   required = false,
+  disabled,
   hint,
   className,
 }: {
@@ -26,6 +27,7 @@ export function SelectField({
   /** Text of the empty choice (value ""). */
   emptyLabel: string
   required?: boolean
+  disabled?: boolean
   hint?: ReactNode
   className?: string
 }) {
@@ -58,6 +60,7 @@ export function SelectField({
         onChange={onChange}
         onBlur={onBlur}
         aria-invalid={error ? true : undefined}
+        disabled={disabled}
         aria-required={required || undefined}
         aria-describedby={describedBy}
       >
