@@ -1,19 +1,14 @@
-import { useTranslation } from 'react-i18next'
-
-import { useMe } from '@/entities/auth'
+import { FieldDay } from '@/features/field/day'
 import { useTenantFormat } from '@/shared/lib/tenant-format'
-import { PagePlaceholder } from '@/shared/ui/page-placeholder'
 
-export function FieldDayPage() {
-  const { t } = useTranslation()
-  const me = useMe()
-  const { formatDate, today } = useTenantFormat()
-  return (
-    <PagePlaceholder title={t('pages.fieldDay.title')}>
-      <p>
-        {me.tenant.name} · {formatDate(today(), { dateStyle: 'full' })}
-      </p>
-      <p>{t('pages.placeholder')}</p>
-    </PagePlaceholder>
-  )
+/** The technician's home: their day (today unless another date is in the URL). */
+export function FieldDayPage({
+  date,
+  onDateChange,
+}: {
+  date?: string
+  onDateChange: (date: string) => void
+}) {
+  const { today } = useTenantFormat()
+  return <FieldDay date={date ?? today()} onDateChange={onDateChange} />
 }

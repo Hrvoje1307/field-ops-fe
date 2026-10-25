@@ -594,7 +594,6 @@ export const hr = {
     userMenu: 'Korisnički izbornik',
   },
   pages: {
-    fieldDay: { title: 'Moj dan' },
     placeholder: 'Ovaj ekran stiže u sljedećem koraku.',
   },
   notFound: {
