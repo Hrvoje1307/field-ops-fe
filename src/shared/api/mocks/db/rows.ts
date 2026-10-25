@@ -18,6 +18,7 @@ import type {
   JobType,
   Location,
   Role,
+  RoutePlan,
   Skill,
   StatusHistoryEntry,
   TechnicianCreate,
@@ -28,9 +29,9 @@ import type {
 /**
  * Bump when the stored shape changes: older data in localStorage is then reseeded
  * instead of being read with missing fields. (2: invitation tokens, spec 0.2.0;
- * 3: custom fields of every type in both tenants)
+ * 3: custom fields of every type in both tenants; 4: route plans)
  */
-export const MOCK_DB_SCHEMA_VERSION = 3
+export const MOCK_DB_SCHEMA_VERSION = 4
 
 /** Response types mark timestamps readonly; stored rows are written by the mock. */
 type Mutable<T> = { -readonly [K in keyof T]: T[K] }
@@ -195,6 +196,7 @@ export interface TenantData {
   /** Last job number per year. */
   jobSequence: Record<string, number>
   usage: Usage[]
+  routePlans: RoutePlan[]
 }
 
 export interface MockDb {

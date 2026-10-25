@@ -6,6 +6,7 @@ import { dispatchHandlers } from './dispatch'
 import { fieldHandlers } from './field'
 import { jobHandlers } from './jobs'
 import { locationHandlers } from './locations'
+import { routePlanHandlers } from './route-plans'
 import { technicianHandlers } from './technicians'
 import { tenantHandlers } from './tenant'
 
@@ -22,6 +23,7 @@ export const handlers = [
   ...assetHandlers,
   ...jobHandlers,
   ...dispatchHandlers,
+  ...routePlanHandlers,
   ...fieldHandlers,
   ...configurationHandlers,
 ]

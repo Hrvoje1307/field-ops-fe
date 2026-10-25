@@ -41,6 +41,10 @@ export const unauthorized = (code = 'auth.unauthorized', detail?: string) =>
   problem(401, 'Unauthorized', code, detail)
 export const forbidden = (code = 'auth.forbidden', detail?: string) =>
   problem(403, 'Forbidden', code, detail)
+export const paymentRequired = (code: string, detail?: string) =>
+  problem(402, 'Payment required', code, detail)
+export const badGateway = (code: string, detail?: string) =>
+  problem(502, 'Bad gateway', code, detail)
 export const notFound = () => problem(404, 'Not found', 'not_found')
 export const conflict = (code: string, detail?: string) => problem(409, 'Conflict', code, detail)
 export const unprocessable = (code: string, detail?: string) =>

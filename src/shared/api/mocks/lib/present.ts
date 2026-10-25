@@ -49,7 +49,7 @@ import type { AuthContext } from './auth'
 import { visibleCustomFields } from './custom-fields'
 import { allowedTransitions } from './job-machine'
 
-const PLAN_FEATURES: Record<string, string[]> = {
+export const PLAN_FEATURES: Record<string, string[]> = {
   trial: ['route_optimization', 'sms'],
   basic: ['sms'],
   pro: ['route_optimization', 'sms'],

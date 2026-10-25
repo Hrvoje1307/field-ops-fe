@@ -10,7 +10,6 @@ import type {
 import { dateInTimeZone, todayInTimeZone, toIsoInstant } from '@/shared/lib/datetime'
 
 import type { JobRow, TenantData } from '../db/rows'
-import type { AuthContext } from '../lib/auth'
 import {
   ALL_ROLES,
   findRow,
@@ -35,6 +34,8 @@ import {
 } from '../lib/problems'
 import { route } from '../lib/route'
 import { matchesQuery } from '../lib/text'
+import { placeInDay } from '../lib/visit-order'
+import { recordTransition, touch } from '../lib/job-changes'
 
 const PRIORITY_RANK: Record<Priority, number> = { low: 0, normal: 1, high: 2, urgent: 3 }
 
@@ -46,33 +47,6 @@ function nextJobNumber(t: TenantData): string {
   const next = (t.jobSequence[year] ?? 0) + 1
   t.jobSequence[year] = next
   return `${t.tenant.settings.jobNumberPrefix ?? 'RN'}-${year}-${String(next).padStart(4, '0')}`
-}
-
-function recordTransition(
-  t: TenantData,
-  job: JobRow,
-  auth: AuthContext,
-  from: JobStatus | null,
-  to: JobStatus,
-  extra: { note?: string | null; lat?: number | null; lng?: number | null } = {},
-): void {
-  t.history.push({
-    id: newId(),
-    jobId: job.id,
-    fromStatus: from,
-    toStatus: to,
-    changedBy: { id: auth.user.id, fullName: auth.user.fullName },
-    actor: 'user',
-    changedAt: toIsoInstant(Date.now()),
-    lat: extra.lat ?? null,
-    lng: extra.lng ?? null,
-    note: extra.note ?? null,
-  })
-}
-
-function touch(job: JobRow): void {
-  job.version += 1
-  job.updatedAt = toIsoInstant(Date.now())
 }
 
 function checkVersion(job: JobRow, version: number | undefined): void {
@@ -410,6 +384,9 @@ export const jobHandlers = [
       job.scheduledDate = scheduledDate
       job.scheduledStart = scheduledDate ? scheduledStart : null
       if (body.locked !== undefined) job.locked = body.locked
+      if (leadId && job.scheduledDate && typeof body.sequence === 'number') {
+        placeInDay(t, job, leadId, job.scheduledDate, body.sequence)
+      }
 
       const from = job.status
       const hasPlan = Boolean(job.scheduledDate) && body.technicianIds.length > 0

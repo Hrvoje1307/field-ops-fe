@@ -16,15 +16,17 @@ import type {
   Location,
   Asset,
   ProblemDetails,
+  RoutePlan,
   Skill,
   Technician,
   TokenResponse,
 } from '@/shared/api/generated/model'
-import { todayInTimeZone } from '@/shared/lib/datetime'
+import { addDays, todayInTimeZone } from '@/shared/lib/datetime'
 
 import { getDb, resetMockDb } from '../db'
 import { handlers } from '../handlers'
 import { newId } from '../lib/ids'
+import { isoWeekday } from '../lib/visit-order'
 import {
   api,
   API_URL,
@@ -61,6 +63,33 @@ describe('every mocked operation matches the contract', () => {
     const board = await owner.get<{ columns: unknown[] }>(`/dispatch/board?date=${today()}`)
     expect(board.status).toBe(200)
     expect(board.body.columns.length).toBeGreaterThan(0)
+  })
+
+  it('route plans: optimize, read, correct, publish', async () => {
+    const t = tenantBySlug('alarmko')
+    const technician = t.technicians.find((row) => row.isActive)
+    const job = t.jobs.find((row) => row.status === 'new' && !row.deletedAt)
+    if (!technician || !job) throw new Error('Seed needs a technician and a new job')
+    let date = addDays(today(), 1)
+    while (isoWeekday(date) > 5) date = addDays(date, 1)
+    const plan = await owner.post<RoutePlan>('/route-plans/optimize', {
+      date,
+      technicianIds: [technician.id],
+      jobIds: [job.id],
+    })
+    expect(plan.status).toBe(201)
+    expect((await owner.get(`/route-plans/${plan.body.id}`)).status).toBe(200)
+    expect(
+      (
+        await owner.put(`/route-plans/${plan.body.id}`, {
+          routes: plan.body.routes.map((r) => ({
+            technicianId: r.technicianId,
+            jobIds: r.stops.map((stop) => stop.jobId),
+          })),
+        })
+      ).status,
+    ).toBe(200)
+    expect((await owner.post(`/route-plans/${plan.body.id}/publish`)).status).toBe(200)
   })
 
   it('auth', async () => {

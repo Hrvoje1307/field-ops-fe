@@ -94,6 +94,34 @@ describe('GET /dispatch/board', () => {
     ).toContain(id)
   })
 
+  it('assigning with a position makes room: the others are numbered again', async () => {
+    const dispatcher = await loginAs(USERS.alarmkoDispatcher)
+    const tomorrow = addDays(today(), 1)
+    const queued = (await board(tomorrow)).body.unassigned.filter((job) => job.status === 'new')
+    const technician = (await board(tomorrow)).body.columns[0]?.technician
+    if (queued.length < 3 || !technician) throw new Error('Seed needs three queued jobs')
+    const ids = queued.slice(0, 3).map((job) => job.id)
+    const place = async (id: string, sequence: number) =>
+      dispatcher.post<Job>(`/jobs/${id}/assign`, {
+        technicianIds: [technician.id],
+        scheduledDate: tomorrow,
+        sequence,
+      })
+    const order = async () =>
+      (await board(tomorrow)).body.columns
+        .find((c) => c.technician.id === technician.id)
+        ?.jobs.map((job) => job.id)
+        .filter((id) => ids.includes(id))
+
+    await place(ids[0] ?? '', 0)
+    await place(ids[1] ?? '', 1)
+    expect(await order()).toEqual([ids[0], ids[1]])
+    await place(ids[2] ?? '', 0)
+    expect(await order()).toEqual([ids[2], ids[0], ids[1]])
+    await place(ids[2] ?? '', 99)
+    expect(await order()).toEqual([ids[0], ids[1], ids[2]])
+  })
+
   it('is office only, and each tenant sees its own technicians', async () => {
     expect((await board(today(), USERS.petra)).status).toBe(403)
     const bura = (await board(today(), USERS.buraDispatcher)).body

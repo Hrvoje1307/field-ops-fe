@@ -472,6 +472,7 @@ export function buildTenant(
       reports,
       jobSequence,
       usage: [{ month: today.slice(0, 7), ...seed.usage }],
+      routePlans: [],
     },
   }
 }
