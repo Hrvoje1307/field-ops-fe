@@ -1,6 +1,6 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { EllipsisIcon } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { type ReactNode, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -45,16 +45,30 @@ const WITH_POSITION: readonly JobStatus[] = ['en_route', 'on_site']
  * for the rest (e.g. on hold, with a required reason). Reads the job itself, so after a
  * change or a 409 it shows the job as the server has it.
  */
-export function FieldStatusBar({ jobId }: { jobId: string }) {
+export function FieldStatusBar({
+  jobId,
+  finish,
+}: {
+  jobId: string
+  /**
+   * The way to finish the job (the report screen), shown as the big action when the API
+   * allows completing it: `completed` is not a plain status change, it goes through
+   * `/complete` with the report.
+   */
+  finish?: ReactNode
+}) {
   const { data: job } = useGetJob(jobId)
-  return job ? <Bar job={job} /> : null
+  return job ? <Bar job={job} finish={finish} /> : null
 }
 
-function Bar({ job }: { job: Job }) {
+function Bar({ job, finish }: { job: Job; finish?: ReactNode }) {
   const { t } = useTranslation()
   const change = useTransitionJob()
   const [reasonFor, setReasonFor] = useState<JobStatus | null>(null)
-  const { primary, more } = splitTransitions(job.status, job.allowedTransitions)
+  const { primary: next, more } = splitTransitions(job.status, job.allowedTransitions)
+  const canFinish = Boolean(finish) && job.allowedTransitions.includes('completed')
+  // Finishing is what the technician does on site; it takes the place of the next step
+  const primary = canFinish ? null : next
 
   const choose = (to: JobStatus) => {
     if (transitionNeedsNote(to)) {
@@ -75,11 +89,12 @@ function Bar({ job }: { job: Job }) {
     )
   }
 
-  if (!primary && more.length === 0) return null
+  if (!primary && !canFinish && more.length === 0) return null
   return (
     <>
       <div className="fixed inset-x-0 bottom-0 z-20 border-t bg-background p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
         <div className="mx-auto flex max-w-xl gap-3">
+          {canFinish && finish}
           {primary && (
             <Button
               size="lg"
@@ -98,13 +113,13 @@ function Bar({ job }: { job: Job }) {
               <DropdownMenuTrigger asChild>
                 <Button
                   size="lg"
-                  variant={primary ? 'outline' : 'default'}
-                  className={primary ? 'h-14 px-4' : 'h-14 flex-1 text-base'}
+                  variant={primary || canFinish ? 'outline' : 'default'}
+                  className={primary || canFinish ? 'h-14 px-4' : 'h-14 flex-1 text-base'}
                   disabled={change.isPending}
                   aria-label={t('field.job.moreActions')}
                 >
                   <EllipsisIcon aria-hidden="true" />
-                  {!primary && t('field.job.more')}
+                  {!primary && !canFinish && t('field.job.more')}
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" side="top">

@@ -23,7 +23,8 @@ import { Route as AuthedOfficeJobsIndexRouteImport } from './routes/_authed/_off
 import { Route as AuthedOfficeJobsJobIdRouteImport } from './routes/_authed/_office/jobs/$jobId'
 import { Route as AuthedOfficeJobsNewRouteImport } from './routes/_authed/_office/jobs/new'
 import { Route as AuthedOfficePlansPlanIdRouteImport } from './routes/_authed/_office/plans/$planId'
-import { Route as AuthedFieldJobsJobIdRouteImport } from './routes/_authed/field/jobs/$jobId'
+import { Route as AuthedFieldJobsJobIdIndexRouteImport } from './routes/_authed/field/jobs/$jobId/index'
+import { Route as AuthedFieldJobsJobIdReportRouteImport } from './routes/_authed/field/jobs/$jobId/report'
 
 const AuthedRoute = AuthedRouteImport.update({
   id: '/_authed',
@@ -95,11 +96,18 @@ const AuthedOfficePlansPlanIdRoute = AuthedOfficePlansPlanIdRouteImport.update({
   path: '/plans/$planId',
   getParentRoute: () => AuthedOfficeRoute,
 } as any)
-const AuthedFieldJobsJobIdRoute = AuthedFieldJobsJobIdRouteImport.update({
-  id: '/jobs/$jobId',
-  path: '/jobs/$jobId',
-  getParentRoute: () => AuthedFieldRoute,
-} as any)
+const AuthedFieldJobsJobIdIndexRoute =
+  AuthedFieldJobsJobIdIndexRouteImport.update({
+    id: '/jobs/$jobId/',
+    path: '/jobs/$jobId/',
+    getParentRoute: () => AuthedFieldRoute,
+  } as any)
+const AuthedFieldJobsJobIdReportRoute =
+  AuthedFieldJobsJobIdReportRouteImport.update({
+    id: '/jobs/$jobId/report',
+    path: '/jobs/$jobId/report',
+    getParentRoute: () => AuthedFieldRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthedOfficeIndexRoute
@@ -112,9 +120,10 @@ export interface FileRoutesByFullPath {
   '/jobs/$jobId': typeof AuthedOfficeJobsJobIdRoute
   '/jobs/new': typeof AuthedOfficeJobsNewRoute
   '/plans/$planId': typeof AuthedOfficePlansPlanIdRoute
-  '/field/jobs/$jobId': typeof AuthedFieldJobsJobIdRoute
   '/clients/': typeof AuthedOfficeClientsIndexRoute
   '/jobs/': typeof AuthedOfficeJobsIndexRoute
+  '/field/jobs/$jobId/report': typeof AuthedFieldJobsJobIdReportRoute
+  '/field/jobs/$jobId/': typeof AuthedFieldJobsJobIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof AuthedOfficeIndexRoute
@@ -126,9 +135,10 @@ export interface FileRoutesByTo {
   '/jobs/$jobId': typeof AuthedOfficeJobsJobIdRoute
   '/jobs/new': typeof AuthedOfficeJobsNewRoute
   '/plans/$planId': typeof AuthedOfficePlansPlanIdRoute
-  '/field/jobs/$jobId': typeof AuthedFieldJobsJobIdRoute
   '/clients': typeof AuthedOfficeClientsIndexRoute
   '/jobs': typeof AuthedOfficeJobsIndexRoute
+  '/field/jobs/$jobId/report': typeof AuthedFieldJobsJobIdReportRoute
+  '/field/jobs/$jobId': typeof AuthedFieldJobsJobIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -144,9 +154,10 @@ export interface FileRoutesById {
   '/_authed/_office/jobs/$jobId': typeof AuthedOfficeJobsJobIdRoute
   '/_authed/_office/jobs/new': typeof AuthedOfficeJobsNewRoute
   '/_authed/_office/plans/$planId': typeof AuthedOfficePlansPlanIdRoute
-  '/_authed/field/jobs/$jobId': typeof AuthedFieldJobsJobIdRoute
   '/_authed/_office/clients/': typeof AuthedOfficeClientsIndexRoute
   '/_authed/_office/jobs/': typeof AuthedOfficeJobsIndexRoute
+  '/_authed/field/jobs/$jobId/report': typeof AuthedFieldJobsJobIdReportRoute
+  '/_authed/field/jobs/$jobId/': typeof AuthedFieldJobsJobIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -161,9 +172,10 @@ export interface FileRouteTypes {
     | '/jobs/$jobId'
     | '/jobs/new'
     | '/plans/$planId'
-    | '/field/jobs/$jobId'
     | '/clients/'
     | '/jobs/'
+    | '/field/jobs/$jobId/report'
+    | '/field/jobs/$jobId/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -175,9 +187,10 @@ export interface FileRouteTypes {
     | '/jobs/$jobId'
     | '/jobs/new'
     | '/plans/$planId'
-    | '/field/jobs/$jobId'
     | '/clients'
     | '/jobs'
+    | '/field/jobs/$jobId/report'
+    | '/field/jobs/$jobId'
   id:
     | '__root__'
     | '/_authed'
@@ -192,9 +205,10 @@ export interface FileRouteTypes {
     | '/_authed/_office/jobs/$jobId'
     | '/_authed/_office/jobs/new'
     | '/_authed/_office/plans/$planId'
-    | '/_authed/field/jobs/$jobId'
     | '/_authed/_office/clients/'
     | '/_authed/_office/jobs/'
+    | '/_authed/field/jobs/$jobId/report'
+    | '/_authed/field/jobs/$jobId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -303,11 +317,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedOfficePlansPlanIdRouteImport
       parentRoute: typeof AuthedOfficeRoute
     }
-    '/_authed/field/jobs/$jobId': {
-      id: '/_authed/field/jobs/$jobId'
+    '/_authed/field/jobs/$jobId/': {
+      id: '/_authed/field/jobs/$jobId/'
       path: '/jobs/$jobId'
-      fullPath: '/field/jobs/$jobId'
-      preLoaderRoute: typeof AuthedFieldJobsJobIdRouteImport
+      fullPath: '/field/jobs/$jobId/'
+      preLoaderRoute: typeof AuthedFieldJobsJobIdIndexRouteImport
+      parentRoute: typeof AuthedFieldRoute
+    }
+    '/_authed/field/jobs/$jobId/report': {
+      id: '/_authed/field/jobs/$jobId/report'
+      path: '/jobs/$jobId/report'
+      fullPath: '/field/jobs/$jobId/report'
+      preLoaderRoute: typeof AuthedFieldJobsJobIdReportRouteImport
       parentRoute: typeof AuthedFieldRoute
     }
   }
@@ -341,12 +362,14 @@ const AuthedOfficeRouteWithChildren = AuthedOfficeRoute._addFileChildren(
 
 interface AuthedFieldRouteChildren {
   AuthedFieldIndexRoute: typeof AuthedFieldIndexRoute
-  AuthedFieldJobsJobIdRoute: typeof AuthedFieldJobsJobIdRoute
+  AuthedFieldJobsJobIdReportRoute: typeof AuthedFieldJobsJobIdReportRoute
+  AuthedFieldJobsJobIdIndexRoute: typeof AuthedFieldJobsJobIdIndexRoute
 }
 
 const AuthedFieldRouteChildren: AuthedFieldRouteChildren = {
   AuthedFieldIndexRoute: AuthedFieldIndexRoute,
-  AuthedFieldJobsJobIdRoute: AuthedFieldJobsJobIdRoute,
+  AuthedFieldJobsJobIdReportRoute: AuthedFieldJobsJobIdReportRoute,
+  AuthedFieldJobsJobIdIndexRoute: AuthedFieldJobsJobIdIndexRoute,
 }
 
 const AuthedFieldRouteWithChildren = AuthedFieldRoute._addFileChildren(

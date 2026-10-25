@@ -34,7 +34,12 @@ interface Slots {
   history?: ReactNode
   /** In the schedule section, e.g. "Zakaži". */
   scheduleAction?: ReactNode
+  /** The work report, shown once the job has been started on site. */
+  report?: ReactNode
 }
+
+/** Statuses from which there is a report to show: on site, done, invoiced. */
+const REPORT_STATUSES: readonly Job['status'][] = ['on_site', 'completed', 'invoiced']
 
 /**
  * One job for the office: status track, schedule, client, location (with access
@@ -70,7 +75,7 @@ export function JobDetails({ jobId, ...slots }: { jobId: string } & Slots) {
   return <JobDetail job={job.data} {...slots} />
 }
 
-function JobDetail({ job, actions, history, scheduleAction }: { job: Job } & Slots) {
+function JobDetail({ job, actions, history, scheduleAction, report }: { job: Job } & Slots) {
   const { t } = useTranslation()
   const { formatRelativeDateTime } = useTenantFormat()
   // The track shows when each step was reached
@@ -142,6 +147,9 @@ function JobDetail({ job, actions, history, scheduleAction }: { job: Job } & Slo
             title={t('job.detail.customFields')}
             className="space-y-3 rounded-xl border p-4"
           />
+          {report && REPORT_STATUSES.includes(job.status) && (
+            <div className="rounded-xl border p-4">{report}</div>
+          )}
           {history && <Section title={t('job.history.title')}>{history}</Section>}
         </div>
         <div className="min-w-0 space-y-6">

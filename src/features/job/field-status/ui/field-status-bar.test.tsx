@@ -3,6 +3,7 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
 import { toast } from 'sonner'
+import type { ReactNode } from 'react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { login, sessionStore } from '@/entities/auth'
@@ -72,13 +73,13 @@ async function myJob(status: Job['status']): Promise<Job> {
   return getJob(job.id)
 }
 
-function renderBar(job: Job) {
+function renderBar(job: Job, finish?: ReactNode) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   })
   render(
     <QueryClientProvider client={queryClient}>
-      <FieldStatusBar jobId={job.id} />
+      <FieldStatusBar jobId={job.id} finish={finish} />
       <Toaster />
     </QueryClientProvider>,
   )
@@ -130,6 +131,22 @@ describe('FieldStatusBar', () => {
       note: 'Čeka se rezervni dio.',
       version: job.version,
     })
+  })
+
+  it('on site with a way to finish: that is the big action, "Više" keeps the rest', async () => {
+    const enRoute = await myJob('en_route')
+    const job = await transitionJob(enRoute.id, { to: 'on_site', version: enRoute.version })
+    const user = renderBar(job, <a href="/report">Izvještaj i završetak</a>)
+    expect(await screen.findByRole('link', { name: 'Izvještaj i završetak' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Više radnji' }))
+    expect(await screen.findAllByRole('menuitem')).toHaveLength(1)
+  })
+
+  it('the way to finish is only there when the API allows completing', async () => {
+    const job = await myJob('scheduled')
+    renderBar(job, <a href="/report">Izvještaj i završetak</a>)
+    expect(await screen.findByRole('button', { name: 'Označi: na putu' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Izvještaj i završetak' })).not.toBeInTheDocument()
   })
 
   it('409: refetches, tells the user, and the button follows the job', async () => {
