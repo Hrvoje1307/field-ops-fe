@@ -7,14 +7,15 @@ import { useMe } from '@/entities/auth'
 import { Button } from '@/shared/ui/button'
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/shared/ui/sheet'
 
-import { OFFICE_NAV } from '../config/nav'
+import { navFor } from '../config/nav'
 import { UserMenu } from './user-menu'
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const { t } = useTranslation()
+  const { role } = useMe()
   return (
     <nav aria-label={t('shell.nav.label')} className="flex flex-col gap-1">
-      {OFFICE_NAV.map(({ to, labelKey, icon: Icon }) => (
+      {navFor(role).map(({ to, labelKey, icon: Icon }) => (
         <Link
           key={to}
           to={to}

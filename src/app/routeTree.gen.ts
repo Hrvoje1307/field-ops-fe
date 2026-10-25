@@ -15,6 +15,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthedOfficeRouteImport } from './routes/_authed/_office'
 import { Route as AuthedFieldRouteImport } from './routes/_authed/field'
 import { Route as AuthedOfficeIndexRouteImport } from './routes/_authed/_office/index'
+import { Route as AuthedOfficeSettingsRouteImport } from './routes/_authed/_office/settings'
 import { Route as AuthedFieldIndexRouteImport } from './routes/_authed/field/index'
 import { Route as AuthedOfficeClientsIndexRouteImport } from './routes/_authed/_office/clients/index'
 import { Route as AuthedOfficeClientsClientIdRouteImport } from './routes/_authed/_office/clients/$clientId'
@@ -23,6 +24,8 @@ import { Route as AuthedOfficeJobsIndexRouteImport } from './routes/_authed/_off
 import { Route as AuthedOfficeJobsJobIdRouteImport } from './routes/_authed/_office/jobs/$jobId'
 import { Route as AuthedOfficeJobsNewRouteImport } from './routes/_authed/_office/jobs/new'
 import { Route as AuthedOfficePlansPlanIdRouteImport } from './routes/_authed/_office/plans/$planId'
+import { Route as AuthedOfficeSettingsIndexRouteImport } from './routes/_authed/_office/settings/index'
+import { Route as AuthedOfficeSettingsCompanyRouteImport } from './routes/_authed/_office/settings/company'
 import { Route as AuthedFieldJobsJobIdIndexRouteImport } from './routes/_authed/field/jobs/$jobId/index'
 import { Route as AuthedFieldJobsJobIdReportRouteImport } from './routes/_authed/field/jobs/$jobId/report'
 
@@ -52,6 +55,11 @@ const AuthedFieldRoute = AuthedFieldRouteImport.update({
 const AuthedOfficeIndexRoute = AuthedOfficeIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AuthedOfficeRoute,
+} as any)
+const AuthedOfficeSettingsRoute = AuthedOfficeSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
   getParentRoute: () => AuthedOfficeRoute,
 } as any)
 const AuthedFieldIndexRoute = AuthedFieldIndexRouteImport.update({
@@ -96,6 +104,18 @@ const AuthedOfficePlansPlanIdRoute = AuthedOfficePlansPlanIdRouteImport.update({
   path: '/plans/$planId',
   getParentRoute: () => AuthedOfficeRoute,
 } as any)
+const AuthedOfficeSettingsIndexRoute =
+  AuthedOfficeSettingsIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthedOfficeSettingsRoute,
+  } as any)
+const AuthedOfficeSettingsCompanyRoute =
+  AuthedOfficeSettingsCompanyRouteImport.update({
+    id: '/company',
+    path: '/company',
+    getParentRoute: () => AuthedOfficeSettingsRoute,
+  } as any)
 const AuthedFieldJobsJobIdIndexRoute =
   AuthedFieldJobsJobIdIndexRouteImport.update({
     id: '/jobs/$jobId/',
@@ -114,14 +134,17 @@ export interface FileRoutesByFullPath {
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/field': typeof AuthedFieldRouteWithChildren
+  '/settings': typeof AuthedOfficeSettingsRouteWithChildren
   '/field/': typeof AuthedFieldIndexRoute
   '/clients/$clientId': typeof AuthedOfficeClientsClientIdRoute
   '/clients/new': typeof AuthedOfficeClientsNewRoute
   '/jobs/$jobId': typeof AuthedOfficeJobsJobIdRoute
   '/jobs/new': typeof AuthedOfficeJobsNewRoute
   '/plans/$planId': typeof AuthedOfficePlansPlanIdRoute
+  '/settings/company': typeof AuthedOfficeSettingsCompanyRoute
   '/clients/': typeof AuthedOfficeClientsIndexRoute
   '/jobs/': typeof AuthedOfficeJobsIndexRoute
+  '/settings/': typeof AuthedOfficeSettingsIndexRoute
   '/field/jobs/$jobId/report': typeof AuthedFieldJobsJobIdReportRoute
   '/field/jobs/$jobId/': typeof AuthedFieldJobsJobIdIndexRoute
 }
@@ -135,8 +158,10 @@ export interface FileRoutesByTo {
   '/jobs/$jobId': typeof AuthedOfficeJobsJobIdRoute
   '/jobs/new': typeof AuthedOfficeJobsNewRoute
   '/plans/$planId': typeof AuthedOfficePlansPlanIdRoute
+  '/settings/company': typeof AuthedOfficeSettingsCompanyRoute
   '/clients': typeof AuthedOfficeClientsIndexRoute
   '/jobs': typeof AuthedOfficeJobsIndexRoute
+  '/settings': typeof AuthedOfficeSettingsIndexRoute
   '/field/jobs/$jobId/report': typeof AuthedFieldJobsJobIdReportRoute
   '/field/jobs/$jobId': typeof AuthedFieldJobsJobIdIndexRoute
 }
@@ -147,6 +172,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_authed/_office': typeof AuthedOfficeRouteWithChildren
   '/_authed/field': typeof AuthedFieldRouteWithChildren
+  '/_authed/_office/settings': typeof AuthedOfficeSettingsRouteWithChildren
   '/_authed/_office/': typeof AuthedOfficeIndexRoute
   '/_authed/field/': typeof AuthedFieldIndexRoute
   '/_authed/_office/clients/$clientId': typeof AuthedOfficeClientsClientIdRoute
@@ -154,8 +180,10 @@ export interface FileRoutesById {
   '/_authed/_office/jobs/$jobId': typeof AuthedOfficeJobsJobIdRoute
   '/_authed/_office/jobs/new': typeof AuthedOfficeJobsNewRoute
   '/_authed/_office/plans/$planId': typeof AuthedOfficePlansPlanIdRoute
+  '/_authed/_office/settings/company': typeof AuthedOfficeSettingsCompanyRoute
   '/_authed/_office/clients/': typeof AuthedOfficeClientsIndexRoute
   '/_authed/_office/jobs/': typeof AuthedOfficeJobsIndexRoute
+  '/_authed/_office/settings/': typeof AuthedOfficeSettingsIndexRoute
   '/_authed/field/jobs/$jobId/report': typeof AuthedFieldJobsJobIdReportRoute
   '/_authed/field/jobs/$jobId/': typeof AuthedFieldJobsJobIdIndexRoute
 }
@@ -166,14 +194,17 @@ export interface FileRouteTypes {
     | '/forgot-password'
     | '/login'
     | '/field'
+    | '/settings'
     | '/field/'
     | '/clients/$clientId'
     | '/clients/new'
     | '/jobs/$jobId'
     | '/jobs/new'
     | '/plans/$planId'
+    | '/settings/company'
     | '/clients/'
     | '/jobs/'
+    | '/settings/'
     | '/field/jobs/$jobId/report'
     | '/field/jobs/$jobId/'
   fileRoutesByTo: FileRoutesByTo
@@ -187,8 +218,10 @@ export interface FileRouteTypes {
     | '/jobs/$jobId'
     | '/jobs/new'
     | '/plans/$planId'
+    | '/settings/company'
     | '/clients'
     | '/jobs'
+    | '/settings'
     | '/field/jobs/$jobId/report'
     | '/field/jobs/$jobId'
   id:
@@ -198,6 +231,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/_authed/_office'
     | '/_authed/field'
+    | '/_authed/_office/settings'
     | '/_authed/_office/'
     | '/_authed/field/'
     | '/_authed/_office/clients/$clientId'
@@ -205,8 +239,10 @@ export interface FileRouteTypes {
     | '/_authed/_office/jobs/$jobId'
     | '/_authed/_office/jobs/new'
     | '/_authed/_office/plans/$planId'
+    | '/_authed/_office/settings/company'
     | '/_authed/_office/clients/'
     | '/_authed/_office/jobs/'
+    | '/_authed/_office/settings/'
     | '/_authed/field/jobs/$jobId/report'
     | '/_authed/field/jobs/$jobId/'
   fileRoutesById: FileRoutesById
@@ -259,6 +295,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AuthedOfficeIndexRouteImport
+      parentRoute: typeof AuthedOfficeRoute
+    }
+    '/_authed/_office/settings': {
+      id: '/_authed/_office/settings'
+      path: '/settings'
+      fullPath: '/settings'
+      preLoaderRoute: typeof AuthedOfficeSettingsRouteImport
       parentRoute: typeof AuthedOfficeRoute
     }
     '/_authed/field/': {
@@ -317,6 +360,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedOfficePlansPlanIdRouteImport
       parentRoute: typeof AuthedOfficeRoute
     }
+    '/_authed/_office/settings/': {
+      id: '/_authed/_office/settings/'
+      path: '/'
+      fullPath: '/settings/'
+      preLoaderRoute: typeof AuthedOfficeSettingsIndexRouteImport
+      parentRoute: typeof AuthedOfficeSettingsRoute
+    }
+    '/_authed/_office/settings/company': {
+      id: '/_authed/_office/settings/company'
+      path: '/company'
+      fullPath: '/settings/company'
+      preLoaderRoute: typeof AuthedOfficeSettingsCompanyRouteImport
+      parentRoute: typeof AuthedOfficeSettingsRoute
+    }
     '/_authed/field/jobs/$jobId/': {
       id: '/_authed/field/jobs/$jobId/'
       path: '/jobs/$jobId'
@@ -334,7 +391,21 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AuthedOfficeSettingsRouteChildren {
+  AuthedOfficeSettingsCompanyRoute: typeof AuthedOfficeSettingsCompanyRoute
+  AuthedOfficeSettingsIndexRoute: typeof AuthedOfficeSettingsIndexRoute
+}
+
+const AuthedOfficeSettingsRouteChildren: AuthedOfficeSettingsRouteChildren = {
+  AuthedOfficeSettingsCompanyRoute: AuthedOfficeSettingsCompanyRoute,
+  AuthedOfficeSettingsIndexRoute: AuthedOfficeSettingsIndexRoute,
+}
+
+const AuthedOfficeSettingsRouteWithChildren =
+  AuthedOfficeSettingsRoute._addFileChildren(AuthedOfficeSettingsRouteChildren)
+
 interface AuthedOfficeRouteChildren {
+  AuthedOfficeSettingsRoute: typeof AuthedOfficeSettingsRouteWithChildren
   AuthedOfficeIndexRoute: typeof AuthedOfficeIndexRoute
   AuthedOfficeClientsClientIdRoute: typeof AuthedOfficeClientsClientIdRoute
   AuthedOfficeClientsNewRoute: typeof AuthedOfficeClientsNewRoute
@@ -346,6 +417,7 @@ interface AuthedOfficeRouteChildren {
 }
 
 const AuthedOfficeRouteChildren: AuthedOfficeRouteChildren = {
+  AuthedOfficeSettingsRoute: AuthedOfficeSettingsRouteWithChildren,
   AuthedOfficeIndexRoute: AuthedOfficeIndexRoute,
   AuthedOfficeClientsClientIdRoute: AuthedOfficeClientsClientIdRoute,
   AuthedOfficeClientsNewRoute: AuthedOfficeClientsNewRoute,
