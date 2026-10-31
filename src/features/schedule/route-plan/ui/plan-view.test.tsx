@@ -16,6 +16,7 @@ import { addDays, todayInTimeZone } from '@/shared/lib/datetime'
 import { renderInRouter } from '@/shared/lib/test/render-in-router'
 import { TenantFormatProvider } from '@/shared/lib/tenant-format-provider'
 import { Toaster } from '@/shared/ui/sonner'
+import { fixToday } from '@/shared/lib/test/fixed-today'
 
 import { RoutePlanView } from './plan-view'
 
@@ -33,6 +34,8 @@ function workday(): string {
   while ([0, 6].includes(new Date(`${date}T12:00:00Z`).getUTCDay())) date = addDays(date, 1)
   return date
 }
+
+fixToday()
 
 beforeEach(async () => {
   resetMockDb()

@@ -33,7 +33,9 @@ export function seedMessages({
     if (!contact?.phone) return null
     const body = `${company}: podsjetnik, sutra vam dolazi monter. Nalog ${job.number}.`
     const segments = smsSegments(body).segments
-    const created = Date.parse(createdAt)
+    // "Sent in the past": the evening before a job of tomorrow is still ahead before 17:00,
+    // and a message dated in the future would show as still queued
+    const created = Math.min(Date.parse(createdAt), Date.now() - 60 * 60_000)
     return {
       id: id(),
       jobId: job.id,
@@ -45,7 +47,7 @@ export function seedMessages({
       error,
       segments,
       cost: ((segments * 5) / 100).toFixed(2),
-      createdAt,
+      createdAt: toIsoInstant(created),
       outcome,
       sentAt: toIsoInstant(created + 2000),
       deliveredAt: outcome === 'delivered' ? toIsoInstant(created + 8000) : null,

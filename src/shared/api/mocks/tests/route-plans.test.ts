@@ -2,10 +2,13 @@ import { beforeEach, describe, expect, it } from 'vitest'
 
 import type { DispatchBoard, Job, RoutePlan, Technician, Usage } from '@/shared/api/generated/model'
 import { addDays, todayInTimeZone } from '@/shared/lib/datetime'
+import { fixToday } from '@/shared/lib/test/fixed-today'
 
 import { resetMockDb } from '../db'
 import { isoWeekday } from '../lib/visit-order'
 import { loginAs, type Session, tenantBySlug, USERS } from './client'
+
+fixToday()
 
 beforeEach(() => {
   resetMockDb()
