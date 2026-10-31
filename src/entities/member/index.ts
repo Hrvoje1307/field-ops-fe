@@ -16,6 +16,7 @@ export {
   useListInvitations,
   useListMembers,
   useRevokeInvitation,
+  useSalesMembers,
   useUpdateMember,
 } from './api'
 export { canSetSalesAccess, memberHasSalesAccess } from './lib/sales-access'

@@ -20,6 +20,9 @@ export const MOCK_AI_MODEL = 'mock-model'
 /** OAuth connections wait this long for the provider's redirect (spec: 10 min). */
 export const OAUTH_STATE_TTL_MS = 10 * 60_000
 
+/** A newly connected mailbox is `connecting` this long before its first sync is done. */
+export const MOCK_CONNECT_MS = 4000
+
 /** Won and lost columns of the board hold the last 30 days (spec). */
 export const BOARD_CLOSED_DAYS = 30
 

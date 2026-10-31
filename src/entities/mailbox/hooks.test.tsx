@@ -14,6 +14,7 @@ import {
   useStartMailboxOAuth,
   useSyncMailbox,
 } from './api'
+import { MAILBOX_POLL_MS } from './const'
 
 beforeEach(async () => {
   resetMockDb()
@@ -48,6 +49,38 @@ function seed(queryClient: ReturnType<typeof queryWrapper>['queryClient']) {
 }
 const refreshed = (queryClient: ReturnType<typeof queryWrapper>['queryClient']) =>
   KEYS.map((key) => isInvalidated(queryClient, key))
+
+describe('the list while a mailbox is connecting', () => {
+  it('is read again every few seconds until none is connecting, then no more', async () => {
+    const { queryClient, wrapper } = queryWrapper()
+    const create = renderHook(() => useCreateImapMailbox(), { wrapper })
+    await act(async () => {
+      await create.result.current.mutateAsync(IMAP)
+    })
+    const list = renderHook(() => useListMailboxes(), { wrapper })
+    await waitFor(() => {
+      expect(list.result.current.data?.some((m) => m.status === 'connecting')).toBe(true)
+    })
+    const query = queryClient.getQueryCache().find({ queryKey: ['mailboxes', 'list'] })
+    const interval = () => {
+      const option = query?.observers[0]?.options.refetchInterval
+      return typeof option === 'function' ? option(query as never) : option
+    }
+    expect(interval()).toBe(MAILBOX_POLL_MS)
+
+    // The first sync is over: the mailbox is active and the polling stops
+    for (const row of Object.values(getDb().tenants).flatMap((t) => t.sales.mailboxes)) {
+      row.connectingUntil = '2000-01-01T00:00:00Z'
+    }
+    await act(async () => {
+      await list.result.current.refetch()
+    })
+    await waitFor(() => {
+      expect(list.result.current.data?.every((m) => m.status !== 'connecting')).toBe(true)
+    })
+    expect(interval()).toBe(false)
+  })
+})
 
 describe('mailbox hooks', () => {
   it('list the mailboxes the user may see', async () => {

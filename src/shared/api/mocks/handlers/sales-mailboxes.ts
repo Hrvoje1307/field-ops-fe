@@ -6,6 +6,7 @@ import type {
 } from '@/shared/api/generated/model'
 import { addDays, todayInTimeZone, toIsoInstant } from '@/shared/lib/datetime'
 
+import { saveDb } from '../db'
 import type { MockDb } from '../db/rows'
 import type { MailboxRow } from '../db/sales-rows'
 import { newId, newToken } from '../lib/ids'
@@ -22,7 +23,7 @@ import {
 } from '../lib/problems'
 import { publicRoute, route } from '../lib/route'
 import { canSeeMailbox } from '../lib/sales/access'
-import { OAUTH_STATE_TTL_MS } from '../lib/sales/const'
+import { MOCK_CONNECT_MS, OAUTH_STATE_TTL_MS } from '../lib/sales/const'
 import { openSales } from '../lib/sales/context'
 import { connectedMailboxes, presentMailbox } from '../lib/sales/present'
 import type { AuthContext } from '../lib/auth'
@@ -122,7 +123,11 @@ export const salesMailboxHandlers = [
     'get',
     '/sales/mailboxes/oauth/callback',
     ({ db, query }) => {
-      const back = (result: string) => redirect(`${appUrl()}${MAILBOXES_PAGE}?${result}`)
+      const back = (result: string) => {
+        // A GET is not stored by the route wrapper, and the browser leaves the page right after
+        saveDb()
+        return redirect(`${appUrl()}${MAILBOXES_PAGE}?${result}`)
+      }
       const found = Object.values(db.tenants)
         .flatMap((t) => t.sales.oauthStates.map((s) => ({ t, s })))
         .find(({ s }) => s.state === query.state)
@@ -156,8 +161,9 @@ export const salesMailboxHandlers = [
         displayName: address,
         kind: s.kind,
         ownerUserId: s.ownerUserId,
-        status: 'active',
-        lastSyncedAt: now,
+        status: 'connecting',
+        connectingUntil: toIsoInstant(Date.now() + MOCK_CONNECT_MS),
+        lastSyncedAt: null,
         lastError: null,
         syncFrom: s.syncFrom,
         canSend: true,
@@ -189,8 +195,9 @@ export const salesMailboxHandlers = [
       displayName: (body.displayName ?? '').trim() || address,
       kind: body.kind,
       ownerUserId,
-      status: 'active',
-      lastSyncedAt: now,
+      status: 'connecting',
+      connectingUntil: toIsoInstant(Date.now() + MOCK_CONNECT_MS),
+      lastSyncedAt: null,
       lastError: null,
       syncFrom: body.syncFrom ?? addDays(todayInTimeZone(auth.t.tenant.timezone), -90),
       canSend: true,

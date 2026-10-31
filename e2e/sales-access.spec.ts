@@ -146,12 +146,13 @@ for (const tenant of TENANTS) {
       await signIn(page, tenant.owner)
       await expectSignedInAs(page, tenant.name)
       await page.goto('/sales/settings/mailboxes?connected=01a18f41-8d84-774e-bd75-acf665fed043')
-      await expect(page).toHaveURL(
-        '/settings/sales/mailboxes?connected=01a18f41-8d84-774e-bd75-acf665fed043',
-      )
-      await expect(page.getByRole('heading', { level: 1, name: 'Sandučići' })).toBeVisible()
+      // It passes on to the settings, says the result and clears the address
+      await expect(page.getByRole('heading', { level: 2, name: 'Sandučići' })).toBeVisible()
+      await expect(page.getByText('Sandučić je spojen.')).toBeVisible()
+      await expect(page).toHaveURL('/settings/sales/mailboxes')
       await page.goto('/sales/settings/mailboxes?error=access_denied')
-      await expect(page).toHaveURL('/settings/sales/mailboxes?error=access_denied')
+      await expect(page.getByText('Pristup nije odobren, pa sandučić nije spojen.')).toBeVisible()
+      await expect(page).toHaveURL('/settings/sales/mailboxes')
       await page.goto('/sales/settings/mailboxes')
       await expect(page).toHaveURL('/settings/sales/mailboxes')
     })

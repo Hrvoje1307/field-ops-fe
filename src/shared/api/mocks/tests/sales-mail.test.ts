@@ -46,7 +46,7 @@ describe('mailboxes', () => {
     expect(created.status).toBe(201)
     expect(created.body).toMatchObject({
       provider: 'imap',
-      status: 'active',
+      status: 'connecting',
       kind: 'shared',
       canSend: true,
     })
@@ -185,7 +185,7 @@ describe('mailboxes', () => {
     expect(list.find((m) => m.id === connected)).toMatchObject({
       provider: 'gmail',
       kind: 'personal',
-      status: 'active',
+      status: 'connecting',
       emailAddress: 'marko.kovac@gmail.test',
     })
     // A state is used once
@@ -661,5 +661,22 @@ describe('AI: classify again, drafts, the allowance', () => {
   it('threads from the other tenant do not exist here', async () => {
     const buraThread = bura().sales.threads[0]
     expect((await (await owner()).get(`/sales/threads/${buraThread?.id ?? ''}`)).status).toBe(404)
+  })
+})
+
+describe('a new mailbox', () => {
+  it('is `connecting` until its first sync is over, then `active` with a last sync', async () => {
+    const { settleMailboxes } = await import('../lib/sales/mailboxes')
+    const rows = [
+      {
+        status: 'connecting',
+        connectingUntil: '2026-10-28T09:00:04.000Z',
+        lastSyncedAt: null,
+      },
+    ] as never as Parameters<typeof settleMailboxes>[0]
+    expect(settleMailboxes(rows, Date.parse('2026-10-28T09:00:02Z'))).toBe(false)
+    expect(rows[0]?.status).toBe('connecting')
+    expect(settleMailboxes(rows, Date.parse('2026-10-28T09:00:05Z'))).toBe(true)
+    expect(rows[0]).toMatchObject({ status: 'active', lastSyncedAt: '2026-10-28T09:00:05Z' })
   })
 })

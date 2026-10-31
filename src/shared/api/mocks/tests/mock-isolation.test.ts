@@ -15,7 +15,7 @@ const sources = import.meta.glob<string>(
 /** The only places that may reach for the mock: they start it when `VITE_API_MOCK` asks. */
 const ALLOWED = new Set([
   '/src/app/providers/mocks.ts',
-  '/src/app/mock-routes.ts',
+  '/src/app/mock-routes.tsx',
   // Lazy, only bundled with the mock (the demo sign-in buttons list its accounts)
   '/src/features/auth/sign-in/ui/demo-logins.tsx',
 ])

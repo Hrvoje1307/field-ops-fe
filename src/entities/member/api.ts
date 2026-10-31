@@ -10,6 +10,7 @@ import type {
 import { useIdempotencyKeys } from '@/shared/api/idempotency'
 import { invalidateRoots, JOB_DATA_ROOTS } from '@/shared/api/query-roots'
 
+import { memberHasSalesAccess } from './lib/sales-access'
 import { MEMBERS_STALE_TIME } from './const'
 
 export const memberKeys = {
@@ -101,5 +102,16 @@ export function useRevokeInvitation() {
   return useMutation({
     mutationFn: (id: string) => revokeInvitation(id),
     onSuccess: (_nothing, _id, _result, { client }) => invalidateRoots(client, ['members']),
+  })
+}
+
+/** The active members who have sales access: whom a personal mailbox can belong to. */
+export function useSalesMembers() {
+  return useQuery({
+    queryKey: memberKeys.all,
+    queryFn: ({ signal }) => listMembers(signal),
+    staleTime: MEMBERS_STALE_TIME,
+    select: (members) =>
+      members.filter((member) => member.isActive && memberHasSalesAccess(member)),
   })
 }

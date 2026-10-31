@@ -616,3 +616,13 @@ Note the asymmetry with `LocationInput.accessCodes` (0.2.0), where `null` means 
 **We propose:** accept `newLocation` (a `LocationInput`) in `DealConvertRequest` next to `clientId`, so one request does it all or nothing; say how a card's place inside a column is decided (by what, and whether a move can ask for one); add `stageEnteredAt` to `DealSummary` (the board shows how long a deal has been waiting) and a `dealCount` to `SalesStage` (the settings can say what a deactivation hides); say which `Attachment.kind` a deal's files should have (#57).
 
 **Also (#59): finding a client by the deal's email.** `GET /clients` says `q` is a "fuzzy search: name, phone, OIB, address"; email is not in the list. The conversion form offers existing clients by the deal's `contactEmail` through `q`, and the mock's `q` does match emails (a v1 choice). If the backend does not, the email candidates are empty and only the phone lookup (`GET /clients/lookup`) finds anyone. **We propose:** add email to `q`, or give `lookup` an `email` parameter.
+
+## 60. Sales: reconnecting and editing a mailbox
+
+**Spec says:** `MailboxOAuthStartRequest.mailboxId` re-authorises a mailbox in `needs_reauth` (Gmail, Microsoft); `ImapMailboxCreate` has no `mailboxId`, `Mailbox` carries no hosts, ports or username, and `MailboxUpdate` has no password; a connection test fails with 422 `mailbox.imap_failed` / `mailbox.smtp_failed`; creating an address that exists is 409 `sales.mailbox_exists`. `syncFrom` "can only be set when connecting". `status` may be `connecting`; nothing says how long it lasts or what ends it.
+
+**Mock does:** a new mailbox is `connecting` for four seconds and then `active`; an IMAP reconnect has no endpoint, so a second `POST /sales/mailboxes/imap` for the same address is 409 `sales.mailbox_exists`; a reconnect through OAuth with another account is `?error=wrong_account`.
+
+**Frontend does:** reconnects a Gmail or Microsoft mailbox through `oauth/start` with `mailboxId`; for IMAP it opens the connection form with what the API tells (address, name, kind, owner), the hosts and the password are typed again, and a 409 is explained as "disconnect it (without deleting the mail) and connect it again"; polls the list every three seconds only while a mailbox is `connecting`.
+
+**We propose:** a way to reconnect an IMAP mailbox with a new password (`mailboxId` on `ImapMailboxCreate`, or `PUT /sales/mailboxes/{id}/imap`) and the hosts, ports, security and username in `Mailbox` so the form can start from them (never the password); whether `connecting` can end in `error` and who sets it; and, for #54, what the dialog may promise about imported mail after a disconnect without `purge` (the frontend only says it is not deleted).

@@ -48,6 +48,8 @@ export interface MailboxRow {
     smtpSecurity: MailSecurity
     username: string
   } | null
+  /** A new mailbox is `connecting` until this instant, then `active` (the first sync). */
+  connectingUntil?: string | null
   createdAt: string
   updatedAt: string
   /** Disconnected. Without `purge` its conversations stay (read-only history). */

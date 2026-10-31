@@ -1,12 +1,11 @@
-import { useTranslation } from 'react-i18next'
+import { MailboxesSettings } from '@/widgets/mailboxes-settings'
 
-import { PagePlaceholder } from '@/shared/ui/page-placeholder'
-
-export function SettingsMailboxesPage() {
-  const { t } = useTranslation()
-  return (
-    <PagePlaceholder title={t('sales.settingsPages.mailboxes')}>
-      <p>{t('sales.soon')}</p>
-    </PagePlaceholder>
-  )
+export function SettingsMailboxesPage({
+  search,
+  onClearSearch,
+}: {
+  search: { connected?: string | undefined; error?: string | undefined }
+  onClearSearch: () => void
+}) {
+  return <MailboxesSettings search={search} onClearSearch={onClearSearch} />
 }

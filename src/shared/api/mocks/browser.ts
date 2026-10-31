@@ -1,6 +1,6 @@
 import { setupWorker } from 'msw/browser'
 
-import { resetMockDb } from './db'
+import { getDb, resetMockDb, saveDb } from './db'
 import { handlers } from './handlers'
 import { dropConnections, realtimeHandlers } from './lib/realtime'
 
@@ -13,6 +13,17 @@ if (import.meta.env.DEV) {
     // keeps the hub unreachable for 1.5 s
     __fieldopsDropHub: (outageMs = 0) => {
       dropConnections(outageMs)
+    },
+    // The provider revokes a mailbox's grant, as it does in real life: window.__fieldopsExpireMailbox('info@firma.test')
+    __fieldopsExpireMailbox: (address: string) => {
+      for (const tenant of Object.values(getDb().tenants)) {
+        for (const mailbox of tenant.sales.mailboxes) {
+          if (mailbox.emailAddress !== address || mailbox.deletedAt) continue
+          mailbox.status = 'needs_reauth'
+          mailbox.lastError = 'Pristup je opozvan kod davatelja.'
+        }
+      }
+      saveDb()
     },
     __fieldopsResetMock: () => {
       resetMockDb()

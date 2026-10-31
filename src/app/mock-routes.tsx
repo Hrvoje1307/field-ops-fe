@@ -2,6 +2,9 @@ import { type AnyRoute, createRoute } from '@tanstack/react-router'
 
 import { CustomFieldsPreviewPage } from '@/pages/dev-custom-fields'
 
+import { MockOAuthPage } from '@/shared/api/mocks/ui/mock-oauth-page'
+
+import { Route as RootRoute } from './routes/__root'
 import { Route as AuthedRoute } from './routes/_authed'
 
 /**
@@ -18,4 +21,19 @@ export function addMockRoutes() {
   // routeTree.gen.ts has already set the file routes; at runtime `children` is an array
   const fileRoutes = AuthedRoute.children as AnyRoute[]
   AuthedRoute.addChildren([...fileRoutes, customFields])
+
+  // The stand-in for a mail provider's consent page (the mock's `authorizeUrl` points here)
+  const oauth = createRoute({
+    getParentRoute: () => RootRoute,
+    path: '/mock-oauth/$provider',
+    validateSearch: (search: Record<string, unknown>) => ({
+      state: typeof search.state === 'string' ? search.state : '',
+    }),
+    component: function MockOAuthRoute() {
+      const { provider } = oauth.useParams()
+      const { state } = oauth.useSearch()
+      return <MockOAuthPage provider={provider} state={state} />
+    },
+  })
+  RootRoute.addChildren([...(RootRoute.children as AnyRoute[]), oauth])
 }

@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { apiFetch, path } from '@/shared/api/api-fetch'
 import type {
@@ -12,7 +12,7 @@ import type {
 import { useIdempotencyKeys } from '@/shared/api/idempotency'
 import { invalidateRoots, SALES_DATA_ROOTS } from '@/shared/api/query-roots'
 
-import { MAILBOXES_STALE_TIME } from './const'
+import { MAILBOX_POLL_MS, MAILBOXES_STALE_TIME } from './const'
 
 export const mailboxKeys = {
   all: ['mailboxes'] as const,
@@ -82,6 +82,11 @@ export function useListMailboxes(options: { enabled?: boolean } = {}) {
     queryFn: ({ signal }) => listMailboxes(signal),
     staleTime: MAILBOXES_STALE_TIME,
     enabled: options.enabled ?? true,
+    // The first sync of a new mailbox takes a while; only then is the list polled
+    refetchInterval: (query) =>
+      query.state.data?.some((mailbox) => mailbox.status === 'connecting')
+        ? MAILBOX_POLL_MS
+        : false,
   })
 }
 
@@ -136,4 +141,10 @@ export function useSyncMailbox() {
     onSettled: (_nothing, _error, _id, _result, { client }) =>
       invalidateRoots(client, MAILBOX_ROOTS),
   })
+}
+
+/** Reads the mailboxes again (after the browser came back from a provider's consent page). */
+export function useRefreshMailboxes() {
+  const client = useQueryClient()
+  return () => invalidateRoots(client, MAILBOX_ROOTS)
 }
