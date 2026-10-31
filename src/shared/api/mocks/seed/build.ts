@@ -112,6 +112,7 @@ export function buildTenant(
     userId: user(m.user).id,
     role: m.role,
     isActive: true,
+    canAccessSales: m.canAccessSales ?? false,
   }))
   const officeUser = user(
     required(
@@ -512,6 +513,7 @@ export function buildTenant(
     id: id(),
     email: inv.email,
     role: inv.role,
+    canAccessSales: false,
     createdAt: at(-inv.daysAgo, '09:00'),
     expiresAt: at(7 - inv.daysAgo, '09:00'),
     token: `inv_${id().replace(/-/g, '')}`,

@@ -38,10 +38,10 @@
  * Auth via `?access_token=`. Server adds connection to groups `tenant:{id}`
  * and, for technicians, `tech:{technicianId}`. Server → client events:
  * `JobUpdated` (JobUpdatedEvent), `JobStatusChanged` (JobStatusChangedEvent),
- * `RoutePlanPublished` (RoutePlanPublishedEvent). Clients invalidate
+ * `RoutePlanPublished` (RoutePlanPublishedEvent), and for users with sales access `SalesThreadUpdated` (SalesThreadUpdatedEvent), `DealUpdated` (DealUpdatedEvent), `DraftReady` (DraftReadyEvent) in group `sales:{tenantId}`. Clients invalidate
  * TanStack Query caches on receipt; payloads are intentionally thin.
  *
- * OpenAPI spec version: 0.2.0
+ * OpenAPI spec version: 0.3.1
  */
 
 export type AttachmentOwnerType = (typeof AttachmentOwnerType)[keyof typeof AttachmentOwnerType]
@@ -52,4 +52,5 @@ export const AttachmentOwnerType = {
   location: 'location',
   asset: 'asset',
   job: 'job',
+  deal: 'deal',
 } as const

@@ -15,6 +15,7 @@ import type {
   Role,
   TenantSettings,
   TenantPlan,
+  Usage,
 } from '@/shared/api/generated/model'
 
 export interface UserSeed {
@@ -117,7 +118,7 @@ export interface TenantSeed {
   currency: string
   plan: TenantPlan
   settings: TenantSettings
-  members: { user: string; role: Role }[]
+  members: { user: string; role: Role; canAccessSales?: boolean }[]
   depot: {
     name: string
     address: string
@@ -151,5 +152,5 @@ export interface TenantSeed {
   clients: ClientSeed[]
   jobs: JobSeed[]
   invitations?: { email: string; role: Role; daysAgo: number }[]
-  usage: { smsCount: number; smsCost: string; emailCount: number; optimizationsCount: number }
+  usage: Omit<Usage, 'month'>
 }

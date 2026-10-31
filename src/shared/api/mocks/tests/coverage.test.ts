@@ -254,7 +254,13 @@ describe('every mocked operation matches the contract', () => {
       lastTenantId: t.tenant.id,
       lastLoginAt: null,
     })
-    db.memberships.push({ tenantId: t.tenant.id, userId, role: 'technician', isActive: true })
+    db.memberships.push({
+      tenantId: t.tenant.id,
+      userId,
+      role: 'technician',
+      isActive: true,
+      canAccessSales: false,
+    })
 
     const input = {
       userId,

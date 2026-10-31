@@ -34,9 +34,9 @@ import type {
 /**
  * Bump when the stored shape changes: older data in localStorage is then reseeded
  * instead of being read with missing fields. (2: invitation tokens, spec 0.2.0;
- * 3: custom fields of every type in both tenants; 4: route plans; 5: reports, materials, catalog and attachments; 6: message templates; 7: messages and public links)
+ * 3: custom fields of every type in both tenants; 4: route plans; 5: reports, materials, catalog and attachments; 6: message templates; 7: messages and public links; 8: sales access on memberships and invitations, spec 0.3.1)
  */
-export const MOCK_DB_SCHEMA_VERSION = 7
+export const MOCK_DB_SCHEMA_VERSION = 8
 
 /** Response types mark timestamps readonly; stored rows are written by the mock. */
 type Mutable<T> = { -readonly [K in keyof T]: T[K] }
@@ -61,6 +61,8 @@ export interface MembershipRow {
   userId: string
   role: Role
   isActive: boolean
+  /** Sales permission; owners always have it (Member.canAccessSales), see `hasSalesAccess`. */
+  canAccessSales: boolean
 }
 
 export interface RefreshTokenRow {

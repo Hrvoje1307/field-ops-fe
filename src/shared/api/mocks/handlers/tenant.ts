@@ -102,6 +102,10 @@ export const tenantHandlers = [
           smsCost: '0.00',
           emailCount: 0,
           optimizationsCount: 0,
+          aiClassifications: 0,
+          aiDrafts: 0,
+          aiInputTokens: 0,
+          aiOutputTokens: 0,
         },
       ),
     { roles: OFFICE_ROLES },
@@ -248,6 +252,7 @@ export const tenantHandlers = [
         id: newId(),
         email,
         role: body.role,
+        canAccessSales: body.canAccessSales ?? false,
         createdAt: toIsoInstant(nowMs),
         expiresAt: toIsoInstant(nowMs + 7 * DAY_MS),
         token: newToken('inv'),
@@ -291,6 +296,10 @@ export const tenantHandlers = [
       }
       membership.role = body.role
       membership.isActive = body.isActive
+      // "Omit to keep. Ignored for owners."
+      if (body.canAccessSales !== undefined && body.role !== 'owner') {
+        membership.canAccessSales = body.canAccessSales
+      }
       return ok(presentMember(db, auth.t, membership))
     },
     { roles: OWNER_ONLY },

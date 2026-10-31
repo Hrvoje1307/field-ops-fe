@@ -143,7 +143,17 @@ export function newMessage(
   const month = toIsoInstant(now).slice(0, 7)
   let usage = t.usage.find((u) => u.month === month)
   if (!usage) {
-    usage = { month, smsCount: 0, smsCost: '0.00', emailCount: 0, optimizationsCount: 0 }
+    usage = {
+      month,
+      smsCount: 0,
+      smsCost: '0.00',
+      emailCount: 0,
+      optimizationsCount: 0,
+      aiClassifications: 0,
+      aiDrafts: 0,
+      aiInputTokens: 0,
+      aiOutputTokens: 0,
+    }
     t.usage.push(usage)
   }
   if (fields.channel === 'sms') {

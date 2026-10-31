@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "FieldOps API",
-    "version": "0.2.0",
-    "description": "Multi-tenant field service platform API. Source of truth for the frontend\nclient (orval / openapi-typescript). Backend must emit an equivalent\n`openapi.json` from code; diffs go through PR review.\n\n## Conventions\n- Tenant comes from the JWT claim `tenant_id`, never from URL or body.\n- JSON is camelCase; enums are snake_case strings.\n- Instants: ISO 8601 UTC (`2026-10-16T08:00:00Z`). Dates: `2026-10-16`.\n  Wall-clock times (working hours, client windows): `HH:mm`, tenant-local.\n- Phones: E.164 (`+385911234567`). Server normalises input.\n- Money: decimal string (`\"12.50\"`). Never float.\n- Lists: `?page=1&pageSize=50` (max 200), `?sort=field` / `?sort=-field`.\n- Errors: `application/problem+json` (RFC 9457); validation errors map\n  field path → messages in `errors`.\n- Field actions accept `Idempotency-Key`; a replay returns the stored\n  response, a replay with a different body returns 422.\n- Updates are full replacements (PUT) unless stated otherwise.\n  `version` (from Postgres xmin) enables optimistic concurrency → 409.\n\n## Job status machine\n| from | allowed to |\n|---|---|\n| new | scheduled, cancelled |\n| scheduled | confirmed, en_route, new, cancelled |\n| confirmed | en_route, scheduled, cancelled |\n| en_route | on_site, scheduled |\n| on_site | completed (only via `/complete`), on_hold |\n| on_hold | new, scheduled, cancelled |\n| completed | invoiced, new (reopen, owner/dispatcher) |\n| invoiced | — |\n| cancelled | new (owner/dispatcher) |\n\n## Realtime (SignalR hub `/hubs/dispatch`)\nAuth via `?access_token=`. Server adds connection to groups `tenant:{id}`\nand, for technicians, `tech:{technicianId}`. Server → client events:\n`JobUpdated` (JobUpdatedEvent), `JobStatusChanged` (JobStatusChangedEvent),\n`RoutePlanPublished` (RoutePlanPublishedEvent). Clients invalidate\nTanStack Query caches on receipt; payloads are intentionally thin.\n"
+    "version": "0.3.1",
+    "description": "Multi-tenant field service platform API. Source of truth for the frontend\nclient (orval / openapi-typescript). Backend must emit an equivalent\n`openapi.json` from code; diffs go through PR review.\n\n## Conventions\n- Tenant comes from the JWT claim `tenant_id`, never from URL or body.\n- JSON is camelCase; enums are snake_case strings.\n- Instants: ISO 8601 UTC (`2026-10-16T08:00:00Z`). Dates: `2026-10-16`.\n  Wall-clock times (working hours, client windows): `HH:mm`, tenant-local.\n- Phones: E.164 (`+385911234567`). Server normalises input.\n- Money: decimal string (`\"12.50\"`). Never float.\n- Lists: `?page=1&pageSize=50` (max 200), `?sort=field` / `?sort=-field`.\n- Errors: `application/problem+json` (RFC 9457); validation errors map\n  field path → messages in `errors`.\n- Field actions accept `Idempotency-Key`; a replay returns the stored\n  response, a replay with a different body returns 422.\n- Updates are full replacements (PUT) unless stated otherwise.\n  `version` (from Postgres xmin) enables optimistic concurrency → 409.\n\n## Job status machine\n| from | allowed to |\n|---|---|\n| new | scheduled, cancelled |\n| scheduled | confirmed, en_route, new, cancelled |\n| confirmed | en_route, scheduled, cancelled |\n| en_route | on_site, scheduled |\n| on_site | completed (only via `/complete`), on_hold |\n| on_hold | new, scheduled, cancelled |\n| completed | invoiced, new (reopen, owner/dispatcher) |\n| invoiced | — |\n| cancelled | new (owner/dispatcher) |\n\n## Realtime (SignalR hub `/hubs/dispatch`)\nAuth via `?access_token=`. Server adds connection to groups `tenant:{id}`\nand, for technicians, `tech:{technicianId}`. Server → client events:\n`JobUpdated` (JobUpdatedEvent), `JobStatusChanged` (JobStatusChangedEvent),\n`RoutePlanPublished` (RoutePlanPublishedEvent), and for users with sales access `SalesThreadUpdated` (SalesThreadUpdatedEvent), `DealUpdated` (DealUpdatedEvent), `DraftReady` (DraftReadyEvent) in group `sales:{tenantId}`. Clients invalidate\nTanStack Query caches on receipt; payloads are intentionally thin.\n"
   },
   "servers": [
     {
@@ -65,6 +65,10 @@
     },
     {
       "name": "Reports"
+    },
+    {
+      "name": "Sales",
+      "description": "Sales module (plan feature `sales`). Every operation returns 403 with code `sales.not_enabled` when the plan lacks the feature and `sales.forbidden` when the user has no sales access (owners always have it; others need Member.canAccessSales). Personal mailboxes and their threads are visible only to their owner and tenant owners. AI never sends mail and never moves a deal on its own: it classifies, summarises, suggests and drafts. Error codes (ProblemDetails.code): 403 sales.not_enabled, sales.forbidden; 409 sales.mailbox_exists (address already connected), sales.mailbox_needs_reauth, mailbox.cannot_send (canSend false), sales.ai_disabled, thread.not_linked, sales.deal_already_converted, sales.stage_in_use (stage still has deals), sales.stage_required (a tenant always has exactly one active won and one active lost stage); 400 sales.lost_reason_required (validation, also in errors.lostReason); 422 mailbox.imap_failed or mailbox.smtp_failed (detail carries the server message); 429 sales.ai_quota_exceeded with Retry-After when the plan's monthly AI allowance is used up. A conversation that is in several connected mailboxes (e.g. info@ and a personal inbox in CC) is one thread; a user sees the messages from the mailboxes they can see. Push webhooks (/webhooks/gmail, /webhooks/microsoft-graph) are backend-only."
     }
   ],
   "paths": {
@@ -710,6 +714,10 @@
                   },
                   "isActive": {
                     "type": "boolean"
+                  },
+                  "canAccessSales": {
+                    "type": "boolean",
+                    "description": "Omit to keep. Ignored for owners."
                   }
                 }
               }
@@ -784,6 +792,10 @@
                   },
                   "role": {
                     "$ref": "#/components/schemas/Role"
+                  },
+                  "canAccessSales": {
+                    "type": "boolean",
+                    "default": false
                   }
                 }
               }
@@ -2093,6 +2105,32 @@
           },
           "409": {
             "$ref": "#/components/responses/Conflict"
+          }
+        }
+      }
+    },
+    "/jobs/{id}/report/print": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        }
+      ],
+      "get": {
+        "tags": [
+          "Field"
+        ],
+        "operationId": "printJobReport",
+        "summary": "Printable HTML work order (browser → Print → PDF). Stand-in until QuestPDF.",
+        "responses": {
+          "200": {
+            "description": "HTML",
+            "content": {
+              "text/html": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         }
       }
@@ -4024,7 +4062,402 @@
         }
       }
     },
-    "/jobs/{id}/report/print": {
+    "/sales/mailboxes": {
+      "get": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "listMailboxes",
+        "summary": "Mailboxes the caller may see (shared + own personal; owners see all).",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Mailbox"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/sales/mailboxes/oauth/start": {
+      "post": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "startMailboxOAuth",
+        "summary": "Start connecting a Gmail or Microsoft 365 mailbox.",
+        "description": "Returns the provider consent URL (PKCE, state bound to tenant + user, 10 min). The browser navigates there; the provider redirects to /sales/mailboxes/oauth/callback. Scopes: read + compose/draft + send. Owner only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MailboxOAuthStartRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MailboxOAuthStartResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/sales/mailboxes/oauth/callback": {
+      "get": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "completeMailboxOAuth",
+        "summary": "Provider redirect target. Not called by the frontend directly.",
+        "parameters": [
+          {
+            "name": "code",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "required": true
+          },
+          {
+            "name": "error",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "302": {
+            "description": "Redirect to {APP_URL}/sales/settings/mailboxes?connected={mailboxId} or ?error={code} (access_denied, wrong_account, already_connected (same as sales.mailbox_exists), provider_error)"
+          }
+        },
+        "security": []
+      }
+    },
+    "/sales/mailboxes/imap": {
+      "post": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "createImapMailbox",
+        "summary": "Connect any other mailbox with IMAP/SMTP. The server tests both connections before saving.",
+        "description": "Owner only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImapMailboxCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Connected",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Mailbox"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Connection test failed (code mailbox.imap_failed or mailbox.smtp_failed, detail has the server message)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "409": {
+            "description": "This address is already connected in the tenant (code sales.mailbox_exists)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sales/mailboxes/{id}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        }
+      ],
+      "put": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "updateMailbox",
+        "summary": "Rename, change kind/owner, pause or resume.",
+        "description": "Owner only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MailboxUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Mailbox"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "deleteMailbox",
+        "summary": "Disconnect: revoke the grant and stop syncing.",
+        "description": "Owner only. Deals stay.",
+        "parameters": [
+          {
+            "name": "purge",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            },
+            "description": "Also delete imported threads, messages and drafts"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Disconnected"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/sales/mailboxes/{id}/sync": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        }
+      ],
+      "post": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "syncMailbox",
+        "summary": "Ask for an immediate sync (normally every few minutes, or on provider push).",
+        "responses": {
+          "202": {
+            "description": "Queued"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/sales/threads": {
+      "get": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "listMailThreads",
+        "summary": "Inbox. Non-sales threads are returned only with isSales=false.",
+        "parameters": [
+          {
+            "name": "mailboxId",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/ThreadCategory"
+              }
+            },
+            "description": "Comma-separated",
+            "style": "form",
+            "explode": false
+          },
+          {
+            "name": "isSales",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "needsReview",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "awaitingReply",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "dealId",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          },
+          {
+            "name": "unlinked",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            },
+            "description": "Only sales threads not linked to a deal"
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Subject, participants, body"
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "lastMessageAt",
+                "-lastMessageAt"
+              ],
+              "default": "-lastMessageAt"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MailThreadSummaryPage"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/sales/threads/{id}": {
       "parameters": [
         {
           "$ref": "#/components/parameters/IdPath"
@@ -4032,20 +4465,1881 @@
       ],
       "get": {
         "tags": [
-          "Field"
+          "Sales"
         ],
-        "operationId": "printJobReport",
-        "summary": "Printable HTML work order (browser → Print → PDF). Stand-in until QuestPDF.",
+        "operationId": "getMailThread",
+        "summary": "Thread with messages (oldest first) and its drafts.",
         "responses": {
           "200": {
-            "description": "HTML",
+            "description": "OK",
             "content": {
-              "text/html": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MailThread"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/sales/threads/{id}/classification": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        }
+      ],
+      "put": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "updateThreadClassification",
+        "summary": "Correct the AI category.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClassificationUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MailThreadSummary"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/sales/threads/{id}/reprocess": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        }
+      ],
+      "post": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "reprocessMailThread",
+        "summary": "Run classification again (e.g. after failed or new settings).",
+        "responses": {
+          "202": {
+            "description": "Queued"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "409": {
+            "description": "AI disabled in settings or plan (code sales.ai_disabled)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Monthly AI allowance used up (code sales.ai_quota_exceeded); retry after Retry-After seconds",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sales/threads/{id}/link": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        }
+      ],
+      "post": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "linkMailThread",
+        "summary": "Link the thread to a deal, create a deal from it, or unlink.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ThreadLinkRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MailThreadSummary"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/sales/threads/{id}/exclude": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        }
+      ],
+      "post": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "excludeMailThread",
+        "summary": "Never process this sender or domain again.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ThreadExcludeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Rule created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExclusionRule"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/sales/threads/{id}/attachments": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        }
+      ],
+      "post": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "saveThreadAttachment",
+        "summary": "Download a mail attachment and save it to the linked deal (S3).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveAttachmentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Saved",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Attachment"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "description": "Thread not linked to a deal (code thread.not_linked)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/sales/threads/{id}/drafts": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        }
+      ],
+      "post": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "createDraft",
+        "summary": "Ask the AI for a reply or follow-up draft.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Draft created with status generating; DraftReady is pushed when done (poll GET /sales/drafts/{id} as fallback)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Draft"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "description": "AI disabled or mailbox cannot send (codes sales.ai_disabled, mailbox.cannot_send)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "429": {
+            "description": "Monthly AI allowance used up (code sales.ai_quota_exceeded); retry after Retry-After seconds",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/sales/board": {
+      "get": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "getSalesBoard",
+        "summary": "Kanban: stages with their deals.",
+        "parameters": [
+          {
+            "name": "ownerUserId",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "perStage",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SalesBoard"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/sales/deals": {
+      "get": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "listDeals",
+        "summary": "Deals list.",
+        "parameters": [
+          {
+            "name": "stageId",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          },
+          {
+            "name": "ownerUserId",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          },
+          {
+            "name": "clientId",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "open",
+                "won",
+                "lost"
+              ]
+            }
+          },
+          {
+            "name": "stale",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "awaitingReply",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Title, contact, client"
+          },
+          {
+            "$ref": "#/components/parameters/Page"
+          },
+          {
+            "$ref": "#/components/parameters/PageSize"
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "lastContactAt",
+                "-lastContactAt",
+                "value",
+                "-value",
+                "createdAt",
+                "-createdAt"
+              ],
+              "default": "-lastContactAt"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DealSummaryPage"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "createDeal",
+        "summary": "Create a deal manually (e.g. from a phone call).",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DealCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Deal"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/sales/deals/{id}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        }
+      ],
+      "get": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "getDeal",
+        "summary": "Deal with linked threads.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Deal"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "updateDeal",
+        "summary": "Edit deal fields (not the stage).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DealUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Deal"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "deleteDeal",
+        "summary": "Delete a deal created by mistake. Linked threads are unlinked, not deleted.",
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/sales/deals/{id}/move": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        }
+      ],
+      "post": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "moveDeal",
+        "summary": "Change stage (drag on the board). Lost stages need lostReason.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DealMoveRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Deal"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/sales/deals/{id}/convert": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        }
+      ],
+      "post": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "convertDeal",
+        "summary": "Won deal → client, location and job.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DealConvertRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Converted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DealConvertResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "description": "Already converted (deal.already_converted) or stale version",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/sales/deals/{id}/activities": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        }
+      ],
+      "get": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "listDealActivities",
+        "summary": "Timeline, newest first.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DealActivity"
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/sales/deals/{id}/notes": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        }
+      ],
+      "post": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "addDealNote",
+        "summary": "Add a note to the timeline.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DealNoteInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DealActivity"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/sales/deals/{id}/follow-up": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        }
+      ],
+      "post": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "updateDealFollowUp",
+        "summary": "Mark the follow-up done, snooze it, set or clear it.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FollowUpAction"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Deal"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/sales/drafts": {
+      "get": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "listDrafts",
+        "summary": "Drafts, e.g. everything ready for review.",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/DraftStatus"
+              }
+            },
+            "description": "Comma-separated; default generating,ready,edited"
+          },
+          {
+            "name": "dealId",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          },
+          {
+            "name": "threadId",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Draft"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/sales/drafts/{id}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        }
+      ],
+      "get": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "getDraft",
+        "summary": "Draft (poll while generating).",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Draft"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "updateDraft",
+        "summary": "Save edits (status becomes edited).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DraftUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Draft"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflict"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "discardDraft",
+        "summary": "Discard (also deletes the provider draft if saved).",
+        "responses": {
+          "204": {
+            "description": "Discarded"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/sales/drafts/{id}/save-to-mailbox": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        }
+      ],
+      "post": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "saveDraftToMailbox",
+        "summary": "Create or update the draft in the real mailbox (Gmail/Outlook Drafts), threaded as a reply.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Draft"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "description": "mailbox.cannot_send or mailbox.needs_reauth",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/sales/drafts/{id}/send": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        }
+      ],
+      "post": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "sendDraft",
+        "summary": "Send the draft as a reply in the thread. Only on an explicit user action; never automatic.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/IdempotencyKey"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "version"
+                ],
+                "properties": {
+                  "version": {
+                    "type": "integer"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Draft"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "description": "Already sent, stale version, or mailbox cannot send",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/sales/today": {
+      "get": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "getSalesToday",
+        "summary": "The daily list: follow-ups due, unanswered inquiries, prepared drafts, stale deals.",
+        "parameters": [
+          {
+            "name": "ownerUserId",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            },
+            "description": "Default: deals of the caller plus unowned shared-mailbox threads; owners may pass any user or omit for everyone"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SalesToday"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/sales/settings": {
+      "get": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "getSalesSettings",
+        "summary": "Sales settings.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SalesSettings"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "updateSalesSettings",
+        "summary": "Owner only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SalesSettings"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SalesSettings"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/sales/stages": {
+      "get": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "listSalesStages",
+        "summary": "Stages in board order.",
+        "parameters": [
+          {
+            "name": "includeInactive",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SalesStage"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "createSalesStage",
+        "summary": "Owner only. Appended before the won/lost stages.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SalesStageInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SalesStage"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/sales/stages/order": {
+      "put": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "reorderSalesStages",
+        "summary": "Owner only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StageOrder"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SalesStage"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/sales/stages/{id}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        }
+      ],
+      "put": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "updateSalesStage",
+        "summary": "Owner only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SalesStageInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SalesStage"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          },
+          "409": {
+            "description": "Would leave the tenant without exactly one active won and one active lost stage (code sales.stage_required)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "deleteSalesStage",
+        "summary": "Owner only. 409 while deals are in it (deactivate instead) or when it is the only won/lost stage.",
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "409": {
+            "description": "Would leave the tenant without exactly one active won and one active lost stage (code sales.stage_required), or the stage still has deals (code sales.stage_in_use)",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/sales/follow-up-rules": {
+      "get": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "listFollowUpRules",
+        "summary": "Follow-up rules.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FollowUpRule"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "createFollowUpRule",
+        "summary": "Owner only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FollowUpRuleInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FollowUpRule"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/sales/follow-up-rules/{id}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        }
+      ],
+      "put": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "updateFollowUpRule",
+        "summary": "Owner only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FollowUpRuleInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FollowUpRule"
+                }
+              }
+            }
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "deleteFollowUpRule",
+        "summary": "Owner only.",
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/sales/exclusions": {
+      "get": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "listExclusionRules",
+        "summary": "Senders/domains that are never processed.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ExclusionRule"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "createExclusionRule",
+        "summary": "Owner only.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExclusionRuleInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExclusionRule"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          },
+          "400": {
+            "$ref": "#/components/responses/ValidationError"
+          }
+        }
+      }
+    },
+    "/sales/exclusions/{id}": {
+      "parameters": [
+        {
+          "$ref": "#/components/parameters/IdPath"
+        }
+      ],
+      "delete": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "deleteExclusionRule",
+        "summary": "Owner only.",
+        "responses": {
+          "204": {
+            "description": "Deleted"
+          },
+          "404": {
+            "$ref": "#/components/responses/NotFound"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/sales/reports/summary": {
+      "get": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "getSalesReport",
+        "summary": "Conversion, time per stage, lost reasons.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/FromRequired"
+          },
+          {
+            "$ref": "#/components/parameters/ToRequired"
+          },
+          {
+            "name": "ownerUserId",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SalesReport"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          },
+          "403": {
+            "$ref": "#/components/responses/Forbidden"
+          }
+        }
+      }
+    },
+    "/webhooks/gmail": {
+      "post": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "gmailPushNotification",
+        "security": [],
+        "summary": "Gmail push via Google Pub/Sub. Verified by the Pub/Sub OIDC token (Authorization: Bearer, audience = this URL). Not called by the frontend.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "description": "Pub/Sub push envelope; message.data is base64 {emailAddress, historyId}.",
+                "additionalProperties": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Accepted; the mailbox sync is queued"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
+    "/webhooks/microsoft-graph": {
+      "post": {
+        "tags": [
+          "Sales"
+        ],
+        "operationId": "graphChangeNotification",
+        "security": [],
+        "summary": "Microsoft Graph change notifications. On subscription setup Graph sends ?validationToken=..., answered with the token as text/plain. Notifications are verified by clientState. Not called by the frontend.",
+        "parameters": [
+          {
+            "name": "validationToken",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "description": "Graph notification collection ({value: [{subscriptionId, clientState, resource, ...}]}).",
+                "additionalProperties": true
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Validation handshake: the validationToken echoed back",
+            "content": {
+              "text/plain": {
                 "schema": {
                   "type": "string"
                 }
               }
             }
+          },
+          "202": {
+            "description": "Accepted; the mailbox sync is queued"
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
           }
         }
       }
@@ -4352,7 +6646,8 @@
           "client",
           "location",
           "asset",
-          "job"
+          "job",
+          "deal"
         ]
       },
       "AttachmentKind": {
@@ -4737,7 +7032,7 @@
           },
           "features": {
             "type": "array",
-            "description": "Plan feature flags, e.g. `route_optimization`, `sms`",
+            "description": "Plan feature flags: `route_optimization`, `sms`, `sales`, `sales_ai`",
             "items": {
               "type": "string"
             }
@@ -4759,6 +7054,10 @@
                 }
               }
             }
+          },
+          "canAccessSales": {
+            "type": "boolean",
+            "description": "True when the plan has the `sales` feature and the user is an owner or has the membership permission. Drives the Prodaja menu."
           }
         }
       },
@@ -4976,6 +7275,19 @@
           },
           "optimizationsCount": {
             "type": "integer"
+          },
+          "aiClassifications": {
+            "type": "integer",
+            "description": "Sales threads classified"
+          },
+          "aiDrafts": {
+            "type": "integer"
+          },
+          "aiInputTokens": {
+            "type": "integer"
+          },
+          "aiOutputTokens": {
+            "type": "integer"
           }
         }
       },
@@ -5070,7 +7382,8 @@
           "email",
           "fullName",
           "role",
-          "isActive"
+          "isActive",
+          "canAccessSales"
         ],
         "properties": {
           "userId": {
@@ -5108,6 +7421,10 @@
               "null"
             ],
             "format": "date-time"
+          },
+          "canAccessSales": {
+            "type": "boolean",
+            "description": "Owners always have sales access"
           }
         }
       },
@@ -5146,6 +7463,9 @@
             ],
             "format": "uri",
             "description": "Only when the server has no SMTP configured, so the office can pass the link on by hand."
+          },
+          "canAccessSales": {
+            "type": "boolean"
           }
         }
       },
@@ -7721,6 +10041,2275 @@
           "date": {
             "type": "string",
             "format": "date"
+          }
+        }
+      },
+      "MailProvider": {
+        "type": "string",
+        "enum": [
+          "gmail",
+          "microsoft",
+          "imap"
+        ],
+        "description": "gmail = Google Workspace / Gmail API, microsoft = Microsoft 365 via Graph, imap = any other host (IMAP + SMTP)"
+      },
+      "MailboxKind": {
+        "type": "string",
+        "enum": [
+          "shared",
+          "personal"
+        ],
+        "description": "shared (e.g. info@) is visible to everyone with sales access; personal only to its owner and tenant owners"
+      },
+      "MailboxStatus": {
+        "type": "string",
+        "enum": [
+          "connecting",
+          "active",
+          "needs_reauth",
+          "error",
+          "disabled"
+        ]
+      },
+      "MailSecurity": {
+        "type": "string",
+        "enum": [
+          "ssl",
+          "starttls"
+        ]
+      },
+      "MessageDirection": {
+        "type": "string",
+        "enum": [
+          "inbound",
+          "outbound"
+        ]
+      },
+      "ThreadCategory": {
+        "type": "string",
+        "enum": [
+          "new_inquiry",
+          "quote_request",
+          "follow_up",
+          "negotiation",
+          "objection",
+          "accepted",
+          "declined",
+          "support",
+          "admin",
+          "spam",
+          "other"
+        ],
+        "description": "Sales categories: new_inquiry … declined. Non-sales: support (complaints, service for existing work), admin (invoices, suppliers, bank), spam, other."
+      },
+      "AiStatus": {
+        "type": "string",
+        "enum": [
+          "pending",
+          "done",
+          "failed",
+          "skipped"
+        ],
+        "description": "skipped = AI disabled, excluded sender, or plan without AI"
+      },
+      "ClassificationSource": {
+        "type": "string",
+        "enum": [
+          "ai",
+          "user"
+        ]
+      },
+      "SalesStageKind": {
+        "type": "string",
+        "enum": [
+          "open",
+          "won",
+          "lost"
+        ],
+        "description": "Exactly one active stage of kind won and one of kind lost per tenant"
+      },
+      "LostReason": {
+        "type": "string",
+        "enum": [
+          "price",
+          "timing",
+          "competitor",
+          "no_response",
+          "not_qualified",
+          "other"
+        ]
+      },
+      "DealSource": {
+        "type": "string",
+        "enum": [
+          "email",
+          "phone",
+          "manual",
+          "web"
+        ]
+      },
+      "DraftKind": {
+        "type": "string",
+        "enum": [
+          "reply",
+          "follow_up"
+        ]
+      },
+      "DraftStatus": {
+        "type": "string",
+        "enum": [
+          "generating",
+          "ready",
+          "edited",
+          "saved_to_mailbox",
+          "sent",
+          "discarded",
+          "failed"
+        ]
+      },
+      "DraftTone": {
+        "type": "string",
+        "enum": [
+          "formal",
+          "neutral",
+          "friendly"
+        ]
+      },
+      "ActorKind": {
+        "type": "string",
+        "enum": [
+          "user",
+          "ai",
+          "system"
+        ]
+      },
+      "DealActivityType": {
+        "type": "string",
+        "enum": [
+          "created",
+          "stage_changed",
+          "field_changed",
+          "note",
+          "email_in",
+          "email_out",
+          "draft_created",
+          "draft_sent",
+          "follow_up_snoozed",
+          "follow_up_done",
+          "thread_linked",
+          "thread_unlinked",
+          "converted"
+        ]
+      },
+      "TodayReason": {
+        "type": "string",
+        "enum": [
+          "follow_up_due",
+          "unanswered",
+          "stale"
+        ],
+        "description": "follow_up_due: our last message got no reply within the rule; unanswered: client wrote and nobody answered within the SLA; stale: no activity for the stage limit"
+      },
+      "MailAddress": {
+        "type": "object",
+        "required": [
+          "email"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "UserBrief": {
+        "type": "object",
+        "required": [
+          "id",
+          "fullName"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "fullName": {
+            "type": "string"
+          }
+        }
+      },
+      "ExtractedContact": {
+        "type": "object",
+        "required": [],
+        "properties": {
+          "name": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "email": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "email"
+          },
+          "phone": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Phone"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "companyName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "street": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "city": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "request": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "What the client wants, one or two sentences"
+          },
+          "preferredDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "budget": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "description": "Data the AI pulled out of the conversation. Never applied automatically; the UI offers it when creating a client or job."
+      },
+      "AiClassification": {
+        "type": "object",
+        "required": [
+          "category",
+          "source",
+          "isSales"
+        ],
+        "properties": {
+          "category": {
+            "$ref": "#/components/schemas/ThreadCategory"
+          },
+          "source": {
+            "$ref": "#/components/schemas/ClassificationSource"
+          },
+          "isSales": {
+            "type": "boolean"
+          },
+          "confidence": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Null when set by a user"
+          },
+          "summary": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "One sentence, in the tenant language"
+          },
+          "nextAction": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Suggested next step, e.g. \"Pošalji ponudu do petka\""
+          },
+          "suggestedStageId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "extracted": {
+            "$ref": "#/components/schemas/ExtractedContact"
+          },
+          "model": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "processedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        }
+      },
+      "Mailbox": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Timestamps"
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "provider",
+              "emailAddress",
+              "displayName",
+              "kind",
+              "status",
+              "syncFrom"
+            ],
+            "properties": {
+              "id": {
+                "$ref": "#/components/schemas/Id"
+              },
+              "provider": {
+                "$ref": "#/components/schemas/MailProvider"
+              },
+              "emailAddress": {
+                "type": "string",
+                "format": "email"
+              },
+              "displayName": {
+                "type": "string"
+              },
+              "kind": {
+                "$ref": "#/components/schemas/MailboxKind"
+              },
+              "owner": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/UserBrief"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "status": {
+                "$ref": "#/components/schemas/MailboxStatus"
+              },
+              "lastSyncedAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              },
+              "lastError": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Human-readable reason when status is error or needs_reauth"
+              },
+              "syncFrom": {
+                "type": "string",
+                "format": "date",
+                "description": "Mail older than this date is never imported"
+              },
+              "canSend": {
+                "type": "boolean",
+                "description": "False when the grant lacks send/draft permission"
+              }
+            }
+          }
+        ]
+      },
+      "MailboxUpdate": {
+        "type": "object",
+        "required": [
+          "displayName",
+          "kind",
+          "isActive"
+        ],
+        "properties": {
+          "displayName": {
+            "type": "string",
+            "minLength": 1
+          },
+          "kind": {
+            "$ref": "#/components/schemas/MailboxKind"
+          },
+          "ownerUserId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "isActive": {
+            "type": "boolean",
+            "description": "false pauses syncing (status disabled)"
+          }
+        },
+        "description": "syncFrom can only be set when connecting"
+      },
+      "MailboxOAuthStartRequest": {
+        "type": "object",
+        "required": [
+          "provider",
+          "kind"
+        ],
+        "properties": {
+          "provider": {
+            "type": "string",
+            "enum": [
+              "gmail",
+              "microsoft"
+            ]
+          },
+          "kind": {
+            "$ref": "#/components/schemas/MailboxKind"
+          },
+          "ownerUserId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Required for personal mailboxes; defaults to the caller"
+          },
+          "syncFrom": {
+            "type": "string",
+            "format": "date",
+            "description": "Defaults to 90 days ago"
+          },
+          "mailboxId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Set to re-authorise an existing mailbox (status needs_reauth)"
+          }
+        }
+      },
+      "MailboxOAuthStartResponse": {
+        "type": "object",
+        "required": [
+          "authorizeUrl"
+        ],
+        "properties": {
+          "authorizeUrl": {
+            "type": "string",
+            "format": "uri"
+          }
+        }
+      },
+      "ImapMailboxCreate": {
+        "type": "object",
+        "required": [
+          "emailAddress",
+          "kind",
+          "imapHost",
+          "imapPort",
+          "imapSecurity",
+          "smtpHost",
+          "smtpPort",
+          "smtpSecurity",
+          "username",
+          "password"
+        ],
+        "properties": {
+          "emailAddress": {
+            "type": "string",
+            "format": "email"
+          },
+          "displayName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "kind": {
+            "$ref": "#/components/schemas/MailboxKind"
+          },
+          "ownerUserId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "imapHost": {
+            "type": "string"
+          },
+          "imapPort": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          },
+          "imapSecurity": {
+            "$ref": "#/components/schemas/MailSecurity"
+          },
+          "smtpHost": {
+            "type": "string"
+          },
+          "smtpPort": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 65535
+          },
+          "smtpSecurity": {
+            "$ref": "#/components/schemas/MailSecurity"
+          },
+          "username": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string",
+            "format": "password",
+            "writeOnly": true,
+            "description": "App password. Encrypted at rest, never returned."
+          },
+          "syncFrom": {
+            "type": "string",
+            "format": "date"
+          }
+        }
+      },
+      "MailAttachment": {
+        "type": "object",
+        "required": [
+          "partId",
+          "fileName",
+          "mime",
+          "sizeBytes"
+        ],
+        "properties": {
+          "partId": {
+            "type": "string",
+            "description": "Provider attachment id within the message"
+          },
+          "fileName": {
+            "type": "string"
+          },
+          "mime": {
+            "type": "string"
+          },
+          "sizeBytes": {
+            "type": "integer"
+          },
+          "savedAttachmentId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Set once saved to a deal"
+          }
+        }
+      },
+      "MailMessage": {
+        "type": "object",
+        "required": [
+          "id",
+          "direction",
+          "from",
+          "to",
+          "sentAt",
+          "snippet",
+          "attachments"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "direction": {
+            "$ref": "#/components/schemas/MessageDirection"
+          },
+          "from": {
+            "$ref": "#/components/schemas/MailAddress"
+          },
+          "to": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MailAddress"
+            }
+          },
+          "cc": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MailAddress"
+            }
+          },
+          "subject": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "sentAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "snippet": {
+            "type": "string"
+          },
+          "bodyText": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Plain text with quoted history stripped. Null when the body is not stored (non-sales thread under the retention rules)."
+          },
+          "attachments": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MailAttachment"
+            }
+          }
+        }
+      },
+      "MailThreadSummary": {
+        "type": "object",
+        "required": [
+          "id",
+          "mailbox",
+          "subject",
+          "participants",
+          "snippet",
+          "messageCount",
+          "lastMessageAt",
+          "awaitingReply",
+          "hasAttachments",
+          "aiStatus",
+          "needsReview"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "mailbox": {
+            "type": "object",
+            "required": [
+              "id",
+              "emailAddress",
+              "kind"
+            ],
+            "properties": {
+              "id": {
+                "$ref": "#/components/schemas/Id"
+              },
+              "emailAddress": {
+                "type": "string",
+                "format": "email"
+              },
+              "kind": {
+                "$ref": "#/components/schemas/MailboxKind"
+              }
+            },
+            "description": "Mailbox the thread is shown under. When the same conversation is in several mailboxes (info@ and a personal inbox in CC) it is one thread; a shared mailbox is preferred here."
+          },
+          "subject": {
+            "type": "string"
+          },
+          "participants": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MailAddress"
+            }
+          },
+          "snippet": {
+            "type": "string",
+            "description": "Start of the last message"
+          },
+          "messageCount": {
+            "type": "integer"
+          },
+          "lastMessageAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "lastInboundAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "lastOutboundAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "awaitingReply": {
+            "type": "boolean",
+            "description": "Last message is inbound and unanswered"
+          },
+          "hasAttachments": {
+            "type": "boolean"
+          },
+          "aiStatus": {
+            "$ref": "#/components/schemas/AiStatus"
+          },
+          "classification": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/AiClassification"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "needsReview": {
+            "type": "boolean",
+            "description": "AI confidence below the review threshold and no user correction yet"
+          },
+          "deal": {
+            "oneOf": [
+              {
+                "type": "object",
+                "required": [
+                  "id",
+                  "title"
+                ],
+                "properties": {
+                  "id": {
+                    "$ref": "#/components/schemas/Id"
+                  },
+                  "title": {
+                    "type": "string"
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "client": {
+            "oneOf": [
+              {
+                "type": "object",
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "properties": {
+                  "id": {
+                    "$ref": "#/components/schemas/Id"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Existing client matched by email or phone"
+          }
+        }
+      },
+      "MailThreadSummaryPage": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PageMeta"
+          },
+          {
+            "type": "object",
+            "required": [
+              "items"
+            ],
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/MailThreadSummary"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "MailThread": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/MailThreadSummary"
+          },
+          {
+            "type": "object",
+            "required": [
+              "messages",
+              "drafts",
+              "mailboxes"
+            ],
+            "properties": {
+              "messages": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/MailMessage"
+                }
+              },
+              "drafts": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/Draft"
+                }
+              },
+              "mailboxes": {
+                "type": "array",
+                "description": "Every mailbox the user can see that contains this thread; drafts can be sent from any of them. Messages that exist only in mailboxes the user can't see (e.g. someone else's personal inbox) are not included in messages.",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "emailAddress",
+                    "kind",
+                    "canSend"
+                  ],
+                  "properties": {
+                    "id": {
+                      "$ref": "#/components/schemas/Id"
+                    },
+                    "emailAddress": {
+                      "type": "string",
+                      "format": "email"
+                    },
+                    "kind": {
+                      "$ref": "#/components/schemas/MailboxKind"
+                    },
+                    "canSend": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ]
+      },
+      "ClassificationUpdate": {
+        "type": "object",
+        "required": [
+          "category",
+          "isSales"
+        ],
+        "properties": {
+          "category": {
+            "$ref": "#/components/schemas/ThreadCategory"
+          },
+          "isSales": {
+            "type": "boolean"
+          }
+        },
+        "description": "User correction. Stored as feedback and used as an example for future classification in this tenant."
+      },
+      "ThreadLinkRequest": {
+        "type": "object",
+        "required": [],
+        "properties": {
+          "dealId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Link to an existing deal; null with no createDeal unlinks"
+          },
+          "createDeal": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/DealCreate"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "description": "Send exactly one of dealId or createDeal, or dealId: null to unlink."
+      },
+      "ThreadExcludeRequest": {
+        "type": "object",
+        "required": [],
+        "properties": {
+          "pattern": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Email address or \"@domain\". Defaults to the thread's external sender."
+          },
+          "purge": {
+            "type": "boolean",
+            "default": true,
+            "description": "Delete stored bodies and classification of matching threads"
+          }
+        }
+      },
+      "SaveAttachmentRequest": {
+        "type": "object",
+        "required": [
+          "messageId",
+          "partId"
+        ],
+        "properties": {
+          "messageId": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "partId": {
+            "type": "string"
+          }
+        }
+      },
+      "ExclusionRule": {
+        "type": "object",
+        "required": [
+          "id",
+          "pattern",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "pattern": {
+            "type": "string"
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "ExclusionRuleInput": {
+        "type": "object",
+        "required": [
+          "pattern"
+        ],
+        "properties": {
+          "pattern": {
+            "type": "string",
+            "pattern": "^(@[^@\\s]+\\.[^@\\s]+|[^@\\s]+@[^@\\s]+\\.[^@\\s]+)$",
+            "description": "name@example.com or @example.com"
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "SalesStageInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "color",
+          "kind",
+          "isActive"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 60
+          },
+          "color": {
+            "$ref": "#/components/schemas/HexColor"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/SalesStageKind"
+          },
+          "followUpDays": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "description": "Default days without a client reply before a follow-up is due in this stage"
+          },
+          "staleAfterDays": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 1,
+            "description": "Days without any activity before the deal shows as stale"
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        }
+      },
+      "SalesStage": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/SalesStageInput"
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "position"
+            ],
+            "properties": {
+              "id": {
+                "$ref": "#/components/schemas/Id"
+              },
+              "position": {
+                "type": "integer"
+              }
+            }
+          }
+        ]
+      },
+      "StageOrder": {
+        "type": "object",
+        "required": [
+          "stageIds"
+        ],
+        "properties": {
+          "stageIds": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Id"
+            },
+            "uniqueItems": true,
+            "description": "All stage ids in the new order"
+          }
+        }
+      },
+      "DealSummary": {
+        "type": "object",
+        "required": [
+          "id",
+          "title",
+          "stage",
+          "awaitingReply",
+          "isStale",
+          "threadCount",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "title": {
+            "type": "string"
+          },
+          "stage": {
+            "type": "object",
+            "required": [
+              "id",
+              "name",
+              "color",
+              "kind"
+            ],
+            "properties": {
+              "id": {
+                "$ref": "#/components/schemas/Id"
+              },
+              "name": {
+                "type": "string"
+              },
+              "color": {
+                "$ref": "#/components/schemas/HexColor"
+              },
+              "kind": {
+                "$ref": "#/components/schemas/SalesStageKind"
+              }
+            }
+          },
+          "client": {
+            "oneOf": [
+              {
+                "type": "object",
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "properties": {
+                  "id": {
+                    "$ref": "#/components/schemas/Id"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                }
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "contactName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "contactEmail": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "email"
+          },
+          "contactPhone": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Phone"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "value": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "owner": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/UserBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "lastContactAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "nextFollowUpAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "awaitingReply": {
+            "type": "boolean",
+            "description": "The client wrote last and nobody answered"
+          },
+          "isStale": {
+            "type": "boolean"
+          },
+          "threadCount": {
+            "type": "integer"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "DealSummaryPage": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/PageMeta"
+          },
+          {
+            "type": "object",
+            "required": [
+              "items"
+            ],
+            "properties": {
+              "items": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/DealSummary"
+                }
+              }
+            }
+          }
+        ]
+      },
+      "DealCreate": {
+        "type": "object",
+        "required": [
+          "title"
+        ],
+        "properties": {
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "stageId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Defaults to the first open stage"
+          },
+          "clientId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "contactName": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "contactEmail": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "email"
+          },
+          "contactPhone": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Any format in, E.164 out"
+          },
+          "value": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "expectedCloseDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "ownerUserId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Defaults to the caller"
+          },
+          "source": {
+            "$ref": "#/components/schemas/DealSource"
+          },
+          "notes": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "DealUpdate": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/DealCreate"
+          },
+          {
+            "type": "object",
+            "required": [
+              "version"
+            ],
+            "properties": {
+              "version": {
+                "type": "integer"
+              }
+            }
+          }
+        ],
+        "description": "Stage changes go through /move, not here."
+      },
+      "Deal": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/DealSummary"
+          },
+          {
+            "$ref": "#/components/schemas/Timestamps"
+          },
+          {
+            "type": "object",
+            "required": [
+              "source",
+              "threads",
+              "version"
+            ],
+            "properties": {
+              "source": {
+                "$ref": "#/components/schemas/DealSource"
+              },
+              "expectedCloseDate": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date"
+              },
+              "notes": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "lostReason": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/LostReason"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "lostNote": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "wonAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              },
+              "lostAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              },
+              "jobId": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid",
+                "description": "Job created by /convert"
+              },
+              "extracted": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/ExtractedContact"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "description": "Merged from the linked threads, newest first"
+              },
+              "threads": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/MailThreadSummary"
+                }
+              },
+              "version": {
+                "type": "integer"
+              }
+            }
+          }
+        ]
+      },
+      "DealMoveRequest": {
+        "type": "object",
+        "required": [
+          "stageId"
+        ],
+        "properties": {
+          "stageId": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "lostReason": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/LostReason"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Required when the target stage is of kind lost"
+          },
+          "lostNote": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "version": {
+            "type": "integer"
+          }
+        }
+      },
+      "DealConvertJob": {
+        "type": "object",
+        "required": [
+          "jobTypeId",
+          "title"
+        ],
+        "properties": {
+          "jobTypeId": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "priority": {
+            "$ref": "#/components/schemas/Priority"
+          },
+          "preferredDate": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date"
+          },
+          "windowStart": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/TimeOfDay"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "windowEnd": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/TimeOfDay"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "customFields": {
+            "$ref": "#/components/schemas/CustomFieldValues"
+          }
+        }
+      },
+      "DealConvertRequest": {
+        "type": "object",
+        "required": [
+          "job"
+        ],
+        "properties": {
+          "clientId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Existing client; otherwise send newClient"
+          },
+          "newClient": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/ClientCreate"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "locationId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Existing location of clientId; with newClient, firstLocation is used"
+          },
+          "job": {
+            "$ref": "#/components/schemas/DealConvertJob"
+          },
+          "markWon": {
+            "type": "boolean",
+            "default": true
+          },
+          "version": {
+            "type": "integer"
+          }
+        },
+        "description": "Creates (or reuses) the client and location and a job in status new, in one transaction. Attachments saved to the deal are copied to the job."
+      },
+      "DealConvertResult": {
+        "type": "object",
+        "required": [
+          "deal",
+          "clientId",
+          "locationId",
+          "jobId"
+        ],
+        "properties": {
+          "deal": {
+            "$ref": "#/components/schemas/Deal"
+          },
+          "clientId": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "locationId": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "jobId": {
+            "$ref": "#/components/schemas/Id"
+          }
+        }
+      },
+      "DealActivity": {
+        "type": "object",
+        "required": [
+          "id",
+          "type",
+          "actorKind",
+          "at"
+        ],
+        "properties": {
+          "id": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "type": {
+            "$ref": "#/components/schemas/DealActivityType"
+          },
+          "actorKind": {
+            "$ref": "#/components/schemas/ActorKind"
+          },
+          "actor": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/UserBrief"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "text": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Note text or a short description"
+          },
+          "data": {
+            "type": "object",
+            "additionalProperties": true,
+            "description": "Type-specific details, e.g. {fromStageId, toStageId} or {threadId, messageId}"
+          }
+        }
+      },
+      "DealNoteInput": {
+        "type": "object",
+        "required": [
+          "text"
+        ],
+        "properties": {
+          "text": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 5000
+          }
+        }
+      },
+      "FollowUpAction": {
+        "type": "object",
+        "required": [
+          "action"
+        ],
+        "properties": {
+          "action": {
+            "type": "string",
+            "enum": [
+              "done",
+              "snooze",
+              "set",
+              "clear"
+            ]
+          },
+          "until": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Required for snooze and set"
+          },
+          "note": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "SalesBoardColumn": {
+        "type": "object",
+        "required": [
+          "stage",
+          "deals",
+          "totalCount"
+        ],
+        "properties": {
+          "stage": {
+            "$ref": "#/components/schemas/SalesStage"
+          },
+          "deals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DealSummary"
+            }
+          },
+          "totalCount": {
+            "type": "integer"
+          },
+          "totalValue": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        }
+      },
+      "SalesBoard": {
+        "type": "object",
+        "required": [
+          "columns"
+        ],
+        "properties": {
+          "columns": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SalesBoardColumn"
+            }
+          }
+        },
+        "description": "Open stages in order, then won and lost. Won/lost columns hold only the last 30 days."
+      },
+      "Draft": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Timestamps"
+          },
+          {
+            "type": "object",
+            "required": [
+              "id",
+              "threadId",
+              "mailboxId",
+              "kind",
+              "status",
+              "subject",
+              "bodyText",
+              "to",
+              "cc",
+              "version"
+            ],
+            "properties": {
+              "id": {
+                "$ref": "#/components/schemas/Id"
+              },
+              "threadId": {
+                "$ref": "#/components/schemas/Id"
+              },
+              "dealId": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "uuid"
+              },
+              "mailboxId": {
+                "$ref": "#/components/schemas/Id"
+              },
+              "kind": {
+                "$ref": "#/components/schemas/DraftKind"
+              },
+              "status": {
+                "$ref": "#/components/schemas/DraftStatus"
+              },
+              "subject": {
+                "type": "string"
+              },
+              "bodyText": {
+                "type": "string",
+                "description": "Empty while status is generating"
+              },
+              "to": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/MailAddress"
+                }
+              },
+              "cc": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/MailAddress"
+                }
+              },
+              "instructions": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "error": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Set when status is failed"
+              },
+              "aiModel": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "createdBy": {
+                "oneOf": [
+                  {
+                    "$ref": "#/components/schemas/UserBrief"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "sentAt": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "format": "date-time"
+              },
+              "version": {
+                "type": "integer"
+              }
+            }
+          }
+        ]
+      },
+      "DraftCreateRequest": {
+        "type": "object",
+        "required": [
+          "kind"
+        ],
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/DraftKind"
+          },
+          "instructions": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 1000,
+            "description": "Extra guidance, e.g. \"ponudi termin u utorak, cijena 1.200 €\""
+          },
+          "mailboxId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Send from this mailbox; must be one of MailThread.mailboxes (else 400). Default: the thread's mailbox."
+          }
+        }
+      },
+      "DraftUpdate": {
+        "type": "object",
+        "required": [
+          "subject",
+          "bodyText",
+          "to",
+          "cc",
+          "version"
+        ],
+        "properties": {
+          "subject": {
+            "type": "string",
+            "minLength": 1
+          },
+          "bodyText": {
+            "type": "string",
+            "minLength": 1
+          },
+          "to": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/components/schemas/MailAddress"
+            }
+          },
+          "cc": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MailAddress"
+            }
+          },
+          "version": {
+            "type": "integer"
+          }
+        }
+      },
+      "SalesTodayItem": {
+        "type": "object",
+        "required": [
+          "reason",
+          "thread"
+        ],
+        "properties": {
+          "reason": {
+            "$ref": "#/components/schemas/TodayReason"
+          },
+          "thread": {
+            "$ref": "#/components/schemas/MailThreadSummary"
+          },
+          "deal": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/DealSummary"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "dueAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "draft": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Draft"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Prepared follow-up or reply, when the rule creates one"
+          }
+        }
+      },
+      "SalesToday": {
+        "type": "object",
+        "required": [
+          "date",
+          "items",
+          "needsReviewCount",
+          "mailboxesNeedingAttention"
+        ],
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "description": "Tenant-local today"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SalesTodayItem"
+            },
+            "description": "Overdue first, then by due time"
+          },
+          "staleDeals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DealSummary"
+            }
+          },
+          "needsReviewCount": {
+            "type": "integer"
+          },
+          "mailboxesNeedingAttention": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Mailbox"
+            },
+            "description": "needs_reauth or error"
+          }
+        }
+      },
+      "SalesSettings": {
+        "type": "object",
+        "required": [
+          "aiEnabled",
+          "tone",
+          "replyLanguage",
+          "responseSlaHours",
+          "digestEnabled",
+          "digestTime",
+          "storeNonSalesBodies"
+        ],
+        "properties": {
+          "aiEnabled": {
+            "type": "boolean"
+          },
+          "signature": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "tone": {
+            "$ref": "#/components/schemas/DraftTone"
+          },
+          "replyLanguage": {
+            "type": "string",
+            "description": "\"auto\" (reply in the client's language) or a BCP-47 tag"
+          },
+          "knowledge": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 20000,
+            "description": "Services, prices, terms, typical lead times. The only business facts drafts may use."
+          },
+          "responseSlaHours": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 168
+          },
+          "digestEnabled": {
+            "type": "boolean"
+          },
+          "digestTime": {
+            "$ref": "#/components/schemas/TimeOfDay"
+          },
+          "digestRecipientIds": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Id"
+            }
+          },
+          "storeNonSalesBodies": {
+            "type": "boolean",
+            "default": false,
+            "description": "When false, only metadata is kept for threads classified as non-sales"
+          },
+          "retentionDays": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "minimum": 30,
+            "description": "Delete bodies of threads with no activity for this long; null = keep"
+          },
+          "reviewThreshold": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "default": 0.7
+          }
+        }
+      },
+      "FollowUpRuleInput": {
+        "type": "object",
+        "required": [
+          "name",
+          "daysWithoutReply",
+          "createDraft",
+          "isActive"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "stageId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid",
+            "description": "Null = all open stages"
+          },
+          "daysWithoutReply": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 90,
+            "description": "Business days after our last outbound message with no client reply"
+          },
+          "createDraft": {
+            "type": "boolean",
+            "description": "Prepare an AI follow-up draft when the rule fires"
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        }
+      },
+      "FollowUpRule": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/FollowUpRuleInput"
+          },
+          {
+            "type": "object",
+            "required": [
+              "id"
+            ],
+            "properties": {
+              "id": {
+                "$ref": "#/components/schemas/Id"
+              }
+            }
+          }
+        ]
+      },
+      "SalesReport": {
+        "type": "object",
+        "required": [
+          "from",
+          "to",
+          "dealsCreated",
+          "dealsWon",
+          "dealsLost",
+          "stageTimes",
+          "lostReasons",
+          "bySource"
+        ],
+        "properties": {
+          "from": {
+            "type": "string",
+            "format": "date"
+          },
+          "to": {
+            "type": "string",
+            "format": "date"
+          },
+          "dealsCreated": {
+            "type": "integer"
+          },
+          "dealsWon": {
+            "type": "integer"
+          },
+          "dealsLost": {
+            "type": "integer"
+          },
+          "winRate": {
+            "type": [
+              "number",
+              "null"
+            ],
+            "description": "won / (won + lost); null when nothing closed"
+          },
+          "openValue": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "wonValue": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/Money"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "medianFirstResponseMinutes": {
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "stageTimes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "stageId",
+                "name",
+                "avgDays"
+              ],
+              "properties": {
+                "stageId": {
+                  "$ref": "#/components/schemas/Id"
+                },
+                "name": {
+                  "type": "string"
+                },
+                "avgDays": {
+                  "type": "number"
+                }
+              }
+            }
+          },
+          "lostReasons": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "reason",
+                "count"
+              ],
+              "properties": {
+                "reason": {
+                  "$ref": "#/components/schemas/LostReason"
+                },
+                "count": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "bySource": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "source",
+                "created",
+                "won"
+              ],
+              "properties": {
+                "source": {
+                  "$ref": "#/components/schemas/DealSource"
+                },
+                "created": {
+                  "type": "integer"
+                },
+                "won": {
+                  "type": "integer"
+                }
+              }
+            }
+          }
+        }
+      },
+      "SalesThreadUpdatedEvent": {
+        "type": "object",
+        "required": [
+          "threadId"
+        ],
+        "properties": {
+          "threadId": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "dealId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          }
+        }
+      },
+      "DealUpdatedEvent": {
+        "type": "object",
+        "required": [
+          "dealId"
+        ],
+        "properties": {
+          "dealId": {
+            "$ref": "#/components/schemas/Id"
+          }
+        }
+      },
+      "DraftReadyEvent": {
+        "type": "object",
+        "required": [
+          "draftId",
+          "threadId",
+          "status"
+        ],
+        "properties": {
+          "draftId": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "threadId": {
+            "$ref": "#/components/schemas/Id"
+          },
+          "status": {
+            "$ref": "#/components/schemas/DraftStatus"
           }
         }
       }

@@ -54,6 +54,18 @@ import type { AuthContext } from './auth'
 import { visibleCustomFields } from './custom-fields'
 import { allowedTransitions } from './job-machine'
 
+/** Owners always have sales access; others need the membership permission (and the plan feature). */
+export function hasSalesAccess(
+  features: string[],
+  membership: Pick<MembershipRow, 'role' | 'canAccessSales'> | undefined,
+): boolean {
+  return (
+    features.includes('sales') &&
+    membership !== undefined &&
+    (membership.role === 'owner' || membership.canAccessSales)
+  )
+}
+
 export const PLAN_FEATURES: Record<string, string[]> = {
   trial: ['route_optimization', 'sms'],
   basic: ['sms'],
@@ -77,6 +89,7 @@ export function tenantBrief(t: TenantData): TenantBrief {
 
 export function presentMe(db: MockDb, auth: AuthContext): Me {
   const memberships = db.memberships.filter((m) => m.userId === auth.user.id && m.isActive)
+  const features = PLAN_FEATURES[auth.t.tenant.plan] ?? []
   return {
     user: {
       id: auth.user.id,
@@ -87,7 +100,11 @@ export function presentMe(db: MockDb, auth: AuthContext): Me {
     tenant: tenantBrief(auth.t),
     role: auth.role,
     technicianId: auth.technicianId,
-    features: PLAN_FEATURES[auth.t.tenant.plan] ?? [],
+    features,
+    canAccessSales: hasSalesAccess(
+      features,
+      memberships.find((m) => m.tenantId === auth.tenantId),
+    ),
     memberships: memberships.flatMap((m) => {
       const t = db.tenants[m.tenantId]
       return t ? [{ tenant: tenantBrief(t), role: m.role }] : []
@@ -121,6 +138,7 @@ export function presentMember(db: MockDb, t: TenantData, membership: MembershipR
     phone: user.phone,
     role: membership.role,
     isActive: membership.isActive,
+    canAccessSales: membership.role === 'owner' || membership.canAccessSales,
     technicianId: t.technicians.find((tech) => tech.userId === user.id)?.id ?? null,
     lastLoginAt: user.lastLoginAt,
   }

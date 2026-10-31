@@ -144,6 +144,20 @@ Each step adds the mock handlers its screens need, as `CLAUDE.md` requires.
   - Mock: `/public/jobs/{token}` (get, confirm, request for another time; the office is told through the hub), `/messages`, `/jobs/{id}/notify` (renders the template with the job's data and the link; delivery over a few seconds; usage counted), seeded past messages for both tenants including a failed and a refused one, preview with a job.
   - Backend question #51. Playwright for both tenants: the office texts a link, the client confirms or asks for another time on a phone in another tab, the office sees it; wrong link; all messages and the failed ones.
 
+## v2: Sales module (Prodaja)
+
+Spec 0.3.1 (`Sales` tag). Backend not deployed yet: everything is built on MSW mocks that follow the contract, so switching `VITE_API_MOCK=false` needs no code change. Rules: `CLAUDE.md` → "Modul Prodaja". Each step has Vitest for its logic, Playwright for its flow (both tenants) and loading/empty/error states.
+
+- [x] **S1: setup.** Spec 0.2.0 → 0.3.1 (diff checked), regenerated client, mocks fixed for `canAccessSales` (members, `/me`, invitations) and the AI usage counters, `schemas/schema.md` Sales section, CLAUDE.md rules and slices.
+- [ ] **S2: entities and mock handlers** for the whole Sales tag; seed for both tenants.
+- [ ] **S3: access.** Prodaja in the office rail, route guard, `canAccessSales` switch on the team screen (owner always, technician never).
+- [ ] **S4: funnel.** Board (drag and drop, optimistic move with rollback, lost asks for a reason, won offers conversion), deal detail (version/409, timeline, notes, follow-up, attachments), manual new deal, conversion to client + location + job, stage settings.
+- [ ] **S5: mailboxes.** List with status, error and last sync; OAuth connect (mock redirects at once with `?connected=`); IMAP form with 422; needs_reauth banner and "Ponovno spoji"; disconnect with confirmation and purge option.
+- [ ] **S6: inbox and conversation.** Sales / Za pregled / Čeka odgovor / Sve, filters; AI card, one-click correction, create/link deal, exclude sender, save attachment to deal, only messages from visible mailboxes.
+- [ ] **S7: drafts and Today.** Editor, sending mailbox, Pošalji (confirm recipients), Spremi u sandučić, Odgodi, `DraftReady`, 429 AI quota.
+- [ ] **S8: other settings and report.** AI and knowledge, tone, signature, language, threshold, digest, retention, follow-up rules, exclusions; sales report.
+- [ ] **S9: realtime, mobile, readiness.** Sales event invalidation, mobile (Today and Deal in one column, funnel as a list), Playwright main flow for both tenants, "ready for backend" check (no mock imports outside `shared/api/mocks`, no mock-only behaviour).
+
 ## Separate
 
 - [ ] **Step 4 against the real backend:** sign-in, session and app shell on the live API. Blocked on seeded demo accounts (`docs/backend-questions.md` #20).

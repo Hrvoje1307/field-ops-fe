@@ -38,10 +38,10 @@
  * Auth via `?access_token=`. Server adds connection to groups `tenant:{id}`
  * and, for technicians, `tech:{technicianId}`. Server → client events:
  * `JobUpdated` (JobUpdatedEvent), `JobStatusChanged` (JobStatusChangedEvent),
- * `RoutePlanPublished` (RoutePlanPublishedEvent). Clients invalidate
+ * `RoutePlanPublished` (RoutePlanPublishedEvent), and for users with sales access `SalesThreadUpdated` (SalesThreadUpdatedEvent), `DealUpdated` (DealUpdatedEvent), `DraftReady` (DraftReadyEvent) in group `sales:{tenantId}`. Clients invalidate
  * TanStack Query caches on receipt; payloads are intentionally thin.
  *
- * OpenAPI spec version: 0.2.0
+ * OpenAPI spec version: 0.3.1
  */
 import type {
   AddJobMaterialHeaders,
@@ -166,6 +166,23 @@ export const saveJobReport = async (
     method: 'PUT',
     headers: { 'Content-Type': 'application/json', ...headers, ...getHeaders(options?.headers) },
     body: JSON.stringify(jobReportInput),
+  })
+}
+
+export const getPrintJobReportUrl = (id: string) => {
+  return `/jobs/${id}/report/print`
+}
+
+/**
+ * @summary Printable HTML work order (browser → Print → PDF). Stand-in until QuestPDF.
+ */
+export const printJobReport = async (
+  id: string,
+  options?: Parameters<typeof customFetch>[1],
+): Promise<string> => {
+  return customFetch<string>(getPrintJobReportUrl(id), {
+    ...options,
+    method: 'GET',
   })
 }
 
@@ -392,22 +409,5 @@ export const completeJob = async (
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...headers, ...getHeaders(options?.headers) },
     body: JSON.stringify(completeJobBody),
-  })
-}
-
-export const getPrintJobReportUrl = (id: string) => {
-  return `/jobs/${id}/report/print`
-}
-
-/**
- * @summary Printable HTML work order (browser → Print → PDF). Stand-in until QuestPDF.
- */
-export const printJobReport = async (
-  id: string,
-  options?: Parameters<typeof customFetch>[1],
-): Promise<string> => {
-  return customFetch<string>(getPrintJobReportUrl(id), {
-    ...options,
-    method: 'GET',
   })
 }

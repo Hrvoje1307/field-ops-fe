@@ -1,6 +1,6 @@
 # FieldOps — database schema
 
-Postgres 15+ on Supabase. 38 tables in schema `fieldops`. Generated from `schema.sql` (the source of truth — EF migrations should reproduce it).
+Postgres 15+ on Supabase. 38 tables in schema `fieldops`, plus 14 for Sales (see [Sales](#sales), migration `sales_schema.sql`, API 0.3.1). Generated from `schema.sql` (the source of truth — EF migrations should reproduce it).
 
 ## Rules that apply everywhere
 
@@ -12,6 +12,7 @@ Postgres 15+ on Supabase. 38 tables in schema `fieldops`. Generated from `schema
 - **Enums** are plain text with a check. The allowed values are listed in the notes.
 - **Money** is `numeric(12,2)`. Never float.
 - **Concurrency.** Rows use Postgres `xmin` as the version, which is exposed as `version` in the API.
+- **✎ marks** an existing table or column changed by the Sales migration.
 - **Hangfire** creates its own tables in schema `hangfire`.
 
 ## Relationships at a glance
@@ -91,7 +92,7 @@ Global login accounts. A user can belong to several tenants.
 
 Unique: (email  _(only not deleted)_) · (external_id  _(only external_id set)_)
 
-### `tenant_memberships`
+### `tenant_memberships` ✎
 
 User ↔ tenant link. **The role lives here**, not on the user.
 
@@ -102,6 +103,7 @@ User ↔ tenant link. **The role lives here**, not on the user.
 | user_id | uuid | → `users` |
 | role | text | owner \| dispatcher \| technician |
 | is_active | boolean | default `true` |
+| can_access_sales | boolean | ✎ default `false`; owners always have access regardless (`Member.canAccessSales`) |
 | created_at | timestamptz | default `now()` |
 | updated_at | timestamptz | default `now()` |
 
@@ -127,7 +129,7 @@ Rotating refresh tokens. Reusing an old one revokes the whole family (theft dete
 
 Unique: (token_hash)
 
-### `user_invitations`
+### `user_invitations` ✎
 
 Pending email invites to join a tenant.
 
@@ -137,6 +139,7 @@ Pending email invites to join a tenant.
 | tenant_id | uuid | → `tenants` |
 | email | citext |  |
 | role | text | owner \| dispatcher \| technician |
+| can_access_sales | boolean | ✎ default `false`; applied to the new membership when the invite is accepted (expected; not stated in the SQL) |
 | token_hash | bytea |  |
 | invited_by | uuid | → `users` |
 | expires_at | timestamptz |  |
@@ -574,7 +577,7 @@ Field report: work done, times, signature, generated PDF. One per job.
 
 ## Files
 
-### `attachments`
+### `attachments` ✎
 
 Photos, signatures, PDFs, logos. The file itself lives in S3; this is the metadata. `owner_type` + `owner_id` say what it belongs to.
 
@@ -582,7 +585,7 @@ Photos, signatures, PDFs, logos. The file itself lives in S3; this is the metada
 |---|---|---|
 | id | uuid | **PK** |
 | tenant_id | uuid | → `tenants` |
-| owner_type | text | tenant \| client \| location \| asset \| job |
+| owner_type | text | tenant \| client \| location \| asset \| job \| deal ✎ |
 | owner_id | uuid | polymorphic, no FK |
 | kind | text | photo \| signature \| pdf \| doc \| logo |
 | storage_key | text | {tenantId}/{ownerType}/{ownerId}/{fileId} |
@@ -727,9 +730,9 @@ Who changed what, with a JSON diff. Also logs reads of sensitive fields.
 | diff | jsonb? |  |
 | at | timestamptz | default `now()` |
 
-### `usage_counters`
+### `usage_counters` ✎
 
-Monthly SMS / optimisation usage per tenant (for billing).
+Monthly SMS / optimisation / AI usage per tenant (for billing).
 
 | column | type | notes |
 |---|---|---|
@@ -739,6 +742,10 @@ Monthly SMS / optimisation usage per tenant (for billing).
 | sms_cost | numeric(12,4) | default `0` |
 | email_count | integer | default `0` |
 | optimizations_count | integer | default `0` |
+| ai_classifications | integer | ✎ default `0`; threads classified (`Usage.aiClassifications`) |
+| ai_drafts | integer | ✎ default `0` |
+| ai_input_tokens | bigint | ✎ default `0` |
+| ai_output_tokens | bigint | ✎ default `0` |
 
 Primary key: (tenant_id, month)
 
@@ -758,5 +765,278 @@ Stores responses to field actions so a double-tap or retry on weak signal doesn'
 
 Primary key: (tenant_id, user_id, key)
 
+## Sales
+
+Module "Prodaja" (plan feature `sales`; AI parts need `sales_ai`). Source: `schemas/sales_schema.sql`, applied on top of the base schema. This section explains what the fields mean; API shapes are in `openapi/openapi.json`. Same conventions as above: every table has `tenant_id`, children reference `(tenant_id, id)` so a row can never point at another tenant's data, owners/users that must belong to the tenant reference `tenant_memberships (tenant_id, user_id)`, version is `xmin`. Emails and patterns are stored lower-case.
+
+```
+tenant ─┬─ mailboxes ──┬─ mail_thread_mailboxes ─┐
+        │              └─ mail_message_mailboxes ┤
+        ├─ mail_threads ── mail_messages ────────┘
+        │        ├─ mail_drafts ◄── follow_up_rules
+        │        └─ ai_feedback
+        ├─ sales_stages ── deals ── deal_activities
+        │                    └─ (job, client, attachments owner_type = deal)
+        ├─ mail_exclusion_rules
+        └─ sales_settings (one row)
+```
+
+**Visibility.** A conversation in several connected mailboxes (e.g. `info@` and a personal inbox in CC) is **one** thread and one message per tenant; the per-mailbox provider ids live in `mail_thread_mailboxes` / `mail_message_mailboxes`. A message is visible when at least one of its mailboxes is visible to the user, a thread likewise. Personal mailboxes are visible only to their owner and tenant owners, so a reply sent only from a personal inbox stays private even when the rest of the conversation is in a shared one. `mail_threads.mailbox_id` is the mailbox the thread is shown under (shared preferred).
+
+### `mailboxes` ✦
+
+A connected mailbox (OAuth for Gmail / Microsoft, or IMAP+SMTP).
+
+| column | type | notes |
+|---|---|---|
+| id | uuid | **PK** |
+| tenant_id | uuid | → `tenants` |
+| provider | text | gmail \| microsoft \| imap |
+| email_address | text | lower-case; unique per tenant among non-deleted |
+| display_name | text |  |
+| kind | text | shared \| personal |
+| owner_user_id | uuid? | → `tenant_memberships`; required when `kind` = personal |
+| status | text | connecting \| active \| needs_reauth \| error \| disabled; default `connecting` |
+| credentials_enc | bytea | AES-GCM, key outside the database; never in the API |
+| imap_host, smtp_host | text? | required for provider imap |
+| imap_port, smtp_port | integer? | 1–65535; required for provider imap |
+| imap_security, smtp_security | text? | ssl \| starttls |
+| can_send | boolean | default `false`; `false` → 409 `mailbox.cannot_send` |
+| sync_from | date | how far back the first sync reads |
+| sync_cursor | jsonb? | historyId / deltaLink / per-folder uidvalidity+uid |
+| push_subscription | jsonb? | Gmail watch / Graph subscription with expiry |
+| last_synced_at | timestamptz? |  |
+| last_error | text? |  |
+| created_by | uuid? | → `users` |
+
+### `mailbox_oauth_states`
+
+Short-lived state for the OAuth round trip (start → callback). Backend only.
+
+| column | type | notes |
+|---|---|---|
+| id | uuid | **PK** |
+| tenant_id, user_id | uuid | → `tenant_memberships` |
+| state_hash | bytea | unique |
+| provider | text | gmail \| microsoft |
+| code_verifier_enc | bytea | PKCE verifier |
+| request | jsonb | kind, ownerUserId, syncFrom, mailboxId (reconnect) |
+| expires_at, used_at | timestamptz | used_at null until the callback |
+| created_at | timestamptz |  |
+
+### `sales_stages` ✦
+
+Funnel stages, per tenant and editable.
+
+| column | type | notes |
+|---|---|---|
+| id | uuid | **PK** |
+| tenant_id | uuid | → `tenants` |
+| name | text | unique per tenant (case-insensitive) among non-deleted |
+| color | char(7) | `#rrggbb`; default `#64748b` |
+| position | smallint | board order |
+| kind | text | open \| won \| lost |
+| follow_up_days | smallint? | default follow-up distance for deals entering the stage |
+| stale_after_days | smallint? | days in stage before a deal counts as stale |
+| is_active | boolean | default `true` |
+
+A tenant with stages always has **exactly one active won and one active lost** stage (deferred constraint trigger); violating it is 409 `sales.stage_required`.
+
+### `deals` ✦
+
+An opportunity.
+
+| column | type | notes |
+|---|---|---|
+| id | uuid | **PK** |
+| tenant_id | uuid | → `tenants` |
+| title | text |  |
+| stage_id | uuid | → `sales_stages` |
+| client_id | uuid? | → `clients`; set by linking or conversion |
+| contact_name, contact_email, contact_phone | text? | email lower-case, phone E.164 |
+| value | numeric(12,2)? | money, decimal string in the API |
+| currency | char(3) | default `EUR` |
+| expected_close_date | date? |  |
+| owner_user_id | uuid? | → `tenant_memberships` |
+| source | text | email \| phone \| manual \| web; default `email` |
+| notes | text? |  |
+| lost_reason | text? | price \| timing \| competitor \| no_response \| not_qualified \| other; required when `lost_at` is set |
+| lost_note | text? |  |
+| won_at, lost_at | timestamptz? |  |
+| stage_entered_at | timestamptz | drives "days in stage" |
+| last_contact_at | timestamptz? |  |
+| next_follow_up_at | timestamptz? | drives follow-up due and the Today list |
+| job_id | uuid? | → `jobs`; set on conversion, unique (a job belongs to at most one deal) |
+| extracted | jsonb | what the AI extracted from the conversation |
+| created_by | uuid? | → `users` |
+
+### `deal_activities`
+
+Timeline of a deal.
+
+| column | type | notes |
+|---|---|---|
+| id | uuid | **PK** |
+| tenant_id, deal_id | uuid | → `deals` |
+| type | text | created \| stage_changed \| field_changed \| note \| email_in \| email_out \| draft_created \| draft_sent \| follow_up_snoozed \| follow_up_done \| thread_linked \| thread_unlinked \| converted |
+| actor_kind | text | user \| ai \| system |
+| actor_user_id | uuid? | → `users`; required when `actor_kind` = user |
+| text | text? |  |
+| data | jsonb | type-specific details |
+| at | timestamptz | default `now()` |
+
+### `mail_threads` ✦
+
+One conversation per tenant, across mailboxes. Holds the AI result.
+
+| column | type | notes |
+|---|---|---|
+| id | uuid | **PK** |
+| tenant_id | uuid | → `tenants` |
+| mailbox_id | uuid | → `mailboxes`; the mailbox it is shown under |
+| subject, snippet | text |  |
+| participants | jsonb | list of addresses |
+| message_count | integer |  |
+| has_attachments | boolean |  |
+| last_message_at | timestamptz |  |
+| last_inbound_at, last_outbound_at | timestamptz? |  |
+| awaiting_reply | boolean | waiting for the client's answer (we wrote last; exact rule is the backend's) |
+| ai_status | text | pending \| done \| failed \| skipped; default `pending` |
+| category | text? | new_inquiry \| quote_request \| follow_up \| negotiation \| objection \| accepted \| declined \| support \| admin \| spam \| other |
+| category_source | text? | ai \| user (a user's correction wins) |
+| category_confidence | numeric(3,2)? | 0–1; below `sales_settings.review_threshold` the thread goes to "Za pregled" |
+| is_sales | boolean? | null = not decided yet |
+| summary, next_action | text? | AI suggestions; never acted on automatically |
+| suggested_stage_id | uuid? | → `sales_stages`; a suggestion only |
+| extracted | jsonb | contact, value, dates found in the text |
+| ai_model, ai_processed_at, ai_input_hash | text?, timestamptz?, bytea? | hash skips reprocessing unchanged input |
+| deal_id | uuid? | → `deals` |
+| client_id | uuid? | → `clients` |
+| excluded | boolean | sender matched an exclusion rule |
+
+### `mail_thread_mailboxes`
+
+Which mailboxes have the thread, and under which provider id.
+
+| column | type | notes |
+|---|---|---|
+| thread_id, mailbox_id | uuid | **PK**; → `mail_threads`, `mailboxes` |
+| tenant_id | uuid | → `tenants` |
+| provider_thread_id | text | Gmail threadId / Graph conversationId / IMAP root Message-ID; unique per mailbox |
+
+### `mail_messages`
+
+| column | type | notes |
+|---|---|---|
+| id | uuid | **PK** |
+| tenant_id, thread_id | uuid | → `mail_threads` |
+| internet_message_id | text? | Message-ID header; the dedupe key across mailboxes |
+| in_reply_to | text? |  |
+| direction | text | inbound \| outbound |
+| from_email, from_name | text, text? | email lower-case |
+| to_addresses, cc_addresses | jsonb | lists of `{email, name}` |
+| subject | text? |  |
+| sent_at | timestamptz |  |
+| snippet | text |  |
+| body_text | text? | null when not stored (non-sales threads, retention) |
+| attachments | jsonb | metadata only until saved to a deal |
+
+### `mail_message_mailboxes`
+
+| column | type | notes |
+|---|---|---|
+| message_id, mailbox_id | uuid | **PK**; → `mail_messages`, `mailboxes` |
+| tenant_id | uuid | → `tenants` |
+| provider_message_id | text | Gmail id / Graph id / `{folder}:{uidvalidity}:{uid}`; unique per mailbox |
+
+### `mail_exclusion_rules`
+
+Senders whose mail is never treated as sales.
+
+| column | type | notes |
+|---|---|---|
+| id | uuid | **PK** |
+| tenant_id | uuid | → `tenants` |
+| pattern | text | lower-case address or `@domain`; unique per tenant |
+| note | text? |  |
+| created_by | uuid? | → `users` |
+| created_at | timestamptz |  |
+
+### `follow_up_rules` ✦
+
+When a quiet deal gets a follow-up reminder (and optionally a draft).
+
+| column | type | notes |
+|---|---|---|
+| id | uuid | **PK** |
+| tenant_id | uuid | → `tenants` |
+| name | text |  |
+| stage_id | uuid? | → `sales_stages`; null = any open stage |
+| days_without_reply | smallint | 1–90, **working days** |
+| create_draft | boolean | default `true` |
+| is_active | boolean | default `true` |
+
+### `mail_drafts` ✦
+
+A reply or follow-up prepared by the AI or written by a user. Never sent without a user action.
+
+| column | type | notes |
+|---|---|---|
+| id | uuid | **PK** |
+| tenant_id, thread_id | uuid | → `mail_threads` |
+| deal_id | uuid? | → `deals` |
+| mailbox_id | uuid | sends from here; must be a mailbox that has the thread |
+| kind | text | reply \| follow_up |
+| status | text | generating \| ready \| edited \| saved_to_mailbox \| sent \| discarded \| failed |
+| subject, body_text | text |  |
+| to_addresses, cc_addresses | jsonb | lists of addresses |
+| instructions | text? | what the user asked the AI for |
+| error | text? | when `failed` |
+| ai_model | text? |  |
+| follow_up_rule_id | uuid? | → `follow_up_rules`; one open draft per thread and rule |
+| provider_draft_id | text? | set by "save to mailbox" |
+| sent_message_id | uuid? | → `mail_messages` |
+| sent_at | timestamptz? | required when `status` = sent |
+| created_by | uuid? | → `users` |
+
+### `sales_settings`
+
+One row per tenant (created with the tenant, or by the migration for existing ones).
+
+| column | type | notes |
+|---|---|---|
+| tenant_id | uuid | **PK**; → `tenants` |
+| ai_enabled | boolean | default `true`; off → 409 `sales.ai_disabled` on AI actions |
+| signature | text? | appended to drafts |
+| tone | text | formal \| neutral \| friendly; default `neutral` |
+| reply_language | text | default `auto` |
+| knowledge | text? | company facts the AI may use in drafts |
+| response_sla_hours | smallint | 1–168; default `4`; target time to answer an inbound sales mail (what it drives is not stated in the SQL) |
+| digest_enabled | boolean | default `true` |
+| digest_time | time | tenant-local; default `07:45` |
+| digest_recipient_ids | uuid[] | user ids; the app checks membership |
+| store_non_sales_bodies | boolean | default `false` |
+| retention_days | integer? | ≥ 30; null = keep |
+| review_threshold | numeric(3,2) | 0–1; default `0.70` |
+| updated_at | timestamptz |  |
+
+### `ai_feedback`
+
+A user's correction of the AI, kept as an example for later classification.
+
+| column | type | notes |
+|---|---|---|
+| id | uuid | **PK** |
+| tenant_id, thread_id | uuid | → `mail_threads` |
+| field | text | category \| is_sales \| stage |
+| ai_value | text? | what the AI said |
+| user_value | text | what the user chose |
+| example_text | text | text the correction is based on |
+| user_id | uuid | → `users` |
+| created_at | timestamptz |  |
+
+### Seed for existing tenants
+
+The migration gives every existing tenant six stages (Novi upit, Kontaktiran, Ponuda poslana, Pregovori, Dobiven = won, Izgubljen = lost; "Ponuda poslana" has `follow_up_days` 3), a follow-up rule "Ponuda poslana, 3 dana bez odgovora" and a `sales_settings` row. New tenants get the same from the app.
+
 ---
-`?` = nullable. ✦ = has `created_at`, `updated_at`, `deleted_at` (some only the first two).
