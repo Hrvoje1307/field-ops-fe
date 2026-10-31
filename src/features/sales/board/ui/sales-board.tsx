@@ -1,5 +1,5 @@
 import { SearchIcon } from 'lucide-react'
-import { type ReactNode, useCallback, useMemo, useState } from 'react'
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { type DealSummary, type SalesBoardColumn, useGetSalesBoard } from '@/entities/deal'
@@ -151,62 +151,99 @@ export function SalesBoard({
 function Stages({ columns, movable = false }: { columns: SalesBoardColumn[]; movable?: boolean }) {
   const { t } = useTranslation()
   const { formatMoney } = useTenantFormat()
+  const scroller = useRef<HTMLDivElement>(null)
+  const [more, setMore] = useState({ left: false, right: false })
+  const measure = useCallback(() => {
+    const el = scroller.current
+    if (!el) return
+    const left = el.scrollLeft > 4
+    const right = el.scrollLeft + el.clientWidth < el.scrollWidth - 4
+    setMore((now) => (now.left === left && now.right === right ? now : { left, right }))
+  }, [])
+  useEffect(() => {
+    measure()
+    const el = scroller.current
+    if (!el) return
+    const observer = new ResizeObserver(measure)
+    observer.observe(el)
+    return () => {
+      observer.disconnect()
+    }
+  }, [measure, columns.length])
   return (
-    <div
-      role="region"
-      aria-label={t('sales.board.region')}
-      className="flex items-start gap-3 overflow-x-auto pb-3"
-    >
-      {columns.map((column) => (
-        <DragColumn
-          key={column.stage.id}
-          id={column.stage.id}
-          testId={`stage-${column.stage.id}`}
-          label={column.stage.name}
-          title={
-            <span className="flex items-center gap-2">
-              <span
-                aria-hidden="true"
-                className="size-2.5 shrink-0 rounded-full"
-                style={{ backgroundColor: column.stage.color }}
-              />
-              {column.stage.name}
-            </span>
-          }
-          subtitle={[
-            t('sales.board.stageCount', { count: column.totalCount }),
-            column.totalValue ? formatMoney(column.totalValue) : null,
-          ]
-            .filter(Boolean)
-            .join(' · ')}
-          itemIds={column.deals.map((deal) => deal.id)}
-          empty={t('sales.board.emptyStage')}
-        >
-          {movable &&
-            column.deals.map((deal) => (
-              <DragItem
-                key={deal.id}
-                id={deal.id}
-                listId={column.stage.id}
-                testId={`deal-${deal.id}`}
-                handleLabel={t('sales.board.handle', { name: deal.title })}
-              >
-                {(handle) => <DealCard deal={deal} handle={handle} />}
-              </DragItem>
-            ))}
-          {!movable &&
-            column.deals.map((deal) => (
-              <li key={deal.id}>
-                <DealCard deal={deal} />
+    <div className="relative min-w-0">
+      {more.left && (
+        <div
+          aria-hidden="true"
+          data-testid="board-more-left"
+          className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-gradient-to-r from-background to-transparent"
+        />
+      )}
+      {more.right && (
+        <div
+          aria-hidden="true"
+          data-testid="board-more-right"
+          className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-background to-transparent"
+        />
+      )}
+      <div
+        ref={scroller}
+        onScroll={measure}
+        role="region"
+        aria-label={t('sales.board.region')}
+        className="flex items-start gap-3 overflow-x-auto pb-3"
+      >
+        {columns.map((column) => (
+          <DragColumn
+            key={column.stage.id}
+            id={column.stage.id}
+            testId={`stage-${column.stage.id}`}
+            label={column.stage.name}
+            title={
+              <span className="flex items-center gap-2">
+                <span
+                  aria-hidden="true"
+                  className="size-2.5 shrink-0 rounded-full"
+                  style={{ backgroundColor: column.stage.color }}
+                />
+                {column.stage.name}
+              </span>
+            }
+            subtitle={[
+              t('sales.board.stageCount', { count: column.totalCount }),
+              column.totalValue ? formatMoney(column.totalValue) : null,
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+            itemIds={column.deals.map((deal) => deal.id)}
+            empty={t('sales.board.emptyStage')}
+          >
+            {movable &&
+              column.deals.map((deal) => (
+                <DragItem
+                  key={deal.id}
+                  id={deal.id}
+                  listId={column.stage.id}
+                  testId={`deal-${deal.id}`}
+                  handleLabel={t('sales.board.handle', { name: deal.title })}
+                >
+                  {(handle) => <DealCard deal={deal} handle={handle} />}
+                </DragItem>
+              ))}
+            {!movable &&
+              column.deals.map((deal) => (
+                <li key={deal.id}>
+                  <DealCard deal={deal} />
+                </li>
+              ))}
+            {column.totalCount > column.deals.length && (
+              <li className="px-1 text-xs text-muted-foreground">
+                {t('sales.board.shown', { shown: column.deals.length, total: column.totalCount })}
               </li>
-            ))}
-          {column.totalCount > column.deals.length && (
-            <li className="px-1 text-xs text-muted-foreground">
-              {t('sales.board.shown', { shown: column.deals.length, total: column.totalCount })}
-            </li>
-          )}
-        </DragColumn>
-      ))}
+            )}
+          </DragColumn>
+        ))}
+      </div>
     </div>
   )
 }

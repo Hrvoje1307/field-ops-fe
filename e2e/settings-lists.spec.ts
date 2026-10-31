@@ -54,6 +54,8 @@ for (const tenant of TENANTS) {
 
       await page.getByRole('button', { name: 'Obriši: Rad u skučenom prostoru' }).click()
       await page.getByRole('button', { name: 'Obriši vještinu' }).click()
+      // While the dialog is open the page is hidden from the accessibility tree: wait for it
+      await expect(page.getByRole('dialog')).toBeHidden()
       await expect(list.getByText('Rad u skučenom prostoru')).toHaveCount(0)
       const [after] = await apiGet<[Named[]]>(page, tenant.owner, ['/skills'])
       expect(after.map((skill) => skill.name)).toEqual(before.map((skill) => skill.name))
@@ -89,6 +91,7 @@ for (const tenant of TENANTS) {
 
       await page.getByRole('button', { name: 'Obriši: Pomoćno skladište' }).click()
       await page.getByRole('button', { name: 'Obriši skladište' }).click()
+      await expect(page.getByRole('dialog')).toBeHidden()
       await expect(list.getByText('Pomoćno skladište')).toHaveCount(0)
     })
 
@@ -113,6 +116,7 @@ for (const tenant of TENANTS) {
 
       await page.getByRole('button', { name: 'Obriši: Nova vrsta' }).click()
       await page.getByRole('button', { name: 'Obriši vrstu' }).click()
+      await expect(page.getByRole('dialog')).toBeHidden()
       await expect(list.getByText('Nova vrsta')).toHaveCount(0)
     })
   })

@@ -4,7 +4,6 @@ import {
   apiGet,
   apiPost,
   type Definition,
-  drag,
   expectSignedInAs,
   fillRequired,
   labelled,
@@ -33,9 +32,8 @@ interface JobType {
 
 test.beforeEach(async ({ page }) => {
   await resetMock(page)
-  // Wide enough for every stage to be on screen at once: dragging to a column that is
-  // scrolled out of view is a matter for the browser's autoscroll, not for this test
-  await page.setViewportSize({ width: 2200, height: 1100 })
+  // A laptop: six stages do not fit, so the board scrolls inside its own container
+  await page.setViewportSize({ width: 1440, height: 900 })
 })
 
 const handleOf = (page: Page, title: string) =>
@@ -68,6 +66,47 @@ function pick(board: Board, where: (deal: Deal) => boolean = () => true) {
   return { deal, won: won.stage, lost: lost.stage, open }
 }
 
+/**
+ * Moves a card to a stage the way a person does: picks it up and, when the stage is
+ * scrolled out of view, holds the card at the edge of the board until it scrolls there.
+ */
+async function moveCard(page: Page, title: string, stageId: string) {
+  // The card itself may be scrolled out of view
+  await handleOf(page, title).scrollIntoViewIfNeeded()
+  const handle = await handleOf(page, title).boundingBox()
+  const region = await page.getByRole('region', { name: 'Lijevak prodaje' }).boundingBox()
+  if (!handle || !region) throw new Error('Nothing to drag')
+  const frame = () =>
+    page.evaluate(
+      () => new Promise((done) => requestAnimationFrame(() => requestAnimationFrame(done))),
+    )
+  await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(handle.x + 24, handle.y + 24, { steps: 4 })
+  const target = columnOf(page, stageId).getByRole('list')
+  for (let tries = 0; tries < 200; tries++) {
+    const box = await target.boundingBox()
+    const centre = box ? box.x + box.width / 2 : null
+    if (centre !== null && centre > region.x + 40 && centre < region.x + region.width - 40) break
+    const right = centre === null || centre >= region.x + region.width / 2
+    await page.mouse.move(right ? region.x + region.width - 6 : region.x + 6, region.y + 120, {
+      steps: 3,
+    })
+    await frame()
+  }
+  // Away from the edge the scrolling stops; only then is the stage where it is measured
+  await page.mouse.move(region.x + region.width / 2, region.y + 120, { steps: 4 })
+  await frame()
+  await frame()
+  const box = await target.boundingBox()
+  if (!box) throw new Error('Stage not found')
+  await page.mouse.move(box.x + box.width / 2, box.y + Math.min(box.height / 2, 30), { steps: 8 })
+  // Let the board settle under the pointer (the scrolling has stopped) before letting go
+  await frame()
+  await frame()
+  await page.mouse.up()
+}
+
 /** Waits until the dialog is really gone (a Radix dialog hides the page while it is open). */
 async function closed(dialog: Locator) {
   await expect(dialog).toBeHidden()
@@ -93,7 +132,7 @@ for (const tenant of TENANTS) {
       const deal = from?.deals[0]
       if (!from || !to || !deal) throw new Error('Seed needs two open stages')
 
-      await drag(page, handleOf(page, deal.title), columnOf(page, to.stage.id))
+      await moveCard(page, deal.title, to.stage.id)
       await expect(columnOf(page, to.stage.id).getByText(deal.title)).toBeVisible()
       await expect(columnOf(page, from.stage.id).getByText(deal.title)).toHaveCount(0)
       await expect
@@ -121,6 +160,42 @@ for (const tenant of TENANTS) {
       expect(saved).toMatchObject({ value: '1250.50' })
     })
 
+    test('the board scrolls inside its container, never the page; a card can be moved to a stage out of view', async ({
+      page,
+    }) => {
+      await openBoard(page, tenant.owner, tenant.name)
+      const board = await getBoard(page, tenant.owner)
+      const { deal, lost } = pick(board)
+      const last = board.columns.at(-1)?.stage
+      expect(last?.id).toBe(lost.id)
+
+      const overflow = await page.evaluate(() => ({
+        page: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        board:
+          (document.querySelector('[aria-label="Lijevak prodaje"][role="region"]')?.scrollWidth ??
+            0) -
+          (document.querySelector('[aria-label="Lijevak prodaje"][role="region"]')?.clientWidth ??
+            0),
+      }))
+      expect(overflow.page).toBeLessThanOrEqual(0)
+      expect(overflow.board).toBeGreaterThan(0)
+      // Stages keep their width, so the last one starts off screen; the edge says there is more
+      await expect(page.getByTestId('board-more-right')).toBeVisible()
+      await expect(page.getByTestId('board-more-left')).toHaveCount(0)
+      await expect(columnOf(page, lost.id)).not.toBeInViewport()
+      // The header of a column (name, count, total) is there whatever the width
+      await expect(columnOf(page, deal.stage.id).getByRole('heading', { level: 2 })).toBeVisible()
+
+      await moveCard(page, deal.title, lost.id)
+      const dialog = page.getByRole('dialog', { name: 'Zašto je prilika izgubljena?' })
+      await expect(dialog).toBeVisible()
+      await dialog.getByLabel('Razlog').selectOption({ label: 'Termin' })
+      await dialog.getByRole('button', { name: 'Označi kao izgubljenu' }).click()
+      await closed(dialog)
+      await expect(columnOf(page, lost.id).getByText(deal.title)).toBeVisible()
+      expect(await page.evaluate(() => document.documentElement.scrollLeft)).toBe(0)
+    })
+
     test('a lost stage asks for the reason first; cancelling sends nothing', async ({ page }) => {
       await openBoard(page, tenant.owner, tenant.name)
       const { deal, lost } = pick(await getBoard(page, tenant.owner))
@@ -130,7 +205,7 @@ for (const tenant of TENANTS) {
         if (request.method() === 'POST' && request.url().endsWith('/move'))
           moves.push(request.url())
       })
-      await drag(page, handleOf(page, deal.title), columnOf(page, lost.id))
+      await moveCard(page, deal.title, lost.id)
       const dialog = page.getByRole('dialog', { name: 'Zašto je prilika izgubljena?' })
       await expect(dialog).toBeVisible()
       expect(moves).toEqual([])
@@ -140,7 +215,7 @@ for (const tenant of TENANTS) {
       await expect(columnOf(page, deal.stage.id).getByText(deal.title)).toBeVisible()
       expect((await getDeal(page, tenant.owner, deal.id)).stage.id).toBe(deal.stage.id)
 
-      await drag(page, handleOf(page, deal.title), columnOf(page, lost.id))
+      await moveCard(page, deal.title, lost.id)
       await expect(dialog).toBeVisible()
       await dialog.getByRole('button', { name: 'Označi kao izgubljenu' }).click()
       await expect(dialog.getByText('Odaberite razlog.')).toBeVisible()
@@ -164,7 +239,7 @@ for (const tenant of TENANTS) {
       const jobType = jobTypes.find((type) => type.isActive)
       if (!jobType) throw new Error('Seed needs a job type')
 
-      await drag(page, handleOf(page, deal.title), columnOf(page, won.id))
+      await moveCard(page, deal.title, won.id)
       const offer = page.getByRole('dialog', { name: 'Prilika je dobivena' })
       await expect(offer).toBeVisible()
       await expect(columnOf(page, won.id).getByText(deal.title)).toBeVisible()
@@ -208,7 +283,7 @@ for (const tenant of TENANTS) {
       const other = open.find((column) => column.stage.id !== deal.stage.id)
       if (!other) throw new Error('Seed needs two open stages')
       await expect(columnOf(page, won.id).getByText(deal.title)).toBeVisible()
-      await drag(page, handleOf(page, deal.title), columnOf(page, other.stage.id))
+      await moveCard(page, deal.title, other.stage.id)
       await expect(columnOf(page, other.stage.id).getByText(deal.title)).toBeVisible()
       // The first move is saved and the board has been read again before the next drag
       await expect(page.getByText(`Prilika je u fazi ${other.stage.name}.`)).toBeVisible()
@@ -217,7 +292,7 @@ for (const tenant of TENANTS) {
         .toBe(other.stage.id)
       await page.waitForLoadState('networkidle')
       // Dropped on the list of cards: the column shrank when the deal left it
-      await drag(page, handleOf(page, deal.title), columnOf(page, won.id).getByRole('list'))
+      await moveCard(page, deal.title, won.id)
       await expect(columnOf(page, won.id).getByText(deal.title)).toBeVisible()
       await expect
         .poll(async () => (await getDeal(page, tenant.owner, deal.id)).stage.id)
@@ -234,7 +309,7 @@ for (const tenant of TENANTS) {
     }) => {
       await openBoard(page, tenant.owner, tenant.name)
       const { deal, won } = pick(await getBoard(page, tenant.owner))
-      await drag(page, handleOf(page, deal.title), columnOf(page, won.id))
+      await moveCard(page, deal.title, won.id)
       const offer = page.getByRole('dialog', { name: 'Prilika je dobivena' })
       await offer.getByRole('button', { name: 'Kasnije' }).click()
       await closed(offer)
