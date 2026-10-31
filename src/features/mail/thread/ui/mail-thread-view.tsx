@@ -38,12 +38,15 @@ export function MailThreadView({
   onClose,
   actions,
   aside,
+  footer,
   attachmentAction,
 }: {
   threadId: string
   onClose?: () => void
   actions?: (thread: MailThread) => ReactNode
   aside?: (thread: MailThread) => ReactNode
+  /** After the messages: where a reply is written. */
+  footer?: (thread: MailThread) => ReactNode
   attachmentAction?: (
     thread: MailThread,
     message: MailMessage,
@@ -159,6 +162,7 @@ export function MailThreadView({
           ))}
         </ol>
       )}
+      {footer?.(thread)}
     </article>
   )
 }

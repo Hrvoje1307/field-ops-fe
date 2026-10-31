@@ -94,12 +94,15 @@ for (const tenant of TENANTS) {
       const first = own.getByTestId('board-job').first()
       await drag(page, handleOf(page, job.number), first, 'top')
       await expect(own.getByTestId('board-job').first()).toContainText(job.title)
-      const [after] = await apiGet<[Board]>(page, tenant.dispatcher, [
-        `/dispatch/board?date=${date}`,
-      ])
-      expect(after.columns.find((c) => c.technician.id === target.technician.id)?.jobs[0]?.id).toBe(
-        job.id,
-      )
+      // The card shows at the top before the save is over: wait for what was saved
+      await expect
+        .poll(async () => {
+          const [after] = await apiGet<[Board]>(page, tenant.dispatcher, [
+            `/dispatch/board?date=${date}`,
+          ])
+          return after.columns.find((c) => c.technician.id === target.technician.id)?.jobs[0]?.id
+        })
+        .toBe(job.id)
 
       // Back to the queue
       await drag(page, handleOf(page, job.number), queue(page).locator('ul'))

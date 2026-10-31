@@ -213,3 +213,38 @@ export async function fillRequired(scope: Locator, definitions: Definition[]) {
     }
   }
 }
+
+/**
+ * Any write to the mock API from the page, as `email` with a session of their own: someone
+ * else changing data behind the UI's back.
+ */
+export async function apiSend(
+  page: Page,
+  email: string,
+  method: 'PUT' | 'POST' | 'DELETE',
+  path: string,
+  body?: unknown,
+): Promise<{ status: number; body: unknown }> {
+  return page.evaluate(
+    async ({ api, email, password, method, path, body }) => {
+      const login = await fetch(`${api}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      })
+      const { accessToken } = (await login.json()) as { accessToken: string }
+      const response = await fetch(`${api}${path}`, {
+        method,
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+          'Idempotency-Key': crypto.randomUUID(),
+        },
+        body: body === undefined ? undefined : JSON.stringify(body),
+      })
+      const text = await response.text()
+      return { status: response.status, body: text ? (JSON.parse(text) as unknown) : null }
+    },
+    { api: API_URL, email, password: PASSWORD, method, path, body },
+  )
+}

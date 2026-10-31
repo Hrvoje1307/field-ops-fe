@@ -26,3 +26,17 @@ export {
   useSendDraft,
   useUpdateDraft,
 } from './api'
+export {
+  buildDraftSchema,
+  draftFormValues,
+  type DraftFormValues,
+  EDITABLE_STATUSES,
+  formatAddresses,
+  hasChanges,
+  INSTRUCTIONS_MAX,
+  isEditable,
+  parseAddresses,
+  retryRequest,
+  sendingMailboxes,
+  toDraftUpdate,
+} from './model/draft-form'

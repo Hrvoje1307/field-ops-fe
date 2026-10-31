@@ -2,8 +2,12 @@ import { useTranslation } from 'react-i18next'
 
 import { useSalesAccess } from '@/entities/auth'
 import { useGetDeal } from '@/entities/deal'
+import type { MailThread } from '@/entities/mail-thread'
 import { useListSalesStages } from '@/entities/sales-stage'
 import { useDealMove } from '@/features/deal/move'
+import { CreateDraftSection } from '@/features/draft/create'
+import { DraftEditor } from '@/features/draft/editor'
+import { DraftActions } from '@/features/draft/send'
 import { ClassificationCard } from '@/features/mail/classify'
 import { ExcludeThreadButton } from '@/features/mail/exclude'
 import { ThreadDealLink } from '@/features/mail/link'
@@ -49,6 +53,7 @@ export function MailThreadPanel({
             )
           : undefined
       }
+      footer={(thread) => <ThreadDrafts thread={thread} />}
       attachmentAction={(thread, message, attachment) => (
         <SaveAttachmentButton thread={thread} message={message} attachment={attachment} />
       )}
@@ -98,5 +103,32 @@ function SuggestedStage({
       )}
       {dialog}
     </div>
+  )
+}
+
+/**
+ * Where a reply is written: the AI's drafts of this conversation, each with its editor and
+ * what to do with it, and the way to ask for another. Without the AI it says to answer from
+ * one's own mail.
+ */
+function ThreadDrafts({ thread }: { thread: MailThread }) {
+  const { t } = useTranslation()
+  const drafts = thread.drafts.filter((draft) => draft.status !== 'discarded')
+  return (
+    <section aria-label={t('sales.draft.section')} className="space-y-3">
+      <h3 className="font-semibold">{t('sales.draft.section')}</h3>
+      {drafts.map((draft) => (
+        <DraftEditor
+          key={draft.id}
+          draftId={draft.id}
+          threadId={thread.id}
+          mailboxes={thread.mailboxes}
+          actions={(context) => <DraftActions context={context} />}
+        />
+      ))}
+      <div>
+        <CreateDraftSection thread={thread} />
+      </div>
+    </section>
   )
 }

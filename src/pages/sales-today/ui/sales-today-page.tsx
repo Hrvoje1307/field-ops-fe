@@ -1,16 +1,15 @@
 import { useTranslation } from 'react-i18next'
 
 import { MailboxAttention } from '@/features/mailbox/attention'
-import { PagePlaceholder } from '@/shared/ui/page-placeholder'
+import { SalesTodayView } from '@/features/sales/today'
 
 export function SalesTodayPage() {
   const { t } = useTranslation()
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
+      <h1 className="sr-only">{t('sales.pages.today')}</h1>
       <MailboxAttention />
-      <PagePlaceholder title={t('sales.pages.today')}>
-        <p>{t('sales.soon')}</p>
-      </PagePlaceholder>
+      <SalesTodayView />
     </div>
   )
 }
