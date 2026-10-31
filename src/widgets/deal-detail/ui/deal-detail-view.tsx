@@ -89,7 +89,7 @@ export function DealDetailView({
           <DealStageSelect
             deal={deal}
             onWon={(won) => {
-              if (!won.jobId) onConvert(won.id, won.title)
+              onConvert(won.id, won.title)
             }}
           />
         </div>

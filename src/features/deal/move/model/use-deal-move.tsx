@@ -22,7 +22,8 @@ type MoveTarget = Pick<SalesStage, 'id' | 'name' | 'kind'>
  * Moving a deal to a stage, for the board and the deal page. A lost stage first asks for
  * the reason and nothing is sent until it is confirmed; cancelling leaves the deal where
  * it was. The move itself is optimistic (see `useMoveDeal`). `onWon` is called with the
- * moved deal when the target stage is a won one, so the screen can offer the conversion.
+ * moved deal when the target stage is a won one and the deal has no job yet, so the screen
+ * can offer the conversion.
  * Render `dialog` somewhere on the screen.
  */
 export function useDealMove({ onWon }: { onWon?: (deal: Deal) => void } = {}): {
@@ -53,7 +54,8 @@ export function useDealMove({ onWon }: { onWon?: (deal: Deal) => void } = {}): {
         },
       })
       setAsking(null)
-      if (stage.kind === 'won') onWon?.(moved)
+      // A deal that already has its job is not offered the conversion again
+      if (stage.kind === 'won' && !moved.jobId) onWon?.(moved)
       else toast.success(t('sales.board.moved', { stage: stage.name }))
     } catch (error) {
       const reason = error instanceof ApiError ? error.fieldErrors.lostReason : undefined

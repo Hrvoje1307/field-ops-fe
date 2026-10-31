@@ -125,11 +125,18 @@ for (const tenant of TENANTS) {
       await openBoard(page, tenant.owner, tenant.name)
       const { deal, lost } = pick(await getBoard(page, tenant.owner))
 
+      const moves: string[] = []
+      page.on('request', (request) => {
+        if (request.method() === 'POST' && request.url().endsWith('/move'))
+          moves.push(request.url())
+      })
       await drag(page, handleOf(page, deal.title), columnOf(page, lost.id))
       const dialog = page.getByRole('dialog', { name: 'Zašto je prilika izgubljena?' })
       await expect(dialog).toBeVisible()
+      expect(moves).toEqual([])
       await dialog.getByRole('button', { name: 'Odustani' }).click()
       await closed(dialog)
+      expect(moves).toEqual([])
       await expect(columnOf(page, deal.stage.id).getByText(deal.title)).toBeVisible()
       expect((await getDeal(page, tenant.owner, deal.id)).stage.id).toBe(deal.stage.id)
 
@@ -149,7 +156,7 @@ for (const tenant of TENANTS) {
       page,
     }) => {
       await openBoard(page, tenant.owner, tenant.name)
-      const { deal, won } = pick(await getBoard(page, tenant.owner), (d) => !!d.client)
+      const { deal, won, open } = pick(await getBoard(page, tenant.owner), (d) => !!d.client)
       const [jobTypes, jobFields] = await apiGet<[JobType[], Definition[]]>(page, tenant.owner, [
         '/job-types',
         '/custom-fields?entity=job',
@@ -187,8 +194,35 @@ for (const tenant of TENANTS) {
         true,
       )
 
+      // The job is in the office's list of jobs
+      const [job] = await apiGet<[{ number: string }]>(page, tenant.owner, [
+        `/jobs/${converted.jobId ?? ''}`,
+      ])
       await page.getByRole('button', { name: 'Otvori nalog' }).click()
       await expect(page).toHaveURL(`/jobs/${converted.jobId ?? ''}`)
+      await page.goto('/jobs')
+      await expect(page.getByText(job.number).first()).toBeVisible()
+
+      // Moving the converted deal out of the won stage and back does not offer it again
+      await page.goto('/sales/board')
+      const other = open.find((column) => column.stage.id !== deal.stage.id)
+      if (!other) throw new Error('Seed needs two open stages')
+      await expect(columnOf(page, won.id).getByText(deal.title)).toBeVisible()
+      await drag(page, handleOf(page, deal.title), columnOf(page, other.stage.id))
+      await expect(columnOf(page, other.stage.id).getByText(deal.title)).toBeVisible()
+      // The first move is saved and the board has been read again before the next drag
+      await expect(page.getByText(`Prilika je u fazi ${other.stage.name}.`)).toBeVisible()
+      await expect
+        .poll(async () => (await getDeal(page, tenant.owner, deal.id)).stage.id)
+        .toBe(other.stage.id)
+      await page.waitForLoadState('networkidle')
+      // Dropped on the list of cards: the column shrank when the deal left it
+      await drag(page, handleOf(page, deal.title), columnOf(page, won.id).getByRole('list'))
+      await expect(columnOf(page, won.id).getByText(deal.title)).toBeVisible()
+      await expect
+        .poll(async () => (await getDeal(page, tenant.owner, deal.id)).stage.id)
+        .toBe(won.id)
+      await expect(page.getByRole('dialog', { name: 'Prilika je dobivena' })).toHaveCount(0)
       await page.goto(`/sales/deals/${deal.id}`)
       await expect(page.getByRole('heading', { level: 1 })).toHaveText(deal.title)
       await expect(page.getByRole('link', { name: 'Otvori nalog' })).toBeVisible()

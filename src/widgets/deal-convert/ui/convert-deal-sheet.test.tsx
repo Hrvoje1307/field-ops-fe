@@ -113,18 +113,27 @@ describe('ConvertDealSheet', () => {
     expect(await screen.findByText('Prilika je pretvorena u nalog.')).toBeInTheDocument()
   })
 
-  it('a deal without a client offers matching clients by phone and email, and chooses none of them', async () => {
+  it('a deal without a client offers matching clients by phone and by email, and chooses none of them', async () => {
+    const { clients, contacts } = alarmko()
+    const withPhone = contacts.find((c) => c.phone)
+    const withEmail = contacts.find((c) => c.email && c.clientId !== withPhone?.clientId)
+    const byPhone = clients.find((c) => c.id === withPhone?.clientId)
+    const byEmail = clients.find((c) => c.id === withEmail?.clientId)
+    const phone = withPhone?.phone
+    const email = withEmail?.email
+    if (!byPhone || !byEmail || !phone || !email) throw new Error('seed')
     const deal = dealWithoutClient()
-    const [known] = alarmko().clients
-    const phone = alarmko().contacts.find((c) => c.clientId === known?.id && c.phone)?.phone
-    if (!known || !phone) throw new Error('seed')
     deal.contactPhone = phone
-    deal.contactEmail = known.name.split(' ')[0] ?? null
+    deal.contactEmail = email
     const { dialog } = await renderSheet(deal.id)
-    const candidates = await within(dialog).findByText('Možda je to postojeći klijent')
-    expect(candidates).toBeVisible()
-    expect(within(dialog).getByRole('button', { name: `Odaberi: ${known.name}` })).toBeVisible()
-    // Nothing is chosen for the user: the search is still there, no client is shown as chosen
+    expect(await within(dialog).findByText('Možda je to postojeći klijent')).toBeVisible()
+    expect(
+      await within(dialog).findByRole('button', { name: `Odaberi: ${byPhone.name}` }),
+    ).toBeVisible()
+    expect(
+      await within(dialog).findByRole('button', { name: `Odaberi: ${byEmail.name}` }),
+    ).toBeVisible()
+    // Nothing is chosen for the user: the search and "new client" are still there
     expect(within(dialog).getByRole('button', { name: 'Novi klijent' })).toBeVisible()
     expect(
       within(dialog).queryByRole('button', { name: 'Promijeni klijenta' }),
