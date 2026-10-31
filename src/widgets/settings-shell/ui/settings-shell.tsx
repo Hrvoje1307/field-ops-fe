@@ -2,11 +2,14 @@ import { Link } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { SETTINGS_SECTIONS } from '../config/sections'
+import { useMe } from '@/entities/auth'
+
+import { settingsSectionsFor } from '../config/sections'
 
 /** The settings area: its title, the list of sections and the section's own screen. */
 export function SettingsShell({ children }: { children: ReactNode }) {
   const { t } = useTranslation()
+  const sections = settingsSectionsFor(useMe())
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold tracking-tight">{t('settings.title')}</h1>
@@ -15,7 +18,7 @@ export function SettingsShell({ children }: { children: ReactNode }) {
           aria-label={t('settings.nav.label')}
           className="flex gap-1 overflow-x-auto md:w-48 md:shrink-0 md:flex-col"
         >
-          {SETTINGS_SECTIONS.map(({ to, labelKey }) => (
+          {sections.map(({ to, labelKey }) => (
             <Link
               key={to}
               to={to}

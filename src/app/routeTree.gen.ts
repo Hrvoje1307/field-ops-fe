@@ -17,6 +17,7 @@ import { Route as AuthedFieldRouteImport } from './routes/_authed/field'
 import { Route as PTokenRouteImport } from './routes/p.$token'
 import { Route as AuthedOfficeIndexRouteImport } from './routes/_authed/_office/index'
 import { Route as AuthedOfficeMessagesRouteImport } from './routes/_authed/_office/messages'
+import { Route as AuthedOfficeSalesRouteImport } from './routes/_authed/_office/sales'
 import { Route as AuthedOfficeSettingsRouteImport } from './routes/_authed/_office/settings'
 import { Route as AuthedFieldIndexRouteImport } from './routes/_authed/field/index'
 import { Route as AuthedOfficeClientsIndexRouteImport } from './routes/_authed/_office/clients/index'
@@ -26,6 +27,10 @@ import { Route as AuthedOfficeJobsIndexRouteImport } from './routes/_authed/_off
 import { Route as AuthedOfficeJobsJobIdRouteImport } from './routes/_authed/_office/jobs/$jobId'
 import { Route as AuthedOfficeJobsNewRouteImport } from './routes/_authed/_office/jobs/new'
 import { Route as AuthedOfficePlansPlanIdRouteImport } from './routes/_authed/_office/plans/$planId'
+import { Route as AuthedOfficeSalesIndexRouteImport } from './routes/_authed/_office/sales/index'
+import { Route as AuthedOfficeSalesBoardRouteImport } from './routes/_authed/_office/sales/board'
+import { Route as AuthedOfficeSalesInboxRouteImport } from './routes/_authed/_office/sales/inbox'
+import { Route as AuthedOfficeSalesReportRouteImport } from './routes/_authed/_office/sales/report'
 import { Route as AuthedOfficeSettingsIndexRouteImport } from './routes/_authed/_office/settings/index'
 import { Route as AuthedOfficeSettingsChecklistsRouteImport } from './routes/_authed/_office/settings/checklists'
 import { Route as AuthedOfficeSettingsCompanyRouteImport } from './routes/_authed/_office/settings/company'
@@ -34,8 +39,17 @@ import { Route as AuthedOfficeSettingsDepotsRouteImport } from './routes/_authed
 import { Route as AuthedOfficeSettingsEquipmentTypesRouteImport } from './routes/_authed/_office/settings/equipment-types'
 import { Route as AuthedOfficeSettingsJobTypesRouteImport } from './routes/_authed/_office/settings/job-types'
 import { Route as AuthedOfficeSettingsMessagesRouteImport } from './routes/_authed/_office/settings/messages'
+import { Route as AuthedOfficeSettingsSalesRouteImport } from './routes/_authed/_office/settings/sales'
 import { Route as AuthedOfficeSettingsSkillsRouteImport } from './routes/_authed/_office/settings/skills'
 import { Route as AuthedOfficeSettingsTeamRouteImport } from './routes/_authed/_office/settings/team'
+import { Route as AuthedOfficeSalesDealsIdRouteImport } from './routes/_authed/_office/sales/deals/$id'
+import { Route as AuthedOfficeSalesSettingsMailboxesRouteImport } from './routes/_authed/_office/sales/settings/mailboxes'
+import { Route as AuthedOfficeSettingsSalesIndexRouteImport } from './routes/_authed/_office/settings/sales/index'
+import { Route as AuthedOfficeSettingsSalesAiRouteImport } from './routes/_authed/_office/settings/sales/ai'
+import { Route as AuthedOfficeSettingsSalesExclusionsRouteImport } from './routes/_authed/_office/settings/sales/exclusions'
+import { Route as AuthedOfficeSettingsSalesFollowUpRulesRouteImport } from './routes/_authed/_office/settings/sales/follow-up-rules'
+import { Route as AuthedOfficeSettingsSalesMailboxesRouteImport } from './routes/_authed/_office/settings/sales/mailboxes'
+import { Route as AuthedOfficeSettingsSalesStagesRouteImport } from './routes/_authed/_office/settings/sales/stages'
 import { Route as AuthedFieldJobsJobIdIndexRouteImport } from './routes/_authed/field/jobs/$jobId/index'
 import { Route as AuthedFieldJobsJobIdReportRouteImport } from './routes/_authed/field/jobs/$jobId/report'
 
@@ -75,6 +89,11 @@ const AuthedOfficeIndexRoute = AuthedOfficeIndexRouteImport.update({
 const AuthedOfficeMessagesRoute = AuthedOfficeMessagesRouteImport.update({
   id: '/messages',
   path: '/messages',
+  getParentRoute: () => AuthedOfficeRoute,
+} as any)
+const AuthedOfficeSalesRoute = AuthedOfficeSalesRouteImport.update({
+  id: '/sales',
+  path: '/sales',
   getParentRoute: () => AuthedOfficeRoute,
 } as any)
 const AuthedOfficeSettingsRoute = AuthedOfficeSettingsRouteImport.update({
@@ -124,6 +143,26 @@ const AuthedOfficePlansPlanIdRoute = AuthedOfficePlansPlanIdRouteImport.update({
   path: '/plans/$planId',
   getParentRoute: () => AuthedOfficeRoute,
 } as any)
+const AuthedOfficeSalesIndexRoute = AuthedOfficeSalesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AuthedOfficeSalesRoute,
+} as any)
+const AuthedOfficeSalesBoardRoute = AuthedOfficeSalesBoardRouteImport.update({
+  id: '/board',
+  path: '/board',
+  getParentRoute: () => AuthedOfficeSalesRoute,
+} as any)
+const AuthedOfficeSalesInboxRoute = AuthedOfficeSalesInboxRouteImport.update({
+  id: '/inbox',
+  path: '/inbox',
+  getParentRoute: () => AuthedOfficeSalesRoute,
+} as any)
+const AuthedOfficeSalesReportRoute = AuthedOfficeSalesReportRouteImport.update({
+  id: '/report',
+  path: '/report',
+  getParentRoute: () => AuthedOfficeSalesRoute,
+} as any)
 const AuthedOfficeSettingsIndexRoute =
   AuthedOfficeSettingsIndexRouteImport.update({
     id: '/',
@@ -172,6 +211,12 @@ const AuthedOfficeSettingsMessagesRoute =
     path: '/messages',
     getParentRoute: () => AuthedOfficeSettingsRoute,
   } as any)
+const AuthedOfficeSettingsSalesRoute =
+  AuthedOfficeSettingsSalesRouteImport.update({
+    id: '/sales',
+    path: '/sales',
+    getParentRoute: () => AuthedOfficeSettingsRoute,
+  } as any)
 const AuthedOfficeSettingsSkillsRoute =
   AuthedOfficeSettingsSkillsRouteImport.update({
     id: '/skills',
@@ -183,6 +228,54 @@ const AuthedOfficeSettingsTeamRoute =
     id: '/team',
     path: '/team',
     getParentRoute: () => AuthedOfficeSettingsRoute,
+  } as any)
+const AuthedOfficeSalesDealsIdRoute =
+  AuthedOfficeSalesDealsIdRouteImport.update({
+    id: '/deals/$id',
+    path: '/deals/$id',
+    getParentRoute: () => AuthedOfficeSalesRoute,
+  } as any)
+const AuthedOfficeSalesSettingsMailboxesRoute =
+  AuthedOfficeSalesSettingsMailboxesRouteImport.update({
+    id: '/settings/mailboxes',
+    path: '/settings/mailboxes',
+    getParentRoute: () => AuthedOfficeSalesRoute,
+  } as any)
+const AuthedOfficeSettingsSalesIndexRoute =
+  AuthedOfficeSettingsSalesIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthedOfficeSettingsSalesRoute,
+  } as any)
+const AuthedOfficeSettingsSalesAiRoute =
+  AuthedOfficeSettingsSalesAiRouteImport.update({
+    id: '/ai',
+    path: '/ai',
+    getParentRoute: () => AuthedOfficeSettingsSalesRoute,
+  } as any)
+const AuthedOfficeSettingsSalesExclusionsRoute =
+  AuthedOfficeSettingsSalesExclusionsRouteImport.update({
+    id: '/exclusions',
+    path: '/exclusions',
+    getParentRoute: () => AuthedOfficeSettingsSalesRoute,
+  } as any)
+const AuthedOfficeSettingsSalesFollowUpRulesRoute =
+  AuthedOfficeSettingsSalesFollowUpRulesRouteImport.update({
+    id: '/follow-up-rules',
+    path: '/follow-up-rules',
+    getParentRoute: () => AuthedOfficeSettingsSalesRoute,
+  } as any)
+const AuthedOfficeSettingsSalesMailboxesRoute =
+  AuthedOfficeSettingsSalesMailboxesRouteImport.update({
+    id: '/mailboxes',
+    path: '/mailboxes',
+    getParentRoute: () => AuthedOfficeSettingsSalesRoute,
+  } as any)
+const AuthedOfficeSettingsSalesStagesRoute =
+  AuthedOfficeSettingsSalesStagesRouteImport.update({
+    id: '/stages',
+    path: '/stages',
+    getParentRoute: () => AuthedOfficeSettingsSalesRoute,
   } as any)
 const AuthedFieldJobsJobIdIndexRoute =
   AuthedFieldJobsJobIdIndexRouteImport.update({
@@ -204,6 +297,7 @@ export interface FileRoutesByFullPath {
   '/field': typeof AuthedFieldRouteWithChildren
   '/p/$token': typeof PTokenRoute
   '/messages': typeof AuthedOfficeMessagesRoute
+  '/sales': typeof AuthedOfficeSalesRouteWithChildren
   '/settings': typeof AuthedOfficeSettingsRouteWithChildren
   '/field/': typeof AuthedFieldIndexRoute
   '/clients/$clientId': typeof AuthedOfficeClientsClientIdRoute
@@ -211,6 +305,9 @@ export interface FileRoutesByFullPath {
   '/jobs/$jobId': typeof AuthedOfficeJobsJobIdRoute
   '/jobs/new': typeof AuthedOfficeJobsNewRoute
   '/plans/$planId': typeof AuthedOfficePlansPlanIdRoute
+  '/sales/board': typeof AuthedOfficeSalesBoardRoute
+  '/sales/inbox': typeof AuthedOfficeSalesInboxRoute
+  '/sales/report': typeof AuthedOfficeSalesReportRoute
   '/settings/checklists': typeof AuthedOfficeSettingsChecklistsRoute
   '/settings/company': typeof AuthedOfficeSettingsCompanyRoute
   '/settings/custom-fields': typeof AuthedOfficeSettingsCustomFieldsRoute
@@ -218,12 +315,22 @@ export interface FileRoutesByFullPath {
   '/settings/equipment-types': typeof AuthedOfficeSettingsEquipmentTypesRoute
   '/settings/job-types': typeof AuthedOfficeSettingsJobTypesRoute
   '/settings/messages': typeof AuthedOfficeSettingsMessagesRoute
+  '/settings/sales': typeof AuthedOfficeSettingsSalesRouteWithChildren
   '/settings/skills': typeof AuthedOfficeSettingsSkillsRoute
   '/settings/team': typeof AuthedOfficeSettingsTeamRoute
   '/clients/': typeof AuthedOfficeClientsIndexRoute
   '/jobs/': typeof AuthedOfficeJobsIndexRoute
+  '/sales/': typeof AuthedOfficeSalesIndexRoute
   '/settings/': typeof AuthedOfficeSettingsIndexRoute
+  '/sales/deals/$id': typeof AuthedOfficeSalesDealsIdRoute
+  '/sales/settings/mailboxes': typeof AuthedOfficeSalesSettingsMailboxesRoute
+  '/settings/sales/ai': typeof AuthedOfficeSettingsSalesAiRoute
+  '/settings/sales/exclusions': typeof AuthedOfficeSettingsSalesExclusionsRoute
+  '/settings/sales/follow-up-rules': typeof AuthedOfficeSettingsSalesFollowUpRulesRoute
+  '/settings/sales/mailboxes': typeof AuthedOfficeSettingsSalesMailboxesRoute
+  '/settings/sales/stages': typeof AuthedOfficeSettingsSalesStagesRoute
   '/field/jobs/$jobId/report': typeof AuthedFieldJobsJobIdReportRoute
+  '/settings/sales/': typeof AuthedOfficeSettingsSalesIndexRoute
   '/field/jobs/$jobId/': typeof AuthedFieldJobsJobIdIndexRoute
 }
 export interface FileRoutesByTo {
@@ -238,6 +345,9 @@ export interface FileRoutesByTo {
   '/jobs/$jobId': typeof AuthedOfficeJobsJobIdRoute
   '/jobs/new': typeof AuthedOfficeJobsNewRoute
   '/plans/$planId': typeof AuthedOfficePlansPlanIdRoute
+  '/sales/board': typeof AuthedOfficeSalesBoardRoute
+  '/sales/inbox': typeof AuthedOfficeSalesInboxRoute
+  '/sales/report': typeof AuthedOfficeSalesReportRoute
   '/settings/checklists': typeof AuthedOfficeSettingsChecklistsRoute
   '/settings/company': typeof AuthedOfficeSettingsCompanyRoute
   '/settings/custom-fields': typeof AuthedOfficeSettingsCustomFieldsRoute
@@ -249,8 +359,17 @@ export interface FileRoutesByTo {
   '/settings/team': typeof AuthedOfficeSettingsTeamRoute
   '/clients': typeof AuthedOfficeClientsIndexRoute
   '/jobs': typeof AuthedOfficeJobsIndexRoute
+  '/sales': typeof AuthedOfficeSalesIndexRoute
   '/settings': typeof AuthedOfficeSettingsIndexRoute
+  '/sales/deals/$id': typeof AuthedOfficeSalesDealsIdRoute
+  '/sales/settings/mailboxes': typeof AuthedOfficeSalesSettingsMailboxesRoute
+  '/settings/sales/ai': typeof AuthedOfficeSettingsSalesAiRoute
+  '/settings/sales/exclusions': typeof AuthedOfficeSettingsSalesExclusionsRoute
+  '/settings/sales/follow-up-rules': typeof AuthedOfficeSettingsSalesFollowUpRulesRoute
+  '/settings/sales/mailboxes': typeof AuthedOfficeSettingsSalesMailboxesRoute
+  '/settings/sales/stages': typeof AuthedOfficeSettingsSalesStagesRoute
   '/field/jobs/$jobId/report': typeof AuthedFieldJobsJobIdReportRoute
+  '/settings/sales': typeof AuthedOfficeSettingsSalesIndexRoute
   '/field/jobs/$jobId': typeof AuthedFieldJobsJobIdIndexRoute
 }
 export interface FileRoutesById {
@@ -262,6 +381,7 @@ export interface FileRoutesById {
   '/_authed/field': typeof AuthedFieldRouteWithChildren
   '/p/$token': typeof PTokenRoute
   '/_authed/_office/messages': typeof AuthedOfficeMessagesRoute
+  '/_authed/_office/sales': typeof AuthedOfficeSalesRouteWithChildren
   '/_authed/_office/settings': typeof AuthedOfficeSettingsRouteWithChildren
   '/_authed/_office/': typeof AuthedOfficeIndexRoute
   '/_authed/field/': typeof AuthedFieldIndexRoute
@@ -270,6 +390,9 @@ export interface FileRoutesById {
   '/_authed/_office/jobs/$jobId': typeof AuthedOfficeJobsJobIdRoute
   '/_authed/_office/jobs/new': typeof AuthedOfficeJobsNewRoute
   '/_authed/_office/plans/$planId': typeof AuthedOfficePlansPlanIdRoute
+  '/_authed/_office/sales/board': typeof AuthedOfficeSalesBoardRoute
+  '/_authed/_office/sales/inbox': typeof AuthedOfficeSalesInboxRoute
+  '/_authed/_office/sales/report': typeof AuthedOfficeSalesReportRoute
   '/_authed/_office/settings/checklists': typeof AuthedOfficeSettingsChecklistsRoute
   '/_authed/_office/settings/company': typeof AuthedOfficeSettingsCompanyRoute
   '/_authed/_office/settings/custom-fields': typeof AuthedOfficeSettingsCustomFieldsRoute
@@ -277,12 +400,22 @@ export interface FileRoutesById {
   '/_authed/_office/settings/equipment-types': typeof AuthedOfficeSettingsEquipmentTypesRoute
   '/_authed/_office/settings/job-types': typeof AuthedOfficeSettingsJobTypesRoute
   '/_authed/_office/settings/messages': typeof AuthedOfficeSettingsMessagesRoute
+  '/_authed/_office/settings/sales': typeof AuthedOfficeSettingsSalesRouteWithChildren
   '/_authed/_office/settings/skills': typeof AuthedOfficeSettingsSkillsRoute
   '/_authed/_office/settings/team': typeof AuthedOfficeSettingsTeamRoute
   '/_authed/_office/clients/': typeof AuthedOfficeClientsIndexRoute
   '/_authed/_office/jobs/': typeof AuthedOfficeJobsIndexRoute
+  '/_authed/_office/sales/': typeof AuthedOfficeSalesIndexRoute
   '/_authed/_office/settings/': typeof AuthedOfficeSettingsIndexRoute
+  '/_authed/_office/sales/deals/$id': typeof AuthedOfficeSalesDealsIdRoute
+  '/_authed/_office/sales/settings/mailboxes': typeof AuthedOfficeSalesSettingsMailboxesRoute
+  '/_authed/_office/settings/sales/ai': typeof AuthedOfficeSettingsSalesAiRoute
+  '/_authed/_office/settings/sales/exclusions': typeof AuthedOfficeSettingsSalesExclusionsRoute
+  '/_authed/_office/settings/sales/follow-up-rules': typeof AuthedOfficeSettingsSalesFollowUpRulesRoute
+  '/_authed/_office/settings/sales/mailboxes': typeof AuthedOfficeSettingsSalesMailboxesRoute
+  '/_authed/_office/settings/sales/stages': typeof AuthedOfficeSettingsSalesStagesRoute
   '/_authed/field/jobs/$jobId/report': typeof AuthedFieldJobsJobIdReportRoute
+  '/_authed/_office/settings/sales/': typeof AuthedOfficeSettingsSalesIndexRoute
   '/_authed/field/jobs/$jobId/': typeof AuthedFieldJobsJobIdIndexRoute
 }
 export interface FileRouteTypes {
@@ -294,6 +427,7 @@ export interface FileRouteTypes {
     | '/field'
     | '/p/$token'
     | '/messages'
+    | '/sales'
     | '/settings'
     | '/field/'
     | '/clients/$clientId'
@@ -301,6 +435,9 @@ export interface FileRouteTypes {
     | '/jobs/$jobId'
     | '/jobs/new'
     | '/plans/$planId'
+    | '/sales/board'
+    | '/sales/inbox'
+    | '/sales/report'
     | '/settings/checklists'
     | '/settings/company'
     | '/settings/custom-fields'
@@ -308,12 +445,22 @@ export interface FileRouteTypes {
     | '/settings/equipment-types'
     | '/settings/job-types'
     | '/settings/messages'
+    | '/settings/sales'
     | '/settings/skills'
     | '/settings/team'
     | '/clients/'
     | '/jobs/'
+    | '/sales/'
     | '/settings/'
+    | '/sales/deals/$id'
+    | '/sales/settings/mailboxes'
+    | '/settings/sales/ai'
+    | '/settings/sales/exclusions'
+    | '/settings/sales/follow-up-rules'
+    | '/settings/sales/mailboxes'
+    | '/settings/sales/stages'
     | '/field/jobs/$jobId/report'
+    | '/settings/sales/'
     | '/field/jobs/$jobId/'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -328,6 +475,9 @@ export interface FileRouteTypes {
     | '/jobs/$jobId'
     | '/jobs/new'
     | '/plans/$planId'
+    | '/sales/board'
+    | '/sales/inbox'
+    | '/sales/report'
     | '/settings/checklists'
     | '/settings/company'
     | '/settings/custom-fields'
@@ -339,8 +489,17 @@ export interface FileRouteTypes {
     | '/settings/team'
     | '/clients'
     | '/jobs'
+    | '/sales'
     | '/settings'
+    | '/sales/deals/$id'
+    | '/sales/settings/mailboxes'
+    | '/settings/sales/ai'
+    | '/settings/sales/exclusions'
+    | '/settings/sales/follow-up-rules'
+    | '/settings/sales/mailboxes'
+    | '/settings/sales/stages'
     | '/field/jobs/$jobId/report'
+    | '/settings/sales'
     | '/field/jobs/$jobId'
   id:
     | '__root__'
@@ -351,6 +510,7 @@ export interface FileRouteTypes {
     | '/_authed/field'
     | '/p/$token'
     | '/_authed/_office/messages'
+    | '/_authed/_office/sales'
     | '/_authed/_office/settings'
     | '/_authed/_office/'
     | '/_authed/field/'
@@ -359,6 +519,9 @@ export interface FileRouteTypes {
     | '/_authed/_office/jobs/$jobId'
     | '/_authed/_office/jobs/new'
     | '/_authed/_office/plans/$planId'
+    | '/_authed/_office/sales/board'
+    | '/_authed/_office/sales/inbox'
+    | '/_authed/_office/sales/report'
     | '/_authed/_office/settings/checklists'
     | '/_authed/_office/settings/company'
     | '/_authed/_office/settings/custom-fields'
@@ -366,12 +529,22 @@ export interface FileRouteTypes {
     | '/_authed/_office/settings/equipment-types'
     | '/_authed/_office/settings/job-types'
     | '/_authed/_office/settings/messages'
+    | '/_authed/_office/settings/sales'
     | '/_authed/_office/settings/skills'
     | '/_authed/_office/settings/team'
     | '/_authed/_office/clients/'
     | '/_authed/_office/jobs/'
+    | '/_authed/_office/sales/'
     | '/_authed/_office/settings/'
+    | '/_authed/_office/sales/deals/$id'
+    | '/_authed/_office/sales/settings/mailboxes'
+    | '/_authed/_office/settings/sales/ai'
+    | '/_authed/_office/settings/sales/exclusions'
+    | '/_authed/_office/settings/sales/follow-up-rules'
+    | '/_authed/_office/settings/sales/mailboxes'
+    | '/_authed/_office/settings/sales/stages'
     | '/_authed/field/jobs/$jobId/report'
+    | '/_authed/_office/settings/sales/'
     | '/_authed/field/jobs/$jobId/'
   fileRoutesById: FileRoutesById
 }
@@ -440,6 +613,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedOfficeMessagesRouteImport
       parentRoute: typeof AuthedOfficeRoute
     }
+    '/_authed/_office/sales': {
+      id: '/_authed/_office/sales'
+      path: '/sales'
+      fullPath: '/sales'
+      preLoaderRoute: typeof AuthedOfficeSalesRouteImport
+      parentRoute: typeof AuthedOfficeRoute
+    }
     '/_authed/_office/settings': {
       id: '/_authed/_office/settings'
       path: '/settings'
@@ -503,6 +683,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedOfficePlansPlanIdRouteImport
       parentRoute: typeof AuthedOfficeRoute
     }
+    '/_authed/_office/sales/': {
+      id: '/_authed/_office/sales/'
+      path: '/'
+      fullPath: '/sales/'
+      preLoaderRoute: typeof AuthedOfficeSalesIndexRouteImport
+      parentRoute: typeof AuthedOfficeSalesRoute
+    }
+    '/_authed/_office/sales/board': {
+      id: '/_authed/_office/sales/board'
+      path: '/board'
+      fullPath: '/sales/board'
+      preLoaderRoute: typeof AuthedOfficeSalesBoardRouteImport
+      parentRoute: typeof AuthedOfficeSalesRoute
+    }
+    '/_authed/_office/sales/inbox': {
+      id: '/_authed/_office/sales/inbox'
+      path: '/inbox'
+      fullPath: '/sales/inbox'
+      preLoaderRoute: typeof AuthedOfficeSalesInboxRouteImport
+      parentRoute: typeof AuthedOfficeSalesRoute
+    }
+    '/_authed/_office/sales/report': {
+      id: '/_authed/_office/sales/report'
+      path: '/report'
+      fullPath: '/sales/report'
+      preLoaderRoute: typeof AuthedOfficeSalesReportRouteImport
+      parentRoute: typeof AuthedOfficeSalesRoute
+    }
     '/_authed/_office/settings/': {
       id: '/_authed/_office/settings/'
       path: '/'
@@ -559,6 +767,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedOfficeSettingsMessagesRouteImport
       parentRoute: typeof AuthedOfficeSettingsRoute
     }
+    '/_authed/_office/settings/sales': {
+      id: '/_authed/_office/settings/sales'
+      path: '/sales'
+      fullPath: '/settings/sales'
+      preLoaderRoute: typeof AuthedOfficeSettingsSalesRouteImport
+      parentRoute: typeof AuthedOfficeSettingsRoute
+    }
     '/_authed/_office/settings/skills': {
       id: '/_authed/_office/settings/skills'
       path: '/skills'
@@ -572,6 +787,62 @@ declare module '@tanstack/react-router' {
       fullPath: '/settings/team'
       preLoaderRoute: typeof AuthedOfficeSettingsTeamRouteImport
       parentRoute: typeof AuthedOfficeSettingsRoute
+    }
+    '/_authed/_office/sales/deals/$id': {
+      id: '/_authed/_office/sales/deals/$id'
+      path: '/deals/$id'
+      fullPath: '/sales/deals/$id'
+      preLoaderRoute: typeof AuthedOfficeSalesDealsIdRouteImport
+      parentRoute: typeof AuthedOfficeSalesRoute
+    }
+    '/_authed/_office/sales/settings/mailboxes': {
+      id: '/_authed/_office/sales/settings/mailboxes'
+      path: '/settings/mailboxes'
+      fullPath: '/sales/settings/mailboxes'
+      preLoaderRoute: typeof AuthedOfficeSalesSettingsMailboxesRouteImport
+      parentRoute: typeof AuthedOfficeSalesRoute
+    }
+    '/_authed/_office/settings/sales/': {
+      id: '/_authed/_office/settings/sales/'
+      path: '/'
+      fullPath: '/settings/sales/'
+      preLoaderRoute: typeof AuthedOfficeSettingsSalesIndexRouteImport
+      parentRoute: typeof AuthedOfficeSettingsSalesRoute
+    }
+    '/_authed/_office/settings/sales/ai': {
+      id: '/_authed/_office/settings/sales/ai'
+      path: '/ai'
+      fullPath: '/settings/sales/ai'
+      preLoaderRoute: typeof AuthedOfficeSettingsSalesAiRouteImport
+      parentRoute: typeof AuthedOfficeSettingsSalesRoute
+    }
+    '/_authed/_office/settings/sales/exclusions': {
+      id: '/_authed/_office/settings/sales/exclusions'
+      path: '/exclusions'
+      fullPath: '/settings/sales/exclusions'
+      preLoaderRoute: typeof AuthedOfficeSettingsSalesExclusionsRouteImport
+      parentRoute: typeof AuthedOfficeSettingsSalesRoute
+    }
+    '/_authed/_office/settings/sales/follow-up-rules': {
+      id: '/_authed/_office/settings/sales/follow-up-rules'
+      path: '/follow-up-rules'
+      fullPath: '/settings/sales/follow-up-rules'
+      preLoaderRoute: typeof AuthedOfficeSettingsSalesFollowUpRulesRouteImport
+      parentRoute: typeof AuthedOfficeSettingsSalesRoute
+    }
+    '/_authed/_office/settings/sales/mailboxes': {
+      id: '/_authed/_office/settings/sales/mailboxes'
+      path: '/mailboxes'
+      fullPath: '/settings/sales/mailboxes'
+      preLoaderRoute: typeof AuthedOfficeSettingsSalesMailboxesRouteImport
+      parentRoute: typeof AuthedOfficeSettingsSalesRoute
+    }
+    '/_authed/_office/settings/sales/stages': {
+      id: '/_authed/_office/settings/sales/stages'
+      path: '/stages'
+      fullPath: '/settings/sales/stages'
+      preLoaderRoute: typeof AuthedOfficeSettingsSalesStagesRouteImport
+      parentRoute: typeof AuthedOfficeSettingsSalesRoute
     }
     '/_authed/field/jobs/$jobId/': {
       id: '/_authed/field/jobs/$jobId/'
@@ -590,6 +861,55 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AuthedOfficeSalesRouteChildren {
+  AuthedOfficeSalesBoardRoute: typeof AuthedOfficeSalesBoardRoute
+  AuthedOfficeSalesInboxRoute: typeof AuthedOfficeSalesInboxRoute
+  AuthedOfficeSalesReportRoute: typeof AuthedOfficeSalesReportRoute
+  AuthedOfficeSalesIndexRoute: typeof AuthedOfficeSalesIndexRoute
+  AuthedOfficeSalesDealsIdRoute: typeof AuthedOfficeSalesDealsIdRoute
+  AuthedOfficeSalesSettingsMailboxesRoute: typeof AuthedOfficeSalesSettingsMailboxesRoute
+}
+
+const AuthedOfficeSalesRouteChildren: AuthedOfficeSalesRouteChildren = {
+  AuthedOfficeSalesBoardRoute: AuthedOfficeSalesBoardRoute,
+  AuthedOfficeSalesInboxRoute: AuthedOfficeSalesInboxRoute,
+  AuthedOfficeSalesReportRoute: AuthedOfficeSalesReportRoute,
+  AuthedOfficeSalesIndexRoute: AuthedOfficeSalesIndexRoute,
+  AuthedOfficeSalesDealsIdRoute: AuthedOfficeSalesDealsIdRoute,
+  AuthedOfficeSalesSettingsMailboxesRoute:
+    AuthedOfficeSalesSettingsMailboxesRoute,
+}
+
+const AuthedOfficeSalesRouteWithChildren =
+  AuthedOfficeSalesRoute._addFileChildren(AuthedOfficeSalesRouteChildren)
+
+interface AuthedOfficeSettingsSalesRouteChildren {
+  AuthedOfficeSettingsSalesAiRoute: typeof AuthedOfficeSettingsSalesAiRoute
+  AuthedOfficeSettingsSalesExclusionsRoute: typeof AuthedOfficeSettingsSalesExclusionsRoute
+  AuthedOfficeSettingsSalesFollowUpRulesRoute: typeof AuthedOfficeSettingsSalesFollowUpRulesRoute
+  AuthedOfficeSettingsSalesMailboxesRoute: typeof AuthedOfficeSettingsSalesMailboxesRoute
+  AuthedOfficeSettingsSalesStagesRoute: typeof AuthedOfficeSettingsSalesStagesRoute
+  AuthedOfficeSettingsSalesIndexRoute: typeof AuthedOfficeSettingsSalesIndexRoute
+}
+
+const AuthedOfficeSettingsSalesRouteChildren: AuthedOfficeSettingsSalesRouteChildren =
+  {
+    AuthedOfficeSettingsSalesAiRoute: AuthedOfficeSettingsSalesAiRoute,
+    AuthedOfficeSettingsSalesExclusionsRoute:
+      AuthedOfficeSettingsSalesExclusionsRoute,
+    AuthedOfficeSettingsSalesFollowUpRulesRoute:
+      AuthedOfficeSettingsSalesFollowUpRulesRoute,
+    AuthedOfficeSettingsSalesMailboxesRoute:
+      AuthedOfficeSettingsSalesMailboxesRoute,
+    AuthedOfficeSettingsSalesStagesRoute: AuthedOfficeSettingsSalesStagesRoute,
+    AuthedOfficeSettingsSalesIndexRoute: AuthedOfficeSettingsSalesIndexRoute,
+  }
+
+const AuthedOfficeSettingsSalesRouteWithChildren =
+  AuthedOfficeSettingsSalesRoute._addFileChildren(
+    AuthedOfficeSettingsSalesRouteChildren,
+  )
+
 interface AuthedOfficeSettingsRouteChildren {
   AuthedOfficeSettingsChecklistsRoute: typeof AuthedOfficeSettingsChecklistsRoute
   AuthedOfficeSettingsCompanyRoute: typeof AuthedOfficeSettingsCompanyRoute
@@ -598,6 +918,7 @@ interface AuthedOfficeSettingsRouteChildren {
   AuthedOfficeSettingsEquipmentTypesRoute: typeof AuthedOfficeSettingsEquipmentTypesRoute
   AuthedOfficeSettingsJobTypesRoute: typeof AuthedOfficeSettingsJobTypesRoute
   AuthedOfficeSettingsMessagesRoute: typeof AuthedOfficeSettingsMessagesRoute
+  AuthedOfficeSettingsSalesRoute: typeof AuthedOfficeSettingsSalesRouteWithChildren
   AuthedOfficeSettingsSkillsRoute: typeof AuthedOfficeSettingsSkillsRoute
   AuthedOfficeSettingsTeamRoute: typeof AuthedOfficeSettingsTeamRoute
   AuthedOfficeSettingsIndexRoute: typeof AuthedOfficeSettingsIndexRoute
@@ -612,6 +933,7 @@ const AuthedOfficeSettingsRouteChildren: AuthedOfficeSettingsRouteChildren = {
     AuthedOfficeSettingsEquipmentTypesRoute,
   AuthedOfficeSettingsJobTypesRoute: AuthedOfficeSettingsJobTypesRoute,
   AuthedOfficeSettingsMessagesRoute: AuthedOfficeSettingsMessagesRoute,
+  AuthedOfficeSettingsSalesRoute: AuthedOfficeSettingsSalesRouteWithChildren,
   AuthedOfficeSettingsSkillsRoute: AuthedOfficeSettingsSkillsRoute,
   AuthedOfficeSettingsTeamRoute: AuthedOfficeSettingsTeamRoute,
   AuthedOfficeSettingsIndexRoute: AuthedOfficeSettingsIndexRoute,
@@ -622,6 +944,7 @@ const AuthedOfficeSettingsRouteWithChildren =
 
 interface AuthedOfficeRouteChildren {
   AuthedOfficeMessagesRoute: typeof AuthedOfficeMessagesRoute
+  AuthedOfficeSalesRoute: typeof AuthedOfficeSalesRouteWithChildren
   AuthedOfficeSettingsRoute: typeof AuthedOfficeSettingsRouteWithChildren
   AuthedOfficeIndexRoute: typeof AuthedOfficeIndexRoute
   AuthedOfficeClientsClientIdRoute: typeof AuthedOfficeClientsClientIdRoute
@@ -635,6 +958,7 @@ interface AuthedOfficeRouteChildren {
 
 const AuthedOfficeRouteChildren: AuthedOfficeRouteChildren = {
   AuthedOfficeMessagesRoute: AuthedOfficeMessagesRoute,
+  AuthedOfficeSalesRoute: AuthedOfficeSalesRouteWithChildren,
   AuthedOfficeSettingsRoute: AuthedOfficeSettingsRouteWithChildren,
   AuthedOfficeIndexRoute: AuthedOfficeIndexRoute,
   AuthedOfficeClientsClientIdRoute: AuthedOfficeClientsClientIdRoute,

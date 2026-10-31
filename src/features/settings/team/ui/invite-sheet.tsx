@@ -1,10 +1,11 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { CopyIcon } from 'lucide-react'
 import { useMemo, useState } from 'react'
-import { FormProvider, useForm } from 'react-hook-form'
+import { FormProvider, useForm, useWatch } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
+import { hasSalesPlan, useMe } from '@/entities/auth'
 import {
   buildInvitationSchema,
   emptyInvitation,
@@ -18,6 +19,7 @@ import { isConflict } from '@/shared/api/api-error'
 import { reportSaveError } from '@/shared/lib/report-save-error'
 import { Alert, AlertDescription } from '@/shared/ui/alert'
 import { Button } from '@/shared/ui/button'
+import { CheckboxField } from '@/shared/ui/checkbox-field'
 import { FormSheet } from '@/shared/ui/form-sheet'
 import { Input } from '@/shared/ui/input'
 import { SelectField } from '@/shared/ui/select-field'
@@ -35,6 +37,8 @@ export function InviteSheet({ onClose }: { onClose: () => void }) {
     defaultValues: emptyInvitation,
   })
   const create = useCreateInvitation()
+  const planHasSales = hasSalesPlan(useMe())
+  const role = useWatch({ control: form.control, name: 'role' })
   const [sent, setSent] = useState<Invitation | null>(null)
 
   const submit = form.handleSubmit(async (values) => {
@@ -135,6 +139,13 @@ export function InviteSheet({ onClose }: { onClose: () => void }) {
           options={ROLES.map((role) => ({ value: role, label: t(`roles.${role}`) }))}
           required
         />
+        {planHasSales && role === 'dispatcher' && (
+          <CheckboxField
+            name="canAccessSales"
+            label={t('settings.team.invitations.new.salesAccess')}
+            hint={t('settings.team.invitations.new.salesAccessHint')}
+          />
+        )}
       </FormSheet>
     </FormProvider>
   )

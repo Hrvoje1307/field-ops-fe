@@ -13,10 +13,10 @@ import { UserMenu } from './user-menu'
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const { t } = useTranslation()
-  const { role } = useMe()
+  const me = useMe()
   return (
     <nav aria-label={t('shell.nav.label')} className="flex flex-col gap-1">
-      {navFor(role).map(({ to, labelKey, icon: Icon }) => (
+      {navFor(me).map(({ to, labelKey, icon: Icon }) => (
         <Link
           key={to}
           to={to}

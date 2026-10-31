@@ -2,7 +2,15 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
-import { type Member, ROLES, type Role, useUpdateMember } from '@/entities/member'
+import { hasSalesPlan, useMe } from '@/entities/auth'
+import {
+  canSetSalesAccess,
+  type Member,
+  memberHasSalesAccess,
+  ROLES,
+  type Role,
+  useUpdateMember,
+} from '@/entities/member'
 import { isConflict } from '@/shared/api/api-error'
 import { Alert, AlertDescription } from '@/shared/ui/alert'
 import { Button } from '@/shared/ui/button'
@@ -24,9 +32,17 @@ export function MemberSheet({
   const { t } = useTranslation()
   const [role, setRole] = useState<Role>(member.role)
   const [isActive, setIsActive] = useState(member.isActive)
+  const [salesAccess, setSalesAccess] = useState(memberHasSalesAccess(member))
+  // Prodaja: only on a plan that has it; the switch is a dispatcher's, owners always have it
+  // and technicians never do
+  const planHasSales = hasSalesPlan(useMe())
+  const showSalesSwitch = planHasSales && canSetSalesAccess({ role })
   const [error, setError] = useState<string | null>(null)
   const update = useUpdateMember()
-  const unchanged = role === member.role && isActive === member.isActive
+  const unchanged =
+    role === member.role &&
+    isActive === member.isActive &&
+    (!showSalesSwitch || salesAccess === memberHasSalesAccess(member))
 
   return (
     <FormSheet
@@ -40,7 +56,11 @@ export function MemberSheet({
         event.preventDefault()
         setError(null)
         update.mutate(
-          { userId: member.userId, body: { role, isActive } },
+          {
+            userId: member.userId,
+            // "Omit to keep": the permission is sent only where the switch is
+            body: { role, isActive, ...(showSalesSwitch ? { canAccessSales: salesAccess } : {}) },
+          },
           {
             onSuccess: () => {
               toast.success(t('settings.team.member.saved'))
@@ -108,6 +128,27 @@ export function MemberSheet({
           {t('settings.team.member.isActive')}
         </FieldLabel>
       </Field>
+      {showSalesSwitch && (
+        <Field orientation="horizontal">
+          <Checkbox
+            id="member-sales"
+            checked={salesAccess}
+            disabled={isSelf}
+            onCheckedChange={(checked) => {
+              setSalesAccess(checked === true)
+            }}
+          />
+          <FieldLabel htmlFor="member-sales" className="font-normal">
+            {t('settings.team.member.salesAccess')}
+          </FieldLabel>
+        </Field>
+      )}
+      {planHasSales && role === 'owner' && (
+        <p className="text-sm text-muted-foreground">{t('settings.team.member.salesOwner')}</p>
+      )}
+      {planHasSales && role === 'technician' && (
+        <p className="text-sm text-muted-foreground">{t('settings.team.member.salesTechnician')}</p>
+      )}
     </FormSheet>
   )
 }

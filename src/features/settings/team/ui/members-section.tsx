@@ -2,9 +2,14 @@ import { PencilIcon, WrenchIcon } from 'lucide-react'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-import { useMe } from '@/entities/auth'
+import { hasSalesPlan, useMe } from '@/entities/auth'
 import { useListDepots } from '@/entities/depot'
-import { type Member, useListMembers } from '@/entities/member'
+import {
+  canSetSalesAccess,
+  type Member,
+  memberHasSalesAccess,
+  useListMembers,
+} from '@/entities/member'
 import { useListSkills } from '@/entities/skill'
 import { type Technician, useListTechnicians } from '@/entities/technician'
 import { useTenantFormat } from '@/shared/lib/tenant-format'
@@ -123,6 +128,13 @@ export function MembersSection() {
                     <Badge variant="secondary" className="ml-2 align-middle">
                       {t(`roles.${member.role}`)}
                     </Badge>
+                    {hasSalesPlan(me) &&
+                      canSetSalesAccess(member) &&
+                      memberHasSalesAccess(member) && (
+                        <Badge variant="outline" className="ml-2 align-middle">
+                          {t('settings.team.members.salesAccess')}
+                        </Badge>
+                      )}
                     {!member.isActive && (
                       <Badge variant="outline" className="ml-2 align-middle">
                         {t('settings.team.members.inactive')}

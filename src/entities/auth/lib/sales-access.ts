@@ -6,6 +6,11 @@ type SalesAccessInput = Pick<Me, 'features' | 'role' | 'canAccessSales'>
 export const SALES_FEATURE = 'sales'
 export const SALES_AI_FEATURE = 'sales_ai'
 
+/** Whether the plan has the module at all (the team screen offers the switch only then). */
+export function hasSalesPlan(me: Pick<Me, 'features'> | null | undefined): boolean {
+  return (me?.features ?? []).includes(SALES_FEATURE)
+}
+
 /**
  * Whether the Prodaja module is open to this user: the plan has `sales` and
  * `me.canAccessSales` is true. `canAccessSales` is optional in the contract (an API

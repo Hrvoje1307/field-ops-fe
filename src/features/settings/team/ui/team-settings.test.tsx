@@ -422,3 +422,146 @@ describe('invitations', () => {
     expect(await screen.findByText('Pozivnice nije moguće učitati.')).toBeInTheDocument()
   })
 })
+
+describe('access to Prodaja', () => {
+  /** The bodies of the writes that reach the API. */
+  function captureWrites() {
+    const sent: { url: string; body: Record<string, unknown> }[] = []
+    server.events.on('request:start', ({ request }) => {
+      if (['PUT', 'POST'].includes(request.method) && /\/users(\/|$)/.test(request.url)) {
+        void request
+          .clone()
+          .json()
+          .then((body: Record<string, unknown>) => sent.push({ url: request.url, body }))
+      }
+    })
+    return sent
+  }
+  const edit = async (user: User, email: string) => {
+    const member = (await listMembers()).find((m) => m.email === email)
+    await members()
+    await user.click(screen.getByRole('button', { name: `Uredi člana: ${member?.fullName ?? ''}` }))
+    return screen.findByRole('dialog', { name: 'Uredi člana' })
+  }
+
+  it('a dispatcher with access is marked in the list; the owner is not (the owner always has it)', async () => {
+    renderTeam()
+    const dispatcher = (await listMembers()).find((m) => m.email === 'dispecer@alarmko.test')
+    const owner = (await listMembers()).find((m) => m.email === 'vlasnik@alarmko.test')
+    expect(await rowOf(dispatcher?.fullName ?? '')).toHaveTextContent('Prodaja')
+    expect(await rowOf(owner?.fullName ?? '')).not.toHaveTextContent('Prodaja')
+    const technician = (await listMembers()).find((m) => m.role === 'technician')
+    expect(await rowOf(technician?.fullName ?? '')).not.toHaveTextContent('Prodaja')
+  })
+
+  it('the owner switches a dispatcher’s access off and the permission is sent with the change', async () => {
+    const sent = captureWrites()
+    const user = renderTeam()
+    const dialog = await edit(user, 'dispecer@alarmko.test')
+    const sales = within(dialog).getByLabelText('Pristup prodaji')
+    expect(sales).toBeChecked()
+    await user.click(sales)
+    await user.click(within(dialog).getByRole('button', { name: 'Spremi' }))
+    expect(await screen.findByText('Član je spremljen.')).toBeInTheDocument()
+    await waitFor(() => {
+      expect(sent.at(-1)?.body).toEqual({
+        role: 'dispatcher',
+        isActive: true,
+        canAccessSales: false,
+      })
+    })
+    const saved = (await listMembers()).find((m) => m.email === 'dispecer@alarmko.test')
+    expect(saved?.canAccessSales).toBe(false)
+    expect(await rowOf(saved?.fullName ?? '')).not.toHaveTextContent('Prodaja')
+  })
+
+  it('a change to something else still says what it is (the switch is part of the form), and the permission is only sent where there is a switch', async () => {
+    const sent = captureWrites()
+    const user = renderTeam()
+    const dialog = await edit(user, 'dispecer@alarmko.test')
+    // Role to technician: the switch goes, a line says why, and no permission is sent
+    await user.selectOptions(within(dialog).getByLabelText('Uloga'), 'Monter')
+    expect(within(dialog).queryByLabelText('Pristup prodaji')).not.toBeInTheDocument()
+    expect(within(dialog).getByText(/nemaju pristup prodaji/)).toBeInTheDocument()
+    await user.click(within(dialog).getByRole('button', { name: 'Spremi' }))
+    await screen.findByText('Član je spremljen.')
+    await waitFor(() => {
+      expect(sent.at(-1)?.body).toEqual({ role: 'technician', isActive: true })
+    })
+  })
+
+  it('your own sheet says the owner always has it; the switch is not there for owners', async () => {
+    const user = renderTeam()
+    const dialog = await edit(user, 'vlasnik@alarmko.test')
+    expect(within(dialog).queryByLabelText('Pristup prodaji')).not.toBeInTheDocument()
+    expect(within(dialog).getByText('Vlasnik uvijek ima pristup prodaji.')).toBeInTheDocument()
+  })
+
+  it('on a plan without Prodaja there is no switch, no line and no mark', async () => {
+    sessionStore.setTokens(await login({ email: 'vlasnik@cisto.test', password: 'demo' }))
+    const sent = captureWrites()
+    const user = renderTeam()
+    const dialog = await edit(user, 'ana@demo.test')
+    expect(within(dialog).queryByLabelText('Pristup prodaji')).not.toBeInTheDocument()
+    expect(within(dialog).queryByText(/prodaji/i)).not.toBeInTheDocument()
+    await user.click(within(dialog).getByLabelText(/Aktivan/))
+    await user.click(within(dialog).getByRole('button', { name: 'Spremi' }))
+    await screen.findByText('Član je spremljen.')
+    await waitFor(() => {
+      expect(sent.at(-1)?.body).toEqual({ role: 'dispatcher', isActive: false })
+    })
+    const ana = (await listMembers()).find((m) => m.email === 'ana@demo.test')
+    expect(await rowOf(ana?.fullName ?? '')).not.toHaveTextContent('Prodaja')
+  })
+
+  it('an invitation of a dispatcher can carry the permission; for a technician or on a plan without Prodaja there is no box', async () => {
+    const sent = captureWrites()
+    const user = renderTeam()
+    await invitations()
+    await user.click(screen.getByRole('button', { name: 'Pozovi osobu' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Pozovi osobu' })
+    // A technician is the default: no box
+    expect(within(dialog).queryByLabelText('Pristup prodaji')).not.toBeInTheDocument()
+    await user.selectOptions(within(dialog).getByLabelText(/Uloga/), 'Dispečer')
+    await user.type(within(dialog).getByLabelText(/Email/), 'prodaja@firma.test')
+    await user.click(within(dialog).getByLabelText('Pristup prodaji'))
+    await user.click(within(dialog).getByRole('button', { name: 'Pošalji pozivnicu' }))
+    await screen.findByLabelText(/Pošaljite osobi ovu poveznicu/)
+    await waitFor(() => {
+      expect(sent.at(-1)?.body).toEqual({
+        email: 'prodaja@firma.test',
+        role: 'dispatcher',
+        canAccessSales: true,
+      })
+    })
+    const saved = (await listInvitations()).find((i) => i.email === 'prodaja@firma.test')
+    expect(saved?.canAccessSales).toBe(true)
+  })
+
+  it('a dispatcher invited without ticking the box is sent without the permission (the contract’s default is no)', async () => {
+    const sent = captureWrites()
+    const user = renderTeam()
+    await invitations()
+    await user.click(screen.getByRole('button', { name: 'Pozovi osobu' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Pozovi osobu' })
+    await user.selectOptions(within(dialog).getByLabelText(/Uloga/), 'Dispečer')
+    await user.type(within(dialog).getByLabelText(/Email/), 'bez@firma.test')
+    await user.click(within(dialog).getByRole('button', { name: 'Pošalji pozivnicu' }))
+    await screen.findByLabelText(/Pošaljite osobi ovu poveznicu/)
+    await waitFor(() => {
+      expect(sent.at(-1)?.body).toEqual({ email: 'bez@firma.test', role: 'dispatcher' })
+    })
+    expect(
+      (await listInvitations()).find((i) => i.email === 'bez@firma.test')?.canAccessSales,
+    ).toBe(false)
+  })
+
+  it('on a plan without Prodaja the invitation has no box either', async () => {
+    sessionStore.setTokens(await login({ email: 'vlasnik@cisto.test', password: 'demo' }))
+    const user = renderTeam()
+    await user.click(await screen.findByRole('button', { name: 'Pozovi osobu' }))
+    const dialog = await screen.findByRole('dialog', { name: 'Pozovi osobu' })
+    await user.selectOptions(within(dialog).getByLabelText(/Uloga/), 'Dispečer')
+    expect(within(dialog).queryByLabelText('Pristup prodaji')).not.toBeInTheDocument()
+  })
+})

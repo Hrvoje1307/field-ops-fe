@@ -18,7 +18,10 @@ export const TENANTS = [
   },
 ] as const
 
-/** Dispatcher in both tenants. */
+/** A tenant whose plan has no Sales module; reached by switching tenant as the shared dispatcher. */
+export const NO_SALES_TENANT = { name: 'Čisto d.o.o.', owner: 'vlasnik@cisto.test' } as const
+
+/** Dispatcher in all three tenants (the Sales permission: yes in Alarmko, no in Bura). */
 export const SHARED_DISPATCHER = 'ana@demo.test'
 
 /** VITE_API_URL from .env.development (the mock intercepts it in the browser). */
@@ -61,6 +64,12 @@ export async function signIn(page: Page, email: string, password = PASSWORD): Pr
 
 export async function openUserMenu(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Korisnički izbornik' }).click()
+}
+
+export async function signOut(page: Page): Promise<void> {
+  await openUserMenu(page)
+  await page.getByRole('menuitem', { name: 'Odjavi se' }).click()
+  await expect(page).toHaveURL('/login')
 }
 
 export async function expectSignedInAs(page: Page, tenantName: string): Promise<void> {

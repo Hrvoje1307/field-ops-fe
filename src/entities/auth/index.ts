@@ -20,7 +20,13 @@ export {
   type LoginReason,
   type LoginSearch,
 } from './lib/navigation'
-export { hasSalesAccess, hasSalesAi, SALES_AI_FEATURE, SALES_FEATURE } from './lib/sales-access'
+export {
+  hasSalesAccess,
+  hasSalesAi,
+  hasSalesPlan,
+  SALES_AI_FEATURE,
+  SALES_FEATURE,
+} from './lib/sales-access'
 export { sessionStore } from './model/session-store'
 export type { SessionSnapshot, SessionStore } from './model/session-store'
 export { useMe } from './model/use-me'

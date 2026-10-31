@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { hasSalesAccess, hasSalesAi } from './sales-access'
+import { hasSalesAccess, hasSalesAi, hasSalesPlan } from './sales-access'
 
 const me = (over: Partial<Parameters<typeof hasSalesAccess>[0]> = {}) => ({
   role: 'dispatcher' as const,
@@ -38,5 +38,13 @@ describe('hasSalesAi', () => {
     expect(hasSalesAi(me({ features: ['sales'] }))).toBe(false)
     expect(hasSalesAi(me({ features: ['sales_ai'] }))).toBe(false)
     expect(hasSalesAi(me({ canAccessSales: false }))).toBe(false)
+  })
+})
+
+describe('hasSalesPlan', () => {
+  it('is the plan feature alone, whatever the permission', () => {
+    expect(hasSalesPlan({ features: ['sms', 'sales'] })).toBe(true)
+    expect(hasSalesPlan({ features: ['sms'] })).toBe(false)
+    expect(hasSalesPlan(undefined)).toBe(false)
   })
 })

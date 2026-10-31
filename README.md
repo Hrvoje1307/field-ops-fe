@@ -15,14 +15,14 @@ Copy `.env.example` to `.env.local` to point at a real API (`VITE_API_MOCK=false
 
 With `VITE_API_MOCK=true` (the default in development) MSW serves the API from `src/shared/api/mocks`, following `openapi/openapi.json`. Data lives in `localStorage` (`fieldops.mockdb.v1`) and is reseeded every day, with dates relative to today. Run `window.__fieldopsResetMock()` in the browser console to reseed now; this also clears sessions and login locks.
 
-Two fictional tenants, password `demo` for everyone:
+Three fictional tenants (the third has no Sales module), password `demo` for everyone; details, and what only the mock does, in [`src/shared/api/mocks/README.md`](src/shared/api/mocks/README.md):
 
 | Tenant                                     | Owner                  | Dispatcher              | Technicians                            |
 | ------------------------------------------ | ---------------------- | ----------------------- | -------------------------------------- |
 | Alarmko d.o.o. (alarm installer, Zagreb)   | `vlasnik@alarmko.test` | `dispecer@alarmko.test` | `ivan@`, `luka@`, `petra@alarmko.test` |
 | Bura klima d.o.o. (HVAC / plumbing, Split) | `vlasnik@bura.test`    | `dispecer@bura.test`    | `ante@`, `mia@bura.test`               |
 
-`ana@demo.test` is a dispatcher in both tenants (for tenant switching). Open questions about the contract are in `docs/backend-questions.md`.
+`ana@demo.test` is a dispatcher in all three (for tenant switching); the third is Čisto d.o.o. (cleaning, Rijeka; `vlasnik@cisto.test`). Open questions about the contract are in `docs/backend-questions.md`.
 
 Developer previews (mock mode only, sign in first). They are registered in `src/app/mock-routes.ts`, not as file routes, so builds without the mock API contain none of their code or strings:
 
