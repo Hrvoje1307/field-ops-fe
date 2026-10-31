@@ -28,6 +28,15 @@ export const HUB_EVENT_TYPES = [
   'DraftReady',
 ] as const
 
+/** Events of the Sales module (group `sales:{tenantId}`); their cache refresh comes with step S9. */
+export const SALES_EVENT_TYPES: readonly HubEvent['type'][] = [
+  'SalesThreadUpdated',
+  'DealUpdated',
+  'DraftReady',
+]
+
+export const isSalesEvent = (event: HubEvent): boolean => SALES_EVENT_TYPES.includes(event.type)
+
 export interface HubOptions {
   url: string
   /** The access token, read at every connection attempt (it may have been renewed). */

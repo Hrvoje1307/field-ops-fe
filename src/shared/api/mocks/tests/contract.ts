@@ -3,6 +3,7 @@
  * declared (or be one of the documented global errors) and the body must
  * validate against its response schema.
  */
+import { isKnownSalesErrorCode } from './sales-codes'
 import {
   componentSchema,
   declaredResponse,
@@ -73,6 +74,13 @@ export function contractViolations(
   }
 
   const violations: string[] = []
+  // The error codes of the Sales module are the tag's (or a documented gap), whatever test makes the call
+  if (status >= 400 && template.startsWith('/sales/')) {
+    const code = (body as { code?: unknown } | undefined)?.code
+    if (typeof code !== 'string' || !isKnownSalesErrorCode(code)) {
+      violations.push(`${label}: error code ${String(code)} is not one the spec's Sales tag names`)
+    }
+  }
   if (!contentType?.startsWith(expectedType)) {
     violations.push(`${label}: content type ${String(contentType)}, expected ${expectedType}`)
   }

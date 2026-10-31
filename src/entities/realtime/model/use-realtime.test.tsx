@@ -90,6 +90,36 @@ describe('useRealtime', () => {
     expect(channel.getStatus()).toBe('disconnected')
   })
 
+  it('ignores the sales events until step S9: a deal moved by someone else refreshes no job data and reaches no one', async () => {
+    const heard: LiveEvent[] = []
+    const stop = channel.subscribeEvents((event) => heard.push(event))
+    const { stale } = setup()
+    await waitFor(() => {
+      expect(channel.getStatus()).toBe('connected')
+    })
+    const login = await fetch(`${env.apiUrl}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: 'vlasnik@alarmko.test', password: 'demo' }),
+    })
+    const { accessToken } = (await login.json()) as { accessToken: string }
+    const headers = { Authorization: `Bearer ${accessToken}`, 'Content-Type': 'application/json' }
+    const board = (await (await fetch(`${env.apiUrl}/sales/board`, { headers })).json()) as {
+      columns: { stage: { id: string }; deals: { id: string }[] }[]
+    }
+    const deal = board.columns[0]?.deals[0]
+    const target = board.columns[1]?.stage.id
+    await fetch(`${env.apiUrl}/sales/deals/${deal?.id ?? ''}/move`, {
+      method: 'POST',
+      headers: { ...headers, 'Idempotency-Key': crypto.randomUUID() },
+      body: JSON.stringify({ stageId: target }),
+    })
+    await new Promise((resolve) => setTimeout(resolve, 400))
+    expect(stale(['jobs', 'list'])).toBe(false)
+    expect(heard).toEqual([])
+    stop()
+  })
+
   it('marks what shows jobs stale when someone else changes a job, and passes the events on', async () => {
     const heard: LiveEvent[] = []
     const stop = channel.subscribeEvents((event) => heard.push(event))

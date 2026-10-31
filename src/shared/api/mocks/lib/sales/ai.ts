@@ -13,7 +13,7 @@ import { normalizePhone } from '@/shared/lib/phone'
 import { dateInTimeZone, toIsoInstant, zonedDateTimeToInstant } from '@/shared/lib/datetime'
 import { addDays } from '@/shared/lib/datetime'
 
-import { getDb } from '../../db'
+import { getDb, saveDb } from '../../db'
 import type { TenantData } from '../../db/rows'
 import type { DraftRow, MailMessageRow, MailThreadRow, SalesData } from '../../db/sales-rows'
 import { newId } from '../ids'
@@ -257,8 +257,9 @@ export const replySubject = (subject: string) =>
  * draft its text, and the hub tells the tenant (`SalesThreadUpdated`, `DraftReady`).
  * Called before every Sales request; in the browser a timer calls it when something falls due.
  */
-export function settleDue(tenantId: string, t: TenantData, now = Date.now()): void {
+export function settleDue(tenantId: string, t: TenantData, now = Date.now()): boolean {
   const { sales } = t
+  let changed = false
   for (const thread of sales.threads) {
     if (thread.aiStatus !== 'pending' || !thread.aiReadyAt || Date.parse(thread.aiReadyAt) > now)
       continue
@@ -282,6 +283,7 @@ export function settleDue(tenantId: string, t: TenantData, now = Date.now()): vo
     thread.aiReadyAt = null
     thread.updatedAt = toIsoInstant(now)
     countTokens(usageOfMonth(t, now), threadText(thread, messages), result.summary)
+    changed = true
     emitSales(tenantId, {
       target: 'SalesThreadUpdated',
       payload: { threadId: thread.id, dealId: thread.dealId },
@@ -294,11 +296,13 @@ export function settleDue(tenantId: string, t: TenantData, now = Date.now()): vo
     draft.readyAt = null
     draft.updatedAt = toIsoInstant(now)
     countTokens(usageOfMonth(t, now), draft.instructions ?? draft.subject, draft.bodyText)
+    changed = true
     emitSales(tenantId, {
       target: 'DraftReady',
       payload: { draftId: draft.id, threadId: draft.threadId, status: draft.status },
     })
   }
+  return changed
 }
 
 /** True when the thread's AI result is still on its way. */
@@ -313,7 +317,7 @@ export function scheduleSettle(tenantId: string): void {
   if (import.meta.env.MODE === 'test') return
   setTimeout(() => {
     const t = getDb().tenants[tenantId]
-    if (t) settleDue(tenantId, t)
+    if (t && settleDue(tenantId, t)) saveDb()
   }, MOCK_AI_LATENCY_MS + 50)
 }
 

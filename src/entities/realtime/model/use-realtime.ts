@@ -2,7 +2,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 
 import { getSessionStore } from '@/shared/api/session-port'
-import { type HubStatus, startHub } from '@/shared/api/realtime/hub'
+import { type HubStatus, isSalesEvent, startHub } from '@/shared/api/realtime/hub'
 import { env } from '@/shared/config/env'
 
 import { renewSession } from '../api'
@@ -30,6 +30,8 @@ export function useRealtime(tenantId: string): void {
       getAccessToken: () => getSessionStore().getAccessToken(),
       beforeRetry: renewSession,
       onEvent: (event) => {
+        // The sales events refresh sales data (step S9); job data and the technician's notices are not theirs
+        if (isSalesEvent(event)) return
         channel.publish({ ...event, own: writes.recent() })
         refresher.push()
       },

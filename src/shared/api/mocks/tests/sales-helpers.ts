@@ -5,32 +5,9 @@ import type { MailThread, MailThreadSummary, ProblemDetails } from '@/shared/api
 import { getDb } from '../db'
 import type { MockDb, TenantData } from '../db/rows'
 import type { DealRow, MailThreadRow } from '../db/sales-rows'
-import { spec } from '../lib/openapi'
 import { MOCK_AI_LATENCY_MS } from '../lib/sales/const'
 import { tenantBySlug, type ApiResponse } from './client'
-
-/** Error codes the spec's Sales tag lists (`ProblemDetails.code`). */
-export const SPEC_SALES_CODES: ReadonlySet<string> = new Set(
-  [
-    ...((spec as unknown as { tags: { name: string; description?: string }[] }).tags
-      .find((tag) => tag.name === 'Sales')
-      ?.description?.matchAll(/\b((?:sales|mailbox|thread)\.[a-z_]+)\b/g) ?? []),
-  ].map((match) => match[1] ?? ''),
-)
-
-/**
- * Codes the mock uses where the spec says "409" or "403" without naming one, and the
- * generic ones (docs/backend-questions.md #53). Everything else must be in the tag.
- */
-export const MOCK_ONLY_CODES: ReadonlySet<string> = new Set([
-  'auth.forbidden',
-  'not_found',
-  'validation_failed',
-  'deal.version_conflict',
-  'draft.version_conflict',
-  'draft.already_sent',
-  'draft.not_ready',
-])
+import { isKnownSalesErrorCode } from './sales-codes'
 
 /** A ProblemDetails of this status and code; the code must be one the spec names (or a known gap). */
 export function expectProblem(response: ApiResponse, status: number, code: string): ProblemDetails {
@@ -38,7 +15,7 @@ export function expectProblem(response: ApiResponse, status: number, code: strin
   const body = response.body as ProblemDetails
   expect(body.code).toBe(code)
   expect(
-    SPEC_SALES_CODES.has(code) || MOCK_ONLY_CODES.has(code),
+    isKnownSalesErrorCode(code),
     `${code} is neither in the Sales tag nor a documented gap`,
   ).toBe(true)
   return body

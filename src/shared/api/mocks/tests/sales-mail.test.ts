@@ -11,6 +11,8 @@ import type {
 } from '@/shared/api/generated/model'
 
 import { resetMockDb } from '../db'
+import type { MockDb } from '../db/rows'
+import { MOCK_DB_STORAGE_KEY } from '../db/storage'
 import { MOCK_AI_MONTHLY_LIMIT } from '../lib/sales/const'
 import { loginAs, USERS } from './client'
 import { alarmko, bura, expectProblem, letAiFinish, threadRow } from './sales-helpers'
@@ -516,6 +518,20 @@ describe('AI: classify again, drafts, the allowance', () => {
       model: 'mock-model',
     })
     expect(alarmko().usage.at(-1)?.aiClassifications).toBe(usageBefore + 1)
+  })
+
+  it('what the AI finished is stored: a reload does not finish it a second time', async () => {
+    const session = await owner()
+    const row = threadRow(alarmko(), 'Trebam ponudu za 4 kamere')
+    await session.post(`/sales/threads/${row.id}/reprocess`)
+    letAiFinish()
+    await session.get(`/sales/threads/${row.id}`)
+    const stored = JSON.parse(localStorage.getItem(MOCK_DB_STORAGE_KEY) ?? '{}') as MockDb
+    const t = Object.values(stored.tenants).find((x) => x.tenant.slug === 'alarmko')
+    expect(t?.sales.threads.find((th) => th.id === row.id)?.aiStatus).toBe('done')
+    const tokens = alarmko().usage.at(-1)?.aiInputTokens
+    await session.get(`/sales/threads/${row.id}`)
+    expect(alarmko().usage.at(-1)?.aiInputTokens).toBe(tokens)
   })
 
   it('a result never overwrites a user’s correction', async () => {

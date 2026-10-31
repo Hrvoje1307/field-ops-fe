@@ -567,13 +567,13 @@ Note the asymmetry with `LocationInput.accessCodes` (0.2.0), where `null` means 
 
 ## 55. Sales: Today
 
-**Spec says:** `GET /sales/today` → `SalesToday {date, items, staleDeals, needsReviewCount, mailboxesNeedingAttention}`; items "overdue first, then by due time", reasons `follow_up_due`, `unanswered`, `stale`; `ownerUserId`: "Default: deals of the caller plus unowned shared-mailbox threads; owners may pass any user or omit for everyone". `SalesTodayItem.thread` is required.
+**Spec says:** `SalesTodayItem.thread` is required; `staleDeals` is a separate list next to the items, and `stale` is also a reason of an item.
 
-**Mock does:** an item per conversation (one reason, the first that applies): `follow_up_due` when the deal's `nextFollowUpAt` or an active follow-up rule (business days after our last message with no answer) is due by the end of today, `unanswered` when the client wrote last and `responseSlaHours` have passed, `stale` for a stale deal whose conversation is not listed yet; a closed deal and non-sales conversations are left out. Overdue (before now) first, then by due time. `staleDeals` lists every stale open deal in scope. `needsReviewCount` counts the sales conversations that need review. Scope: an owner without `ownerUserId` sees everyone's, with one that user's; others always get the default (another user's id is 403 `sales.forbidden`).
+**Mock does:** an item per conversation (one reason, the first that applies). A deal with a follow-up due but no conversation is not an item (an item needs a `thread`), and it is in `staleDeals` only when stale. A stale deal whose conversation is not listed yet also gets a `stale` item; every stale open deal in scope is in `staleDeals`. A closed deal and non-sales conversations are left out. An item is listed when it is due before the end of the tenant's day.
 
 **Frontend does:** shows what comes, in that order, with a "why" per reason; does not work out due dates itself.
 
-**We propose:** say whether an owner who omits `ownerUserId` sees the default or everyone (the sentence allows both), what a user who is not an owner gets for another user's id, and what Today shows for a deal with a follow-up due but no conversation (an item needs a `thread`; the mock shows nothing). Say when `stale` is an item and when only a `staleDeals` entry, and what counts as "due today" (we include everything due until the end of the tenant's day).
+**We propose:** say what Today shows for a deal that has a follow-up due and no conversation, and when `stale` is an item and when only a `staleDeals` entry.
 
 ## 56. Sales: deals and stages
 

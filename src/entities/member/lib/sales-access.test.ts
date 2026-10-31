@@ -9,6 +9,12 @@ describe('memberHasSalesAccess', () => {
     expect(memberHasSalesAccess({ role: 'dispatcher', canAccessSales: false })).toBe(false)
     expect(memberHasSalesAccess({ role: 'technician', canAccessSales: false })).toBe(false)
   })
+
+  it('an invitation or an API that leaves the field out: undefined is no (owners still yes)', () => {
+    expect(memberHasSalesAccess({ role: 'dispatcher', canAccessSales: undefined })).toBe(false)
+    expect(memberHasSalesAccess({ role: 'dispatcher' })).toBe(false)
+    expect(memberHasSalesAccess({ role: 'owner' })).toBe(true)
+  })
 })
 
 describe('canSetSalesAccess', () => {
