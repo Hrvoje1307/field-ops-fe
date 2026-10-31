@@ -97,7 +97,13 @@ for (const tenant of TENANTS) {
       await page.reload()
       await expect(page.getByRole('img', { name: 'Logo tvrtke' })).toBeVisible()
       await page.getByRole('button', { name: 'Ukloni logo' }).click()
+      // "Logo nije postavljen." shows at once (the form's own state): the saved company is
+      // only there once the API has answered
+      const answered = page.waitForResponse(
+        (response) => response.request().method() === 'PUT' && response.url().endsWith('/tenant'),
+      )
       await page.getByRole('button', { name: 'Spremi postavke' }).click()
+      await answered
       await expect(page.getByText('Logo nije postavljen.')).toBeVisible()
       const [removed] = await apiGet<[Tenant]>(page, tenant.owner, ['/tenant'])
       expect(removed.logoAttachmentId).toBeNull()

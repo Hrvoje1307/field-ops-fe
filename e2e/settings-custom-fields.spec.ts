@@ -34,7 +34,7 @@ for (const tenant of TENANTS) {
 
       await page.getByRole('button', { name: 'Dodaj polje' }).click()
       await page.getByLabel(/Naziv polja/).fill('Način plaćanja')
-      await expect(page.getByLabel(/Ključ/)).toHaveValue('nacin_placanja')
+      await expect(page.getByRole('textbox', { name: 'Ključ' })).toHaveValue('nacin_placanja')
       await page.getByLabel(/Vrsta polja/).selectOption({ label: 'Jedan odabir' })
       await page.getByRole('button', { name: 'Dodaj opciju' }).click()
       await page.getByLabel('Opcija 1').fill('Gotovina')
@@ -103,7 +103,7 @@ for (const tenant of TENANTS) {
         .nth(0)
         .getByRole('button', { name: /^Uredi: / })
         .click()
-      await expect(page.getByLabel(/Ključ/)).toBeDisabled()
+      await expect(page.getByRole('textbox', { name: 'Ključ' })).toBeDisabled()
       await expect(page.getByLabel(/Vrsta polja/)).toBeDisabled()
     })
   })

@@ -25,10 +25,25 @@ export const SHARED_DISPATCHER = 'ana@demo.test'
 export const API_URL = 'http://localhost:5080/api/v1'
 
 /**
- * Fresh mock state for every test: no session, no login lock, no switched tenant.
- * (Each test also gets its own browser context; this makes the reset explicit.)
+ * "Today" in every e2e test: a Wednesday, so "tomorrow" is a working day whatever day the
+ * suite runs (the seed and the day screens skip weekends). The clock starts at that
+ * moment and then runs normally (a frozen clock would stop everything that waits for a
+ * time to pass: the mock hub's outage, token expiry). Same day as `fixToday()` in Vitest.
+ */
+export const FIXED_NOW = new Date('2026-10-28T09:00:00Z')
+
+export async function fixClock(page: Page): Promise<void> {
+  await page.clock.install({ time: FIXED_NOW })
+  await page.clock.resume()
+}
+
+/**
+ * Fresh mock state for every test: fixed clock, no session, no login lock, no switched
+ * tenant. (Each test also gets its own browser context; this makes the reset explicit.)
+ * Every spec starts with it, so every spec has the same "today".
  */
 export async function resetMock(page: Page): Promise<void> {
+  await fixClock(page)
   await page.goto('/login')
   await page.waitForFunction(() => '__fieldopsResetMock' in window)
   await page.evaluate(() => {

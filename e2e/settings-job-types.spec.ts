@@ -85,6 +85,10 @@ for (const tenant of TENANTS) {
         .click()
       await list.getByRole('button', { name: 'Obriši: Primopredaja' }).click()
       await page.getByRole('button', { name: 'Obriši listu' }).click()
+      // The dialog hides the page behind it from the accessibility tree, so the list below
+      // would "have no Primopredaja" while the request is still on its way: wait for the
+      // dialog to close (it closes when the API has answered), then look at the list
+      await expect(page.getByRole('dialog')).toHaveCount(0)
       await expect(list.getByText('Primopredaja')).toHaveCount(0)
       const [jobTypes] = await apiGet<[JobType[]]>(page, tenant.owner, ['/job-types'])
       expect(jobTypes.some((type) => type.checklistTemplateId === made?.id)).toBe(false)
