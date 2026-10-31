@@ -1,7 +1,10 @@
 import type {
+  DealUpdatedEvent,
+  DraftReadyEvent,
   JobStatusChangedEvent,
   JobUpdatedEvent,
   RoutePlanPublishedEvent,
+  SalesThreadUpdatedEvent,
 } from '@/shared/api/generated/model'
 
 import type { TenantData } from '../db/rows'
@@ -49,6 +52,10 @@ export type HubMessage =
   | { target: 'JobUpdated'; payload: JobUpdatedEvent; technicianIds: string[] }
   | { target: 'JobStatusChanged'; payload: JobStatusChangedEvent; technicianIds: string[] }
   | { target: 'RoutePlanPublished'; payload: RoutePlanPublishedEvent; technicianIds: 'all' }
+  /** Sales events: everyone of the tenant with sales access (group `sales:{tenantId}`). */
+  | { target: 'SalesThreadUpdated'; payload: SalesThreadUpdatedEvent; technicianIds: 'sales' }
+  | { target: 'DealUpdated'; payload: DealUpdatedEvent; technicianIds: 'sales' }
+  | { target: 'DraftReady'; payload: DraftReadyEvent; technicianIds: 'sales' }
 
 const sameJob = (a: JobSignature, b: JobSignature) =>
   a.status === b.status &&

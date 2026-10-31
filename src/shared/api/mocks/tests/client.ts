@@ -27,12 +27,14 @@ interface RequestOptions {
   token?: string
   body?: unknown
   headers?: Record<string, string>
+  /** `manual` keeps a 302 as it is (the OAuth callback redirects the browser, not the app). */
+  redirect?: RequestRedirect
 }
 
 export async function api<T = unknown>(
   method: HttpMethod,
   path: string,
-  { token, body, headers }: RequestOptions = {},
+  { token, body, headers, redirect }: RequestOptions = {},
 ): Promise<ApiResponse<T>> {
   const response = await fetch(`${API_URL}${path}`, {
     method: method.toUpperCase(),
@@ -42,6 +44,7 @@ export async function api<T = unknown>(
       ...headers,
     },
     body: body === undefined ? undefined : JSON.stringify(body),
+    redirect,
   })
   const text = await response.text()
   const isJson = (response.headers.get('content-type') ?? '').includes('json')

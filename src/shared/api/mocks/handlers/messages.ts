@@ -4,7 +4,7 @@ import { getVisibleJob, OFFICE_ROLES, viewerOf } from '../lib/access'
 import { effectiveTemplates, renderBody } from '../lib/message-templates'
 import { ensurePublicToken, newMessage, placeholderValues, presentMessage } from '../lib/messages'
 import { FieldErrors, MESSAGES, ok, unprocessable } from '../lib/problems'
-import { PLAN_FEATURES } from '../lib/present'
+import { featuresOf } from '../lib/present'
 import { route } from '../lib/route'
 
 export const messageHandlers = [
@@ -49,7 +49,7 @@ export const messageHandlers = [
       const jobType = t.jobTypes.find((type) => type.id === job.jobTypeId)
       if (
         body.channel === 'sms' &&
-        (!PLAN_FEATURES[t.tenant.plan]?.includes('sms') || jobType?.smsEnabled === false)
+        (!featuresOf(t).includes('sms') || jobType?.smsEnabled === false)
       ) {
         throw unprocessable(
           'notify.sms_disabled',

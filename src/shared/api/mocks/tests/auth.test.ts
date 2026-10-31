@@ -56,7 +56,11 @@ describe('login', () => {
     const me = (await (await loginAs(USERS.ana)).get<Me>('/me')).body
     expect(me.tenant.slug).toBe('alarmko')
     expect(me.role).toBe('dispatcher')
-    expect(me.memberships.map((m) => m.tenant.slug).sort()).toEqual(['alarmko', 'bura-klima'])
+    expect(me.memberships.map((m) => m.tenant.slug).sort()).toEqual([
+      'alarmko',
+      'bura-klima',
+      'cisto',
+    ])
   })
 })
 

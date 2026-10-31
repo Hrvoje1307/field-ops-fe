@@ -544,3 +544,63 @@ Note the asymmetry with `LocationInput.accessCodes` (0.2.0), where `null` means 
 **Frontend does:** shows the switch on the team screen for members who are not owners; a technician never reaches Prodaja whatever the flag says.
 
 **We propose:** say whether a technician may be given `canAccessSales` (the contract allows it for any non-owner; we hide the switch for technicians and treat them as having no access) and whether the flag is applied to the membership when an invitation is accepted. `Me.canAccessSales` and `Invitation.canAccessSales` are not `required` in the schema; please make `Me.canAccessSales` required, since the menu depends on it.
+
+## 53. Sales: error codes the spec does not name, and two that disagree
+
+**Spec says:** the Sales tag lists the codes (`sales.not_enabled`, `sales.forbidden`, `sales.mailbox_exists`, `sales.mailbox_needs_reauth`, `mailbox.cannot_send`, `sales.ai_disabled`, `thread.not_linked`, `sales.deal_already_converted`, `sales.stage_in_use`, `sales.stage_required`, `sales.lost_reason_required`, `mailbox.imap_failed`, `mailbox.smtp_failed`, `sales.ai_quota_exceeded`). Several operations say only "409" (a stale `version` on deals and drafts, a draft that was already sent), and "Owner only" has no code. The tag says `sales.deal_already_converted` and `sales.mailbox_needs_reauth`, the operations say `deal.already_converted` and `mailbox.needs_reauth`.
+
+**Mock does:** uses the tag's codes. For what is unnamed it uses `deal.version_conflict`, `draft.version_conflict`, `draft.already_sent` (a draft that was sent), `draft.not_ready` (editing or sending a draft that is still `generating`) and `auth.forbidden` (owner-only operation by someone else).
+
+**Frontend does:** one i18n map for the codes; both spellings of the two that disagree map to the same text; an unknown code falls back to a generic message. A stale version is told from the status (409), not from the code.
+
+**We propose:** name the code of each 409 (stale version, already sent, still generating) and of the owner-only 403, and settle which spelling of the two is real.
+
+## 54. Sales: mailboxes (disconnecting, syncing)
+
+**Spec says:** `DELETE /sales/mailboxes/{id}`: "Disconnect: revoke the grant and stop syncing. Deals stay." `purge`: "Also delete imported threads, messages and drafts". `POST …/sync` is 409 for some state (only `needs_reauth` is named by the tag).
+
+**Mock does:** without `purge` the mailbox leaves the list and its conversations stay readable (same visibility rules); with `purge` the messages only that mailbox held, the conversations left without a mailbox and its drafts are deleted, while a conversation held by another mailbox stays. Sync of a paused (`disabled`) mailbox is accepted (202); only `needs_reauth` is a 409.
+
+**Frontend does:** the disconnect dialog offers the purge option and says what it deletes in those words; after it the lists refetch.
+
+**We propose:** say what happens to the conversations when the mailbox is disconnected without `purge` (still shown? under which mailbox?), whether a conversation also held by another mailbox survives a purge, and when sync answers 409 besides `needs_reauth` (paused, error).
+
+## 55. Sales: Today
+
+**Spec says:** `GET /sales/today` → `SalesToday {date, items, staleDeals, needsReviewCount, mailboxesNeedingAttention}`; items "overdue first, then by due time", reasons `follow_up_due`, `unanswered`, `stale`; `ownerUserId`: "Default: deals of the caller plus unowned shared-mailbox threads; owners may pass any user or omit for everyone". `SalesTodayItem.thread` is required.
+
+**Mock does:** an item per conversation (one reason, the first that applies): `follow_up_due` when the deal's `nextFollowUpAt` or an active follow-up rule (business days after our last message with no answer) is due by the end of today, `unanswered` when the client wrote last and `responseSlaHours` have passed, `stale` for a stale deal whose conversation is not listed yet; a closed deal and non-sales conversations are left out. Overdue (before now) first, then by due time. `staleDeals` lists every stale open deal in scope. `needsReviewCount` counts the sales conversations that need review. Scope: an owner without `ownerUserId` sees everyone's, with one that user's; others always get the default (another user's id is 403 `sales.forbidden`).
+
+**Frontend does:** shows what comes, in that order, with a "why" per reason; does not work out due dates itself.
+
+**We propose:** say whether an owner who omits `ownerUserId` sees the default or everyone (the sentence allows both), what a user who is not an owner gets for another user's id, and what Today shows for a deal with a follow-up due but no conversation (an item needs a `thread`; the mock shows nothing). Say when `stale` is an item and when only a `staleDeals` entry, and what counts as "due today" (we include everything due until the end of the tenant's day).
+
+## 56. Sales: deals and stages
+
+**Spec says:** `DealCreate.source` is optional (the table defaults to `email`); `stageId` "defaults to the first open stage"; `DealUpdate`: "Stage changes go through /move"; `DELETE /sales/deals/{id}` and `POST …/link` list a 409 without a reason; `POST /sales/stages` lists only 201 and 400; "a tenant always has exactly one active won and one active lost stage"; `DELETE /sales/stages/{id}`: "409 while deals are in it (deactivate instead)"; `followUpDays`: "Default days without a client reply before a follow-up is due in this stage".
+
+**Mock does:** `source` defaults to `manual` when a deal is made by hand (`email` from a conversation); a deal cannot be created in a won or lost stage (400 `stageId`: use `/move`), and `stageId` on update is ignored; deleting a deal and linking a conversation have no 409; creating a second active won or lost stage is a 400 on `kind` (the operation has no 409); a deactivated stage leaves the board (its deals do not show there); deleting a stage deletes its follow-up rules; entering a stage does not set `nextFollowUpAt`.
+
+**Frontend does:** the board shows only what the API returns; the stage settings explain the won/lost rule; moving to won/lost always goes through `/move`.
+
+**We propose:** say what the 409s of delete deal and link mean; how to replace the won or lost stage (the order "create the new one, then retire the old" cannot be done with the two calls: the first is refused, and retiring the old first is `sales.stage_required`); where deals in a deactivated stage appear; what happens to rules of a deleted stage; whether the backend sets `nextFollowUpAt` when a deal enters a stage with `followUpDays`; and the default `source`.
+
+## 57. Sales: conversations, attachments, drafts
+
+**Spec says:** `needsReview`: "AI confidence below the review threshold and no user correction yet"; "Non-sales threads are returned only with isSales=false"; `POST …/attachments`: "Download a mail attachment and save it to the linked deal (S3)"; `Attachment.kind` is one of `photo | signature | pdf | doc | logo`; `DraftCreateRequest.mailboxId` "must be one of MailThread.mailboxes (else 400)"; a `Draft` has no follow-up rule.
+
+**Mock does:** `needsReview` is also true for a non-sales conversation with a low confidence (it is hidden from the default inbox, so "Za pregled" does not list it, and Today's count leaves it out); an excluded sender's conversations become `isSales=false` (listed only with that filter); a mail attachment is saved as `photo` for an image, `pdf` for a PDF and `doc` otherwise; a second exclusion of the same pattern returns the existing rule (201); a wrong `mailboxId` is a 400 on `mailboxId`.
+
+**Frontend does:** shows the cards as parameters and nothing else; saves an attachment and shows it among the deal's files.
+
+**We propose:** say whether a non-sales conversation can be in "Za pregled"; whether `Attachment.kind` and the upload MIME table (`doc` = PDF, JPEG, PNG) can hold what clients send (spreadsheets, Word files) or `kind` needs more values; which follow-up rule made a draft (a `followUpRuleId` on `Draft`) so Today can say why; and whether the sales events (`SalesThreadUpdated`, `DealUpdated`, `DraftReady` go to everyone with sales access in the tenant) are meant to reach people who cannot see the personal mailbox they are about (only ids are in the payload).
+
+## 58. Sales: OAuth return and CORS
+
+**Spec says:** the provider redirects to `/sales/mailboxes/oauth/callback`, which answers 302 to `{APP_URL}/sales/settings/mailboxes?connected={mailboxId}` or `?error={access_denied|wrong_account|already_connected|provider_error}`; `429` carries `Retry-After`.
+
+**Mock does:** the same redirect, to the frontend's own origin; `authorizeUrl` points at a stand-in consent page of the mock (S5), and the callback is a public route (no token), as in the spec.
+
+**Frontend does:** serves `/sales/settings/mailboxes` and reads `connected` and `error` from the query, then removes them from the address.
+
+**We propose:** say what `{APP_URL}` is per environment (the frontend's origin; Vercel preview URLs differ), and expose `Retry-After` in `Access-Control-Expose-Headers` (the browser hides it otherwise; same as #16).

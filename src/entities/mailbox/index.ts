@@ -1,0 +1,27 @@
+export type {
+  DeleteMailboxParams,
+  ImapMailboxCreate,
+  Mailbox,
+  MailboxKind,
+  MailboxOAuthStartRequest,
+  MailboxOAuthStartResponse,
+  MailboxStatus,
+  MailboxUpdate,
+  MailProvider,
+  MailSecurity,
+} from '@/shared/api/generated/model'
+export {
+  createImapMailbox,
+  deleteMailbox,
+  listMailboxes,
+  mailboxKeys,
+  startMailboxOAuth,
+  syncMailbox,
+  updateMailbox,
+  useCreateImapMailbox,
+  useDeleteMailbox,
+  useListMailboxes,
+  useStartMailboxOAuth,
+  useSyncMailbox,
+  useUpdateMailbox,
+} from './api'

@@ -31,12 +31,14 @@ import type {
   Usage,
 } from '@/shared/api/generated/model'
 
+import type { SalesData } from './sales-rows'
+
 /**
  * Bump when the stored shape changes: older data in localStorage is then reseeded
  * instead of being read with missing fields. (2: invitation tokens, spec 0.2.0;
- * 3: custom fields of every type in both tenants; 4: route plans; 5: reports, materials, catalog and attachments; 6: message templates; 7: messages and public links; 8: sales access on memberships and invitations, spec 0.3.1)
+ * 3: custom fields of every type in both tenants; 4: route plans; 5: reports, materials, catalog and attachments; 6: message templates; 7: messages and public links; 8: sales access on memberships and invitations, spec 0.3.1; 9: the Sales module's data, a third tenant)
  */
-export const MOCK_DB_SCHEMA_VERSION = 8
+export const MOCK_DB_SCHEMA_VERSION = 9
 
 /** Response types mark timestamps readonly; stored rows are written by the mock. */
 type Mutable<T> = { -readonly [K in keyof T]: T[K] }
@@ -240,6 +242,9 @@ export interface TenantData {
   jobSequence: Record<string, number>
   usage: Usage[]
   routePlans: RoutePlan[]
+  /** Plan features beyond the plan's own (`sales`, `sales_ai`), as a plan add-on would give. */
+  extraFeatures: string[]
+  sales: SalesData
 }
 
 export interface MockDb {

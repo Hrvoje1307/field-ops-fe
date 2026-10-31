@@ -1,7 +1,10 @@
 import type {
+  DealUpdatedEvent,
+  DraftReadyEvent,
   JobStatusChangedEvent,
   JobUpdatedEvent,
   RoutePlanPublishedEvent,
+  SalesThreadUpdatedEvent,
 } from '../generated/model'
 
 /** The server → client events of the hub (`/hubs/dispatch`). */
@@ -9,10 +12,21 @@ export type HubEvent =
   | { type: 'JobUpdated'; payload: JobUpdatedEvent }
   | { type: 'JobStatusChanged'; payload: JobStatusChangedEvent }
   | { type: 'RoutePlanPublished'; payload: RoutePlanPublishedEvent }
+  /** Only for users with sales access (group `sales:{tenantId}`). */
+  | { type: 'SalesThreadUpdated'; payload: SalesThreadUpdatedEvent }
+  | { type: 'DealUpdated'; payload: DealUpdatedEvent }
+  | { type: 'DraftReady'; payload: DraftReadyEvent }
 
 export type HubStatus = 'connecting' | 'connected' | 'reconnecting' | 'disconnected'
 
-export const HUB_EVENT_TYPES = ['JobUpdated', 'JobStatusChanged', 'RoutePlanPublished'] as const
+export const HUB_EVENT_TYPES = [
+  'JobUpdated',
+  'JobStatusChanged',
+  'RoutePlanPublished',
+  'SalesThreadUpdated',
+  'DealUpdated',
+  'DraftReady',
+] as const
 
 export interface HubOptions {
   url: string

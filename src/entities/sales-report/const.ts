@@ -1,0 +1,1 @@
+export const SALES_REPORT_STALE_TIME = 60_000

@@ -1449,6 +1449,14 @@ export const hr = {
       },
     },
   },
+  sales: {
+    deal: {
+      conflict: 'Prilika je u međuvremenu promijenjena. Prikazani su najnoviji podaci.',
+    },
+    draft: {
+      conflict: 'Nacrt je u međuvremenu promijenjen ili poslan. Prikazani su najnoviji podaci.',
+    },
+  },
   pages: {
     placeholder: 'Ovaj ekran stiže u sljedećem koraku.',
   },

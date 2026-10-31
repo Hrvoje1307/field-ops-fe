@@ -7,19 +7,11 @@ import type {
   Priority,
   TransitionRequest,
 } from '@/shared/api/generated/model'
-import { dateInTimeZone, todayInTimeZone, toIsoInstant } from '@/shared/lib/datetime'
+import { dateInTimeZone, toIsoInstant } from '@/shared/lib/datetime'
 
-import type { JobRow, TenantData } from '../db/rows'
-import {
-  ALL_ROLES,
-  findRow,
-  getVisibleJob,
-  isAssigned,
-  OFFICE_ROLES,
-  viewerOf,
-} from '../lib/access'
-import { validateCustomFields } from '../lib/custom-fields'
-import { newId } from '../lib/ids'
+import type { JobRow } from '../db/rows'
+import { ALL_ROLES, getVisibleJob, isAssigned, OFFICE_ROLES, viewerOf } from '../lib/access'
+import { buildJob, insertJob, validateJobInput } from '../lib/create-records'
 import { canPerform, isSchedulable, NOTE_REQUIRED, TRANSITIONS } from '../lib/job-machine'
 import { formatAddress, presentHistory, presentJob, presentJobSummary } from '../lib/present'
 import {
@@ -42,43 +34,10 @@ const PRIORITY_RANK: Record<Priority, number> = { low: 0, normal: 1, high: 2, ur
 /** Statuses from which /assign may change technicians and the date. */
 const ASSIGNABLE: readonly JobStatus[] = ['new', 'scheduled', 'confirmed', 'on_hold']
 
-function nextJobNumber(t: TenantData): string {
-  const year = todayInTimeZone(t.tenant.timezone).slice(0, 4)
-  const next = (t.jobSequence[year] ?? 0) + 1
-  t.jobSequence[year] = next
-  return `${t.tenant.settings.jobNumberPrefix ?? 'RN'}-${year}-${String(next).padStart(4, '0')}`
-}
-
 function checkVersion(job: JobRow, version: number | undefined): void {
   if (version !== undefined && version !== job.version) {
     throw conflict('job.version_conflict', 'The job was changed by someone else.')
   }
-}
-
-/** Relations and custom fields of a JobCreate/JobUpdate body; collects 400 errors. */
-function validateJobInput(t: TenantData, body: JobCreate, errors: FieldErrors, previous?: JobRow) {
-  const client = findRow(t.clients, body.clientId)
-  if (!client) errors.add('clientId', MESSAGES.notFound)
-  const location = findRow(t.locations, body.locationId)
-  if (!location || (client && location.clientId !== client.id))
-    errors.add('locationId', MESSAGES.notFound)
-  const jobType = t.jobTypes.find((jt) => jt.id === body.jobTypeId)
-  if (!jobType || (!jobType.isActive && previous?.jobTypeId !== jobType.id)) {
-    errors.add('jobTypeId', MESSAGES.notFound)
-  }
-  if (body.assetId) {
-    const asset = findRow(t.assets, body.assetId)
-    if (!asset || (location && asset.locationId !== location.id))
-      errors.add('assetId', MESSAGES.notFound)
-  }
-  if (body.windowStart && body.windowEnd && body.windowStart >= body.windowEnd) {
-    errors.add('windowEnd', 'Kraj mora biti nakon početka.')
-  }
-  const customFields = validateCustomFields(t, 'job', body.customFields, errors, {
-    path: 'customFields',
-    previous: previous?.customFields,
-  })
-  return { jobType, customFields }
 }
 
 /** Office fields of a full-replacement PUT (omitted nullable fields are cleared). */
@@ -180,65 +139,11 @@ export const jobHandlers = [
     ({ db, auth, body }) => {
       const t = auth.t
       const errors = new FieldErrors()
-      const { jobType, customFields } = validateJobInput(t, body, errors)
+      const built = buildJob(t, auth, body, errors, toIsoInstant(Date.now()))
       errors.throwIfAny()
-      if (!jobType) throw notFound()
-
-      const now = toIsoInstant(Date.now())
-      const job: JobRow = {
-        id: newId(),
-        number: nextJobNumber(t),
-        status: 'new',
-        priority: body.priority ?? 'normal',
-        title: body.title.trim(),
-        durationMin: body.durationMin ?? jobType.defaultDurationMin,
-        requiredPeople: body.requiredPeople ?? jobType.requiredPeople,
-        preferredDate: body.preferredDate ?? null,
-        windowStart: body.windowStart ?? null,
-        windowEnd: body.windowEnd ?? null,
-        scheduledDate: null,
-        scheduledStart: null,
-        locked: false,
-        source: body.source ?? 'phone',
-        description: body.description ?? null,
-        internalNote: body.internalNote ?? null,
-        assetId: body.assetId ?? null,
-        servicePlanId: null,
-        onHoldReason: null,
-        cancelReason: null,
-        rescheduleNote: null,
-        completedAt: null,
-        customFields,
-        version: 1,
-        createdAt: now,
-        updatedAt: now,
-        deletedAt: null,
-        clientId: body.clientId,
-        locationId: body.locationId,
-        jobTypeId: body.jobTypeId,
-        rescheduleRequestedAt: null,
-        publicToken: null,
-        publicTokenExpiresAt: null,
-        createdBy: auth.user.id,
-      }
-      t.jobs.push(job)
-      recordTransition(t, job, auth, null, 'new')
-
-      // The checklist is copied from the job type's template
-      const template = t.checklistTemplates.find((c) => c.id === jobType.checklistTemplateId)
-      template?.items.forEach((item, index) => {
-        t.checklistItems.push({
-          id: newId(),
-          jobId: job.id,
-          position: index + 1,
-          label: item.label,
-          isRequired: item.required ?? false,
-          isDone: false,
-          doneAt: null,
-          doneByName: null,
-        })
-      })
-      return created(presentJob(db, t, job, viewerOf(auth)))
+      if (!built) throw notFound()
+      insertJob(t, auth, built.job, built.jobType)
+      return created(presentJob(db, t, built.job, viewerOf(auth)))
     },
     { roles: OFFICE_ROLES },
   ),

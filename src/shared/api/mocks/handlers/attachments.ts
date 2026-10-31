@@ -23,6 +23,7 @@ import {
   unprocessable,
 } from '../lib/problems'
 import { isAvailable, presentAttachment } from '../lib/present'
+import { salesAccessOf } from '../lib/sales/access'
 import { route } from '../lib/route'
 import type { AuthContext } from '../lib/auth'
 
@@ -55,6 +56,11 @@ function ownerExists(
       return Boolean(findRow(t.locations, ownerId))
     case 'asset':
       return Boolean(findRow(t.assets, ownerId))
+    case 'deal':
+      // Files of a deal belong to the sales module: its guard decides who sees them
+      return (
+        salesAccessOf(auth) && t.sales.deals.some((deal) => deal.id === ownerId && !deal.deletedAt)
+      )
     case 'job':
       try {
         getVisibleJob(t, viewerOf(auth), ownerId)

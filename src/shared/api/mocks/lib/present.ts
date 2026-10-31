@@ -72,6 +72,12 @@ export const PLAN_FEATURES: Record<string, string[]> = {
   pro: ['route_optimization', 'sms'],
 }
 
+/** What the tenant's plan gives, plus add-ons (`sales`, `sales_ai`). */
+export const featuresOf = (t: TenantData): string[] => [
+  ...(PLAN_FEATURES[t.tenant.plan] ?? []),
+  ...t.extraFeatures,
+]
+
 function userOf(db: MockDb, userId: string): UserRow {
   const user = db.users.find((u) => u.id === userId)
   if (!user) throw new Error(`Mock DB: user ${userId} missing`)
@@ -89,7 +95,7 @@ export function tenantBrief(t: TenantData): TenantBrief {
 
 export function presentMe(db: MockDb, auth: AuthContext): Me {
   const memberships = db.memberships.filter((m) => m.userId === auth.user.id && m.isActive)
-  const features = PLAN_FEATURES[auth.t.tenant.plan] ?? []
+  const features = featuresOf(auth.t)
   return {
     user: {
       id: auth.user.id,
@@ -123,6 +129,7 @@ export function presentInvitation(row: InvitationRow): Invitation {
     id: row.id,
     email: row.email,
     role: row.role,
+    canAccessSales: row.canAccessSales,
     expiresAt: row.expiresAt,
     createdAt: row.createdAt,
     inviteUrl: `${origin}/invite?token=${encodeURIComponent(row.token)}`,

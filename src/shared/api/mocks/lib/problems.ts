@@ -61,6 +61,26 @@ export const tooManyRequests = (retryAfterSeconds: number) =>
     'Retry-After': String(retryAfterSeconds),
   })
 
+/** 429 with a `Retry-After` in seconds (rate limits, the monthly AI allowance). */
+export const rateLimited = (code: string, retryAfterSeconds: number, detail?: string) =>
+  problem(429, 'Too many requests', code, detail, { 'Retry-After': String(retryAfterSeconds) })
+
+/**
+ * A 400 that carries its own `code` next to the field errors (`sales.lost_reason_required`:
+ * "validation, also in errors.lostReason").
+ */
+export function validationWithCode(code: string, errors: Record<string, string[]>): MockHttpError {
+  const body: ValidationProblemDetails = {
+    type: 'about:blank',
+    title: 'Validation failed',
+    status: 400,
+    code,
+    traceId: newId(),
+    errors,
+  }
+  return new MockHttpError({ status: 400, body })
+}
+
 /** Validation messages as the API returns them (tenant locale: Croatian). */
 export const MESSAGES = {
   required: 'Obavezno polje.',

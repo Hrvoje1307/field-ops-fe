@@ -1,4 +1,5 @@
 import type { TenantSeed } from './types'
+import { alarmkoSales } from './sales-alarmko'
 
 /** Fictional alarm and security installer in Zagreb. */
 export const alarmkoZagreb: TenantSeed = {
@@ -25,11 +26,11 @@ export const alarmkoZagreb: TenantSeed = {
   },
   members: [
     { user: 'alarmko.owner', role: 'owner' },
-    { user: 'alarmko.dispatcher', role: 'dispatcher' },
+    { user: 'alarmko.dispatcher', role: 'dispatcher', canAccessSales: true },
     { user: 'alarmko.ivan', role: 'technician' },
     { user: 'alarmko.luka', role: 'technician' },
     { user: 'alarmko.petra', role: 'technician' },
-    { user: 'shared.dispatcher', role: 'dispatcher' },
+    { user: 'shared.dispatcher', role: 'dispatcher', canAccessSales: true },
   ],
   depot: {
     name: 'Radiona Zagreb',
@@ -831,5 +832,7 @@ export const alarmkoZagreb: TenantSeed = {
     },
   ],
   invitations: [{ email: 'novi.tehnicar@alarmko.test', role: 'technician', daysAgo: 2 }],
+  extraFeatures: ['sales', 'sales_ai'],
+  sales: alarmkoSales,
   usage: { smsCount: 142, smsCost: '4.26', emailCount: 37, optimizationsCount: 12 },
 }

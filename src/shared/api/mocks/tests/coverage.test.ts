@@ -9,6 +9,7 @@ import type {
   AssetType,
   Client,
   CustomFieldDefinition,
+  Deal,
   Depot,
   Invitation,
   Job,
@@ -506,5 +507,202 @@ describe('every mocked operation matches the contract', () => {
       (await owner.put(`/custom-fields/${field.id}`, { ...fieldInput, type: 'text' })).status,
     ).toBe(422) // immutable
     expect((await owner.del(`/custom-fields/${field.id}`)).status).toBe(204)
+  })
+})
+
+describe('the Sales module', () => {
+  it('every operation of the Sales tag', async () => {
+    const t = tenantBySlug('alarmko')
+    const sales = t.sales
+    const get = async (path: string) => (await owner.get(path)).status
+    expect(await get('/sales/mailboxes')).toBe(200)
+    const start = await owner.post<{ authorizeUrl: string }>('/sales/mailboxes/oauth/start', {
+      provider: 'microsoft',
+      kind: 'shared',
+    })
+    const state = new URL(start.body.authorizeUrl).searchParams.get('state') ?? ''
+    // The browser's redirect, not an API call of the app; the contract check runs on it too
+    const callback = await api(
+      'get',
+      `/sales/mailboxes/oauth/callback?state=${state}&error=access_denied`,
+      {
+        redirect: 'manual',
+      },
+    )
+    expect(callback.status).toBe(302)
+    expect(callback.headers.get('Location')).toContain(
+      '/sales/settings/mailboxes?error=access_denied',
+    )
+    const imap = await owner.post<{ id: string }>('/sales/mailboxes/imap', {
+      emailAddress: 'coverage@alarmko.test',
+      kind: 'shared',
+      imapHost: 'imap.example.test',
+      imapPort: 993,
+      imapSecurity: 'ssl',
+      smtpHost: 'smtp.example.test',
+      smtpPort: 587,
+      smtpSecurity: 'starttls',
+      username: 'coverage@alarmko.test',
+      password: 'x',
+    })
+    expect(
+      (
+        await owner.put(`/sales/mailboxes/${imap.body.id}`, {
+          displayName: 'Coverage',
+          kind: 'shared',
+          isActive: true,
+        })
+      ).status,
+    ).toBe(200)
+    expect((await owner.post(`/sales/mailboxes/${imap.body.id}/sync`)).status).toBe(202)
+    expect((await owner.del(`/sales/mailboxes/${imap.body.id}`)).status).toBe(204)
+
+    const thread = sales.threads.find((th) => th.subject === 'Zanima me protuprovalni sustav')
+    const hotel = sales.threads.find((th) => th.subject === 'Pregovori: video nadzor, hotel')
+    if (!thread || !hotel) throw new Error('seed')
+    expect(await get('/sales/threads')).toBe(200)
+    expect(await get(`/sales/threads/${thread.id}`)).toBe(200)
+    expect(
+      (
+        await owner.put(`/sales/threads/${thread.id}/classification`, {
+          category: 'new_inquiry',
+          isSales: true,
+        })
+      ).status,
+    ).toBe(200)
+    expect((await owner.post(`/sales/threads/${thread.id}/reprocess`)).status).toBe(202)
+    expect((await owner.post(`/sales/threads/${thread.id}/drafts`, { kind: 'reply' })).status).toBe(
+      202,
+    )
+    const deal = await owner.post<Deal>('/sales/deals', { title: 'Pokrivenost' })
+    expect(
+      (await owner.post(`/sales/threads/${thread.id}/link`, { dealId: deal.body.id })).status,
+    ).toBe(200)
+    expect(
+      (await owner.post(`/sales/threads/${thread.id}/exclude`, { pattern: '@pokrivenost.test' }))
+        .status,
+    ).toBe(201)
+    const part = sales.messages.find((m) => m.threadId === hotel.id && m.attachments.length > 0)
+    expect(
+      (
+        await owner.post(`/sales/threads/${hotel.id}/attachments`, {
+          messageId: part?.id,
+          partId: part?.attachments[0]?.partId,
+        })
+      ).status,
+    ).toBe(201)
+
+    expect(await get('/sales/board')).toBe(200)
+    expect(await get('/sales/deals')).toBe(200)
+    expect(await get(`/sales/deals/${deal.body.id}`)).toBe(200)
+    expect(
+      (
+        await owner.put(`/sales/deals/${deal.body.id}`, {
+          title: 'Pokrivenost 2',
+          version: deal.body.version,
+        })
+      ).status,
+    ).toBe(200)
+    const stages = (await owner.get<{ id: string; kind: string; name: string }[]>('/sales/stages'))
+      .body
+    expect(
+      (await owner.post(`/sales/deals/${deal.body.id}/move`, { stageId: stages[1]?.id })).status,
+    ).toBe(200)
+    expect(
+      (await owner.post(`/sales/deals/${deal.body.id}/notes`, { text: 'Bilješka' })).status,
+    ).toBe(201)
+    expect(
+      (await owner.post(`/sales/deals/${deal.body.id}/follow-up`, { action: 'clear' })).status,
+    ).toBe(200)
+    expect(await get(`/sales/deals/${deal.body.id}/activities`)).toBe(200)
+    const client = t.clients.find((c) => c.name === 'Dječji vrtić Sunčica')
+    const jobType = t.jobTypes.find((jt) => jt.isActive)
+    expect(
+      (
+        await owner.post(`/sales/deals/${deal.body.id}/convert`, {
+          clientId: client?.id,
+          job: { jobTypeId: jobType?.id, title: 'Nalog iz prilike' },
+        })
+      ).status,
+    ).toBe(201)
+    const throwaway = await owner.post<Deal>('/sales/deals', { title: 'Za brisanje' })
+    expect((await owner.del(`/sales/deals/${throwaway.body.id}`)).status).toBe(204)
+
+    expect(await get('/sales/drafts')).toBe(200)
+    const draft = sales.drafts.find((d) => d.status === 'ready')
+    if (!draft) throw new Error('seed')
+    expect(await get(`/sales/drafts/${draft.id}`)).toBe(200)
+    expect(
+      (
+        await owner.put(`/sales/drafts/${draft.id}`, {
+          subject: draft.subject,
+          bodyText: draft.bodyText,
+          to: draft.to,
+          cc: [],
+          version: draft.version,
+        })
+      ).status,
+    ).toBe(200)
+    expect((await owner.post(`/sales/drafts/${draft.id}/save-to-mailbox`)).status).toBe(200)
+    expect(
+      (await owner.post(`/sales/drafts/${draft.id}/send`, { version: draft.version })).status,
+    ).toBe(200)
+    const second = sales.drafts.find(
+      (d) => d.status === 'edited' && d.mailboxId !== draft.mailboxId,
+    )
+    const spare = sales.drafts.find((d) => d.status === 'failed')
+    expect((await owner.del(`/sales/drafts/${spare?.id ?? second?.id ?? ''}`)).status).toBe(204)
+
+    expect(await get('/sales/today')).toBe(200)
+    expect(await get('/sales/reports/summary?from=2026-01-01&to=2026-12-31')).toBe(200)
+    const settings = await owner.get<Record<string, unknown>>('/sales/settings')
+    expect((await owner.put('/sales/settings', settings.body)).status).toBe(200)
+
+    const created = await owner.post<{ id: string }>('/sales/stages', {
+      name: 'Pokrivenost',
+      color: '#123456',
+      kind: 'open',
+      isActive: true,
+    })
+    const all = (await owner.get<{ id: string }[]>('/sales/stages')).body
+    expect(
+      (await owner.put('/sales/stages/order', { stageIds: all.map((s) => s.id) })).status,
+    ).toBe(200)
+    expect(
+      (
+        await owner.put(`/sales/stages/${created.body.id}`, {
+          name: 'Pokrivenost 2',
+          color: '#123456',
+          kind: 'open',
+          isActive: true,
+        })
+      ).status,
+    ).toBe(200)
+    expect((await owner.del(`/sales/stages/${created.body.id}`)).status).toBe(204)
+
+    expect(await get('/sales/follow-up-rules')).toBe(200)
+    const rule = await owner.post<{ id: string }>('/sales/follow-up-rules', {
+      name: 'Pokrivenost',
+      daysWithoutReply: 3,
+      createDraft: false,
+      isActive: true,
+    })
+    expect(
+      (
+        await owner.put(`/sales/follow-up-rules/${rule.body.id}`, {
+          name: 'Pokrivenost 2',
+          daysWithoutReply: 4,
+          createDraft: false,
+          isActive: true,
+        })
+      ).status,
+    ).toBe(200)
+    expect((await owner.del(`/sales/follow-up-rules/${rule.body.id}`)).status).toBe(204)
+
+    expect(await get('/sales/exclusions')).toBe(200)
+    const exclusion = await owner.post<{ id: string }>('/sales/exclusions', {
+      pattern: 'x@pokrivenost.test',
+    })
+    expect((await owner.del(`/sales/exclusions/${exclusion.body.id}`)).status).toBe(204)
   })
 })

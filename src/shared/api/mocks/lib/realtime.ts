@@ -4,6 +4,7 @@ import { env } from '@/shared/config/env'
 
 import { getDb } from '../db'
 import { authenticate, type AuthContext } from './auth'
+import { salesAccessOf } from './sales/access'
 import { newToken } from './ids'
 import type { HubMessage } from './realtime-events'
 
@@ -21,6 +22,8 @@ interface Connection {
   tenantId: string
   role: AuthContext['role']
   technicianId: string | null
+  /** The user may use Sales: they are in the tenant's `sales:{tenantId}` group. */
+  hasSalesAccess: boolean
 }
 
 const connections = new Set<Connection>()
@@ -50,6 +53,12 @@ export function broadcast(tenantId: string, messages: HubMessage[]): void {
   for (const message of messages) {
     for (const connection of connections) {
       if (connection.tenantId !== tenantId) continue
+      if (message.technicianIds === 'sales') {
+        if (connection.hasSalesAccess) {
+          connection.send({ type: 1, target: message.target, arguments: [message.payload] })
+        }
+        continue
+      }
       const concerns =
         connection.role !== 'technician' ||
         message.technicianIds === 'all' ||
@@ -118,6 +127,7 @@ export const realtimeHandlers = [
       tenantId: auth.tenantId,
       role: auth.role,
       technicianId: auth.technicianId,
+      hasSalesAccess: salesAccessOf(auth),
     }
     client.addEventListener('message', (event) => {
       if (typeof event.data !== 'string') return

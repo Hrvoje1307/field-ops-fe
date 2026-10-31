@@ -10,7 +10,7 @@ import type { JobRow, TechnicianRow, TenantData } from '../db/rows'
 import { getRow, OFFICE_ROLES } from '../lib/access'
 import { newId } from '../lib/ids'
 import { recordTransition, touch } from '../lib/job-changes'
-import { PLAN_FEATURES } from '../lib/present'
+import { featuresOf } from '../lib/present'
 import { conflict, created, FieldErrors, MESSAGES, ok, paymentRequired } from '../lib/problems'
 import { route } from '../lib/route'
 import {
@@ -104,7 +104,7 @@ export const routePlanHandlers = [
     '/route-plans/optimize',
     ({ auth, body }) => {
       const t = auth.t
-      if (!(PLAN_FEATURES[t.tenant.plan] ?? []).includes('route_optimization')) {
+      if (!featuresOf(t).includes('route_optimization')) {
         throw paymentRequired('plan.feature_not_included', 'Plan ne uključuje optimizaciju ruta.')
       }
       const errors = new FieldErrors()

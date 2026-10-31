@@ -14,6 +14,21 @@ export const JOB_DATA_ROOTS: readonly string[] = [
   'reports',
 ]
 
+/**
+ * The API areas of the Sales module. Conversations, deals, drafts and mailboxes show each
+ * other's data (a deal's conversations, a conversation's drafts, Today's mailboxes), so
+ * a change to any of them marks all of it stale.
+ */
+export const SALES_DATA_ROOTS: readonly string[] = [
+  'mailboxes',
+  'mail-threads',
+  'deals',
+  'drafts',
+  'sales-stages',
+  'sales-config',
+  'sales-reports',
+]
+
 export function isUnderRoots(queryKey: QueryKey, roots: readonly string[]): boolean {
   const [root] = queryKey
   return typeof root === 'string' && roots.includes(root)

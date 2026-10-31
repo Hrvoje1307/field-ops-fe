@@ -18,6 +18,7 @@ export {
   useRevokeInvitation,
   useUpdateMember,
 } from './api'
+export { canSetSalesAccess, memberHasSalesAccess } from './lib/sales-access'
 export {
   buildInvitationSchema,
   emptyInvitation,

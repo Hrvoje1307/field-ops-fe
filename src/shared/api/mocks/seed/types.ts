@@ -3,20 +3,33 @@
  * Names refer to other seed entries; the builder resolves them to ids.
  */
 import type {
+  AiStatus,
   ClientType,
   CustomFieldEntity,
   CustomFieldType,
   CustomFieldValues,
+  DealActivityType,
+  DealSource,
+  DraftKind,
+  DraftStatus,
   JobSource,
   JobStatus,
+  LostReason,
+  MailboxKind,
+  MailboxStatus,
+  MailProvider,
   MessageChannel,
   MessageTemplateKey,
   Priority,
   Role,
+  SalesStageKind,
   TenantSettings,
   TenantPlan,
+  ThreadCategory,
   Usage,
 } from '@/shared/api/generated/model'
+
+import type { SalesSettingsRow } from '../db/sales-rows'
 
 export interface UserSeed {
   key: string
@@ -153,4 +166,121 @@ export interface TenantSeed {
   jobs: JobSeed[]
   invitations?: { email: string; role: Role; daysAgo: number }[]
   usage: Omit<Usage, 'month'>
+  /** Plan add-ons: `sales`, `sales_ai`. */
+  extraFeatures?: string[]
+  sales?: SalesSeed
+}
+
+// --- Sales -------------------------------------------------------------------------
+
+export interface MailboxSeed {
+  key: string
+  provider: MailProvider
+  address: string
+  name: string
+  kind: MailboxKind
+  /** User key of a personal mailbox's owner. */
+  owner?: string
+  status?: MailboxStatus
+  lastError?: string
+  canSend?: boolean
+  syncedMinutesAgo?: number
+}
+
+export interface StageSeed {
+  name: string
+  color: string
+  kind: SalesStageKind
+  followUpDays?: number
+  staleAfterDays?: number
+}
+
+export interface DealSeed {
+  key: string
+  title: string
+  /** Index into the tenant's stages. */
+  stage: number
+  /** Client key; the deal's contact is then the client's primary contact unless `contact` is set. */
+  client?: string
+  contact?: [name: string, email: string, phone?: string]
+  value?: string
+  /** User key; null = nobody. Default: the first office user. */
+  owner?: string | null
+  source?: DealSource
+  createdDaysAgo: number
+  lastContactDaysAgo?: number
+  /** Days from today the follow-up is due (negative = overdue). */
+  followUpInDays?: number
+  lost?: { reason: LostReason; note?: string; daysAgo: number }
+  wonDaysAgo?: number
+  /** The deal was converted: it holds the first job of its client. */
+  converted?: boolean
+  notes?: string
+  expectedCloseInDays?: number
+  activities?: {
+    type: DealActivityType
+    daysAgo: number
+    text?: string
+    /** A user key, or `ai` / `system` */
+    actor?: string
+  }[]
+}
+
+export interface MessageSeed {
+  /** inbound from the thread's contact, or outbound from its mailbox */
+  d: 'in' | 'out'
+  /** Hours ago. */
+  ago: number
+  text: string
+  /** Only these mailboxes have the message (default: all of the thread's). */
+  mb?: string[]
+  files?: [name: string, mime: string, size: number][]
+}
+
+export interface ThreadSeed {
+  key: string
+  /** Mailbox keys that hold the conversation. */
+  mb: string[]
+  subject: string
+  who: [name: string, email: string]
+  client?: string
+  deal?: string
+  cat?: ThreadCategory
+  conf?: number
+  /** A user corrected the AI (category and sales flag are theirs). */
+  byUser?: boolean
+  ai?: AiStatus
+  excluded?: boolean
+  summary?: string
+  next?: string
+  /** Index into the stages. */
+  stage?: number
+  msgs: MessageSeed[]
+}
+
+export interface DraftSeed {
+  thread: string
+  mb: string
+  kind: DraftKind
+  status: DraftStatus
+  /** Minutes ago. */
+  ago: number
+  body: string
+  subject?: string
+  instructions?: string
+  error?: string
+  by?: string
+  rule?: number
+}
+
+export interface SalesSeed {
+  mailboxes: MailboxSeed[]
+  stages: StageSeed[]
+  rules: { name: string; stage?: number; days: number; createDraft: boolean; isActive?: boolean }[]
+  settings: Partial<Omit<SalesSettingsRow, 'digestRecipientIds'>> & { digestRecipients?: string[] }
+  exclusions: { pattern: string; note?: string; daysAgo: number }[]
+  deals: DealSeed[]
+  threads: ThreadSeed[]
+  drafts: DraftSeed[]
+  usage: Pick<Usage, 'aiClassifications' | 'aiDrafts' | 'aiInputTokens' | 'aiOutputTokens'>
 }

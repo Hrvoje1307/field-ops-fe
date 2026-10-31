@@ -50,7 +50,14 @@ export const SEED_USERS: UserSeed[] = [
   },
   { key: 'bura.ante', email: 'ante@bura.test', fullName: 'Ante Vuković', phone: '+385983456789' },
   { key: 'bura.mia', email: 'mia@bura.test', fullName: 'Mia Grgić', phone: '+385984567890' },
-  // Dispatcher in both tenants (exercises /auth/switch-tenant)
+  // Čisto d.o.o. (Rijeka): a tenant without the Sales module
+  {
+    key: 'cisto.owner',
+    email: 'vlasnik@cisto.test',
+    fullName: 'Lana Bogdan',
+    phone: '+385991234500',
+  },
+  // Dispatcher in all three tenants (exercises /auth/switch-tenant)
   {
     key: 'shared.dispatcher',
     email: 'ana@demo.test',

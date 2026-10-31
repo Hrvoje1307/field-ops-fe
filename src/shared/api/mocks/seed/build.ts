@@ -36,6 +36,7 @@ import type {
   UserRow,
 } from '../db/rows'
 import { seedMessages } from './messages'
+import { buildSales } from './sales'
 import type { JobSeed, TenantSeed } from './types'
 
 export interface SeedContext {
@@ -561,8 +562,23 @@ export function buildTenant(
       catalogItems,
       attachments,
       jobSequence,
-      usage: [{ month: today.slice(0, 7), ...seed.usage }],
+      usage: [{ month: today.slice(0, 7), ...seed.usage, ...seed.sales?.usage }],
       routePlans: [],
+      extraFeatures: seed.extraFeatures ?? [],
+      sales: buildSales(seed.sales, {
+        id,
+        today,
+        timeZone: tz,
+        user,
+        clients,
+        clientKeys: seed.clients.map((c) => c.key),
+        contacts,
+        jobs,
+        defaultOwner: required(
+          seed.members.find((m) => m.role === 'owner'),
+          'owner',
+        ).user,
+      }),
     },
   }
 }

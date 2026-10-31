@@ -7,11 +7,11 @@ import type {
 import { normalizePhone } from '@/shared/lib/phone'
 import { toIsoInstant } from '@/shared/lib/datetime'
 
-import type { ClientRow, LocationRow, TenantData } from '../db/rows'
+import type { ClientRow, TenantData } from '../db/rows'
 import { getRow, isOpenStatus, OFFICE_ROLES, viewerOf } from '../lib/access'
+import { buildClient, insertClient } from '../lib/create-records'
 import { validateCustomFields } from '../lib/custom-fields'
-import { newId } from '../lib/ids'
-import { applyContacts, applyLocationInput, tenantCountry } from '../lib/inputs'
+import { applyContacts, tenantCountry } from '../lib/inputs'
 import { presentClient, presentClientSummary } from '../lib/present'
 import {
   conflict,
@@ -97,47 +97,11 @@ export const clientHandlers = [
     '/clients',
     ({ auth, body }) => {
       const t = auth.t
-      const viewer = viewerOf(auth)
       const errors = new FieldErrors()
-      const clientId = newId()
-      const now = toIsoInstant(Date.now())
-
-      const customFields = validateCustomFields(t, 'client', body.customFields, errors, {
-        path: 'customFields',
-      })
-      const { upserts: contacts } = applyContacts(t, clientId, body.contacts, errors)
-      const firstLocation = body.firstLocation
-        ? applyLocationInput(t, body.firstLocation, errors, { path: 'firstLocation' })
-        : null
+      const built = buildClient(t, body, errors, toIsoInstant(Date.now()))
       errors.throwIfAny()
-
-      const client: ClientRow = {
-        id: clientId,
-        type: body.type,
-        name: body.name.trim(),
-        oib: body.oib ?? null,
-        email: body.email ?? null,
-        notes: body.notes ?? null,
-        customFields,
-        version: 1,
-        createdAt: now,
-        updatedAt: now,
-        deletedAt: null,
-      }
-      t.clients.push(client)
-      t.contacts.push(...contacts)
-      if (firstLocation) {
-        const location: LocationRow = {
-          id: newId(),
-          clientId,
-          ...firstLocation,
-          createdAt: now,
-          updatedAt: now,
-          deletedAt: null,
-        }
-        t.locations.push(location)
-      }
-      return created(presentClient(t, client, viewer))
+      insertClient(t, built)
+      return created(presentClient(t, built.client, viewerOf(auth)))
     },
     { roles: OFFICE_ROLES },
   ),

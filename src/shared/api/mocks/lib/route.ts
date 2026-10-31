@@ -10,6 +10,7 @@ import type { MockDb, TenantData } from '../db/rows'
 import { authenticate, type AuthContext } from './auth'
 import { withIdempotency } from './idempotency'
 import { broadcast } from './realtime'
+import { salesPreflight } from './sales/access'
 import { eventsBetween, snapshotOf, type TenantSnapshot } from './realtime-events'
 import {
   derefSchema,
@@ -268,6 +269,7 @@ function define(
       } else {
         const auth = authenticate(request, db)
         if (options.roles && !options.roles.includes(auth.role)) throw forbidden()
+        if (template.startsWith('/sales/')) salesPreflight(auth, method, template)
         if (method !== 'get') {
           watched = { tenantId: auth.tenantId, t: auth.t, before: snapshotOf(auth.t) }
         }

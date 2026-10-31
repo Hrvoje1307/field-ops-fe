@@ -1,4 +1,5 @@
 import type { TenantSeed } from './types'
+import { buraSales } from './sales-bura'
 
 const REFRIGERANT_OPTIONS = [
   { value: 'R32', label: 'R32' },
@@ -30,7 +31,7 @@ export const buraSplit: TenantSeed = {
   },
   members: [
     { user: 'bura.owner', role: 'owner' },
-    { user: 'bura.dispatcher', role: 'dispatcher' },
+    { user: 'bura.dispatcher', role: 'dispatcher', canAccessSales: true },
     { user: 'bura.ante', role: 'technician' },
     { user: 'bura.mia', role: 'technician' },
     { user: 'shared.dispatcher', role: 'dispatcher' },
@@ -828,5 +829,7 @@ export const buraSplit: TenantSeed = {
       reason: 'Stanar je sam riješio problem.',
     },
   ],
+  extraFeatures: ['sales', 'sales_ai'],
+  sales: buraSales,
   usage: { smsCount: 58, smsCost: '1.74', emailCount: 21, optimizationsCount: 0 },
 }
