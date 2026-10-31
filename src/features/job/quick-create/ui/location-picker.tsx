@@ -18,7 +18,14 @@ import {
 import { CustomFieldsBlock } from './form-parts'
 
 /** Where the job is: one of the client's locations, or a new one. */
-export function LocationPicker({ definitions }: { definitions: QuickJobDefinitions }) {
+export function LocationPicker({
+  definitions,
+  withAssets = true,
+}: {
+  definitions: QuickJobDefinitions
+  /** Offer the client's equipment for the job (a job made from a deal has none to pick). */
+  withAssets?: boolean
+}) {
   const { t } = useTranslation()
   const client = useWatch<QuickJobFormValues, 'client'>({ name: 'client' })
 
@@ -26,7 +33,9 @@ export function LocationPicker({ definitions }: { definitions: QuickJobDefinitio
   if (!client.clientId) {
     return <p className="text-sm text-muted-foreground">{t('job.create.clientFirst')}</p>
   }
-  return <ClientLocations clientId={client.clientId} definitions={definitions} />
+  return (
+    <ClientLocations clientId={client.clientId} definitions={definitions} withAssets={withAssets} />
+  )
 }
 
 function NewLocation({ definitions }: { definitions: QuickJobDefinitions }) {
@@ -41,9 +50,11 @@ function NewLocation({ definitions }: { definitions: QuickJobDefinitions }) {
 function ClientLocations({
   clientId,
   definitions,
+  withAssets,
 }: {
   clientId: string
   definitions: QuickJobDefinitions
+  withAssets: boolean
 }) {
   const { t } = useTranslation()
   const { locale } = useTenantFormat()
@@ -125,7 +136,7 @@ function ClientLocations({
 
       {location.kind === 'new' && <NewLocation definitions={definitions} />}
 
-      {assets.length > 0 && (
+      {withAssets && assets.length > 0 && (
         <SelectField
           name="assetId"
           label={t('job.create.asset')}

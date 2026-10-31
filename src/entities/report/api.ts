@@ -21,6 +21,7 @@ import { useIdempotencyKeys } from '@/shared/api/idempotency'
 
 import {
   ATTACHMENT_URL_STALE_TIME,
+  DEAL_FILES_STALE_TIME,
   CATALOG_STALE_TIME,
   PDF_POLL_GIVE_UP_MS,
   PDF_POLL_MS,
@@ -34,6 +35,7 @@ export const reportKeys = {
   job: (jobId: string) => ['reports', 'job', jobId] as const,
   catalog: (params: ListCatalogItemsParams) => ['reports', 'catalog', params] as const,
   attachmentUrl: (id: string) => ['reports', 'attachment-url', id] as const,
+  dealFiles: (dealId: string) => ['reports', 'deal-files', dealId] as const,
 }
 
 // --- GET (used as queryFn) ---------------------------------------------------
@@ -45,6 +47,14 @@ export async function getJobReport(jobId: string, signal?: AbortSignal) {
 
 export async function listCatalogItems(params: ListCatalogItemsParams, signal?: AbortSignal) {
   return apiFetch<CatalogItemPage>('/catalog-items', { query: params, signal })
+}
+
+/** The files of one deal (`ownerType=deal`). */
+export async function listDealAttachments(dealId: string, signal?: AbortSignal) {
+  return apiFetch<Attachment[]>('/attachments', {
+    query: { ownerType: 'deal', ownerId: dealId },
+    signal,
+  })
 }
 
 /** A short-lived link to the file (5 minutes). */
@@ -364,6 +374,39 @@ export function useUploadTenantLogo(tenantId: string) {
         file,
         fileName: file instanceof File ? file.name : undefined,
       }),
+  })
+}
+
+/** The files saved to a deal (offers, drawings, photos); a conversion copies them to the job. */
+export function useListDealAttachments(dealId: string) {
+  return useQuery({
+    queryKey: reportKeys.dealFiles(dealId),
+    queryFn: ({ signal }) => listDealAttachments(dealId, signal),
+    staleTime: DEAL_FILES_STALE_TIME,
+  })
+}
+
+/** A file for a deal: kind `doc` (PDF, JPEG or PNG). Trying again with the same `file` resumes. */
+export function useUploadDealFile(dealId: string) {
+  return useMutation({
+    mutationFn: (file: File) =>
+      uploadAttachment({
+        ownerType: 'deal',
+        ownerId: dealId,
+        kind: 'doc',
+        file,
+        fileName: file.name,
+      }),
+    onSuccess: (_attachment, _file, _context, { client }) =>
+      client.invalidateQueries({ queryKey: reportKeys.dealFiles(dealId) }),
+  })
+}
+
+export function useDeleteDealAttachment(dealId: string) {
+  return useMutation({
+    mutationFn: (attachmentId: string) => deleteAttachment(attachmentId),
+    onSuccess: (_result, _id, _context, { client }) =>
+      client.invalidateQueries({ queryKey: reportKeys.dealFiles(dealId) }),
   })
 }
 

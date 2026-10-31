@@ -38,6 +38,12 @@ type SalesErrorCode = keyof typeof SALES_ERROR_TEXTS
 const isKnown = (code: string | undefined): code is SalesErrorCode =>
   code !== undefined && code in SALES_ERROR_TEXTS
 
+/** The `ProblemDetails.code` of a failed Sales request, if it has one. */
+export function salesErrorCode(error: unknown): string | undefined {
+  if (!(error instanceof ApiError)) return undefined
+  return (error.problem as Partial<ProblemDetails> | undefined)?.code
+}
+
 /** "3 dana", "2 h", "5 min": how long until the allowance is back (seconds in, short text out). */
 export function formatWait(seconds: number): string {
   const t = i18n.t.bind(i18n)

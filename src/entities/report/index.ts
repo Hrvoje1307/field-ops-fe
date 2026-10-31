@@ -9,6 +9,7 @@ export type {
 } from '@/shared/api/generated/model'
 export {
   getAttachmentUrl,
+  listDealAttachments,
   getJobReport,
   listCatalogItems,
   printJobReport,
@@ -16,6 +17,9 @@ export {
   uploadAttachment,
   useAddJobMaterial,
   useDeleteAttachment,
+  useDeleteDealAttachment,
+  useListDealAttachments,
+  useUploadDealFile,
   useDeleteJobMaterial,
   useGetAttachmentUrl,
   useGetJobReport,

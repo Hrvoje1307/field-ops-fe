@@ -604,3 +604,13 @@ Note the asymmetry with `LocationInput.accessCodes` (0.2.0), where `null` means 
 **Frontend does:** serves `/sales/settings/mailboxes` and reads `connected` and `error` from the query, then removes them from the address.
 
 **We propose:** say what `{APP_URL}` is per environment (the frontend's origin; Vercel preview URLs differ), and expose `Retry-After` in `Access-Control-Expose-Headers` (the browser hides it otherwise; same as #16).
+
+## 59. Sales: funnel and conversion
+
+**Spec says:** `DealMoveRequest` has `stageId`, `lostReason`, `lostNote`, `version` and no position; `DealConvertRequest.locationId` is "existing location of clientId; with newClient, firstLocation is used"; `DealConvertJob` carries `jobTypeId`, `title`, `description`, `priority`, `preferredDate`, `windowStart`, `windowEnd`, `customFields`; `DealSummary` has no time of entering the stage and `SalesStage` has no deal count; the deal's files are `Attachment`s with `ownerType=deal` (kinds `pdf`, `doc`, `photo`…).
+
+**Mock does:** moving puts the deal where the server orders it (the client cannot ask for a place in a column); a conversion with an existing client takes an existing location; a mock-side `404` for a file of a deleted deal.
+
+**Frontend does:** columns in the API's order, never re-sorted by `kind`; a dropped card goes first in the target column until the answer replaces it; an existing client with a new location saves the location first (`POST /clients/{id}/locations`) and then converts, so it is two requests, and a failed conversion leaves the saved location behind; a new client sends `newClient` with its `firstLocation`; files of a deal go up as kind `doc` (PDF, JPEG, PNG) because that is the kind whose MIME list fits; "days in stage" is not shown (nothing to compute it from); a deactivated stage is explained as "gone from the board" without a count of the deals in it.
+
+**We propose:** accept `newLocation` (a `LocationInput`) in `DealConvertRequest` next to `clientId`, so one request does it all or nothing; say how a card's place inside a column is decided (by what, and whether a move can ask for one); add `stageEnteredAt` to `DealSummary` (the board shows how long a deal has been waiting) and a `dealCount` to `SalesStage` (the settings can say what a deactivation hides); say which `Attachment.kind` a deal's files should have (#57).

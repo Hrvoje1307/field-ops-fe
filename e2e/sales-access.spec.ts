@@ -54,7 +54,7 @@ for (const tenant of TENANTS) {
         )
 
         await page.goto('/sales/deals/00000000-0000-4000-8000-000000000000')
-        await expect(page.getByRole('heading', { level: 1 })).toHaveText('Prilika')
+        await expect(page.getByText('Prilika ne postoji ili je obrisana.')).toBeVisible()
         await signOut(page)
       }
     })
@@ -129,7 +129,7 @@ for (const tenant of TENANTS) {
       }
       await sections.getByRole('link', { name: 'Prodaja: faze' }).click()
       await expect(page).toHaveURL('/settings/sales/stages')
-      await expect(page.getByRole('heading', { level: 1, name: 'Faze prodaje' })).toBeVisible()
+      await expect(page.getByRole('heading', { level: 2, name: 'Faze prodaje' })).toBeVisible()
       await page.goto('/settings/sales')
       await expect(page).toHaveURL('/settings/sales/mailboxes')
       await signOut(page)

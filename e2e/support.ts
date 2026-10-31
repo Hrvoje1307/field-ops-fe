@@ -172,3 +172,44 @@ export async function drag(
   })
   await page.mouse.up()
 }
+
+/** A custom-field definition, as far as the tests read it. */
+export interface Definition {
+  key: string
+  label: string
+  type: string
+  required: boolean
+  options?: { value: string; label: string }[] | null
+}
+
+const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+/** A label as shown: required fields end with a visual `*`. */
+export const labelled = (label: string) => new RegExp(`^${escape(label)}\\*?$`)
+
+/** Fills the tenant's required custom fields of one record, whatever their types. */
+export async function fillRequired(scope: Locator, definitions: Definition[]) {
+  for (const definition of definitions.filter((d) => d.required)) {
+    switch (definition.type) {
+      case 'select':
+        await scope.getByLabel(labelled(definition.label)).selectOption({ index: 1 })
+        break
+      case 'multiselect':
+        await scope
+          .getByRole('group', { name: definition.label })
+          .getByRole('checkbox')
+          .first()
+          .check()
+        break
+      case 'checkbox':
+        break // unticked is an answer (docs/backend-questions.md #24)
+      case 'number':
+        await scope.getByLabel(labelled(definition.label)).fill('1')
+        break
+      case 'date':
+        await scope.getByLabel(labelled(definition.label)).fill('2026-12-01')
+        break
+      default:
+        await scope.getByLabel(labelled(definition.label)).fill('E2E')
+    }
+  }
+}

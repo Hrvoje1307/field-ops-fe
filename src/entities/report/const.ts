@@ -11,3 +11,6 @@ export const ATTACHMENT_URL_STALE_TIME = 4 * 60_000
 export const PDF_POLL_MS = 3_000
 /** …but not forever. */
 export const PDF_POLL_GIVE_UP_MS = 2 * 60_000
+
+/** A deal's files change through our own calls (they refresh the list). */
+export const DEAL_FILES_STALE_TIME = 30_000

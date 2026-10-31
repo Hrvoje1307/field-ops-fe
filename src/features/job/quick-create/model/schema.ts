@@ -159,15 +159,28 @@ export function emptyQuickJob(
 /** A new client, with the number the dispatcher looked up. */
 export function newClient(
   definitions: QuickJobDefinitions,
-  { locale, phone = '' }: FormOptions & { phone?: string },
+  {
+    locale,
+    phone = '',
+    name = '',
+    email = '',
+    contactName = '',
+    type = 'person',
+  }: FormOptions & {
+    phone?: string
+    name?: string
+    email?: string
+    contactName?: string
+    type?: 'person' | 'company'
+  },
 ): NewClientForm {
   return {
     kind: 'new',
-    type: 'person',
-    name: '',
-    contactName: '',
+    type,
+    name,
+    contactName,
     phone,
-    email: '',
+    email,
     oib: '',
     customFields: customFieldFormValues(definitions.client, {}, { locale }),
   }
@@ -175,12 +188,12 @@ export function newClient(
 
 export function newLocation(
   definitions: QuickJobDefinitions,
-  { locale }: FormOptions,
+  { locale, street = '', city = '' }: FormOptions & { street?: string; city?: string },
 ): NewLocationForm {
   return {
     kind: 'new',
-    street: '',
-    city: '',
+    street,
+    city,
     postalCode: '',
     label: '',
     accessNotes: '',

@@ -1,6 +1,15 @@
-import { expect, type Locator, type Page, test } from '@playwright/test'
+import { expect, type Page, test } from '@playwright/test'
 
-import { apiGet, expectSignedInAs, resetMock, signIn, TENANTS } from './support'
+import {
+  apiGet,
+  type Definition,
+  expectSignedInAs,
+  fillRequired,
+  labelled,
+  resetMock,
+  signIn,
+  TENANTS,
+} from './support'
 
 /** The fields of the contract this test reads (kept minimal on purpose). */
 interface ClientSummary {
@@ -16,13 +25,6 @@ interface JobType {
   name: string
   isActive: boolean
 }
-interface Definition {
-  key: string
-  label: string
-  type: string
-  required: boolean
-  options?: { value: string; label: string }[] | null
-}
 interface Lookup {
   matches: Client[]
 }
@@ -31,42 +33,10 @@ test.beforeEach(async ({ page }) => {
   await resetMock(page)
 })
 
-const escape = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-/** A label as shown: required fields end with a visual `*`. */
-const labelled = (label: string) => new RegExp(`^${escape(label)}\\*?$`)
-
 async function openForm(page: Page, email: string, tenantName: string) {
   await signIn(page, email)
   await expect(page).toHaveURL('/')
   await expectSignedInAs(page, tenantName)
-}
-
-/** Fills the tenant's required custom fields of one record, whatever their types. */
-async function fillRequired(scope: Locator, definitions: Definition[]) {
-  for (const definition of definitions.filter((d) => d.required)) {
-    switch (definition.type) {
-      case 'select':
-        await scope.getByLabel(labelled(definition.label)).selectOption({ index: 1 })
-        break
-      case 'multiselect':
-        await scope
-          .getByRole('group', { name: definition.label })
-          .getByRole('checkbox')
-          .first()
-          .check()
-        break
-      case 'checkbox':
-        break // unticked is an answer (docs/backend-questions.md #24)
-      case 'number':
-        await scope.getByLabel(labelled(definition.label)).fill('1')
-        break
-      case 'date':
-        await scope.getByLabel(labelled(definition.label)).fill('2026-12-01')
-        break
-      default:
-        await scope.getByLabel(labelled(definition.label)).fill('E2E')
-    }
-  }
 }
 
 async function describeJob(page: Page, jobType: string, title: string, jobFields: Definition[]) {

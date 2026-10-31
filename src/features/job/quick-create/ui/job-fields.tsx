@@ -18,7 +18,10 @@ const PRIORITIES = [Priority.low, Priority.normal, Priority.high, Priority.urgen
 export function JobFields({
   definitions,
   jobTypes,
+  basic = false,
 }: {
+  /** Only what a job made from a deal carries: no source, duration, crew size or internal note. */
+  basic?: boolean
   definitions: QuickJobDefinitions
   /** Active job types, offered for new jobs. */
   jobTypes: readonly JobType[]
@@ -49,47 +52,55 @@ export function JobFields({
           legend={t('job.create.priority')}
           choices={PRIORITIES.map((value) => ({ value, label: t(`job.priority.${value}`) }))}
         />
-        <ChoiceGroup
-          name="job.source"
-          legend={t('job.create.source')}
-          choices={OFFICE_SOURCES.map((value) => ({ value, label: t(`job.source.${value}`) }))}
-        />
+        {!basic && (
+          <ChoiceGroup
+            name="job.source"
+            legend={t('job.create.source')}
+            choices={OFFICE_SOURCES.map((value) => ({ value, label: t(`job.source.${value}`) }))}
+          />
+        )}
       </FieldRow>
       <div className="grid gap-4 sm:grid-cols-3">
         <TextField name="job.preferredDate" label={t('job.create.preferredDate')} type="date" />
         <TextField name="job.windowStart" label={t('job.create.windowStart')} type="time" />
         <TextField name="job.windowEnd" label={t('job.create.windowEnd')} type="time" />
       </div>
-      <FieldRow>
+      {!basic && (
+        <FieldRow>
+          <TextField
+            name="job.durationMin"
+            label={t('job.create.duration')}
+            inputMode="numeric"
+            autoComplete="off"
+            placeholder={jobType ? String(jobType.defaultDurationMin) : undefined}
+            hint={
+              jobType
+                ? t('job.create.defaultValue', {
+                    value: formatDuration(jobType.defaultDurationMin),
+                  })
+                : undefined
+            }
+          />
+          <TextField
+            name="job.requiredPeople"
+            label={t('job.create.people')}
+            inputMode="numeric"
+            autoComplete="off"
+            placeholder={jobType ? String(jobType.requiredPeople) : undefined}
+            hint={
+              jobType ? t('job.create.defaultValue', { value: jobType.requiredPeople }) : undefined
+            }
+          />
+        </FieldRow>
+      )}
+      {!basic && (
         <TextField
-          name="job.durationMin"
-          label={t('job.create.duration')}
-          inputMode="numeric"
-          autoComplete="off"
-          placeholder={jobType ? String(jobType.defaultDurationMin) : undefined}
-          hint={
-            jobType
-              ? t('job.create.defaultValue', { value: formatDuration(jobType.defaultDurationMin) })
-              : undefined
-          }
+          name="job.internalNote"
+          label={t('job.create.internalNote')}
+          hint={t('job.create.internalNoteHint')}
+          rows={2}
         />
-        <TextField
-          name="job.requiredPeople"
-          label={t('job.create.people')}
-          inputMode="numeric"
-          autoComplete="off"
-          placeholder={jobType ? String(jobType.requiredPeople) : undefined}
-          hint={
-            jobType ? t('job.create.defaultValue', { value: jobType.requiredPeople }) : undefined
-          }
-        />
-      </FieldRow>
-      <TextField
-        name="job.internalNote"
-        label={t('job.create.internalNote')}
-        hint={t('job.create.internalNoteHint')}
-        rows={2}
-      />
+      )}
       <CustomFieldsBlock definitions={definitions.job} name="job.customFields" />
     </FieldGroup>
   )

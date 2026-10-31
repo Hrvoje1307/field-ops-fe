@@ -31,16 +31,35 @@ import { CustomFieldsBlock } from './form-parts'
 const SEARCH_DELAY_MS = 300
 const NAME_RESULTS = 5
 
+/** What is already known about the client (a deal's contact): offered as candidates and as the new client's start. */
+export interface ClientHints {
+  name?: string | null
+  contactName?: string | null
+  /** E.164 */
+  phone?: string | null
+  email?: string | null
+  type?: 'person' | 'company'
+  /** Where the work is, when known: starts the new client's first location. */
+  street?: string | null
+  city?: string | null
+}
+
 /** Find the caller by phone or name, or enter a new client. */
-export function ClientPicker({ definitions }: { definitions: QuickJobDefinitions }) {
+export function ClientPicker({
+  definitions,
+  hints,
+}: {
+  definitions: QuickJobDefinitions
+  hints?: ClientHints
+}) {
   const client = useWatch<QuickJobFormValues, 'client'>({ name: 'client' })
   if (client.kind === 'new') return <NewClient definitions={definitions} />
   if (client.clientId) return <SelectedClient clientId={client.clientId} />
-  return <FindClient definitions={definitions} />
+  return <FindClient definitions={definitions} hints={hints} />
 }
 
 /** Picking another client starts the location over too. */
-function useChooseClient(definitions: QuickJobDefinitions) {
+function useChooseClient(definitions: QuickJobDefinitions, hints?: ClientHints) {
   const { setValue, clearErrors, formState } = useFormContext<
     QuickJobFormValues,
     unknown,
@@ -56,8 +75,25 @@ function useChooseClient(definitions: QuickJobDefinitions) {
       clearErrors('client')
     },
     fresh: (phone = '') => {
-      setValue('client', newClient(definitions, { locale, phone }))
-      setValue('location', newLocation(definitions, { locale }))
+      setValue(
+        'client',
+        newClient(definitions, {
+          locale,
+          phone,
+          ...(hints?.name ? { name: hints.name } : {}),
+          ...(hints?.email ? { email: hints.email } : {}),
+          ...(hints?.contactName ? { contactName: hints.contactName } : {}),
+          ...(hints?.type ? { type: hints.type } : {}),
+        }),
+      )
+      setValue(
+        'location',
+        newLocation(definitions, {
+          locale,
+          ...(hints?.street ? { street: hints.street } : {}),
+          ...(hints?.city ? { city: hints.city } : {}),
+        }),
+      )
       setValue('assetId', '')
       clearErrors(['client', 'location'])
     },
@@ -69,11 +105,17 @@ function useChooseClient(definitions: QuickJobDefinitions) {
   }
 }
 
-function FindClient({ definitions }: { definitions: QuickJobDefinitions }) {
+function FindClient({
+  definitions,
+  hints,
+}: {
+  definitions: QuickJobDefinitions
+  hints?: ClientHints
+}) {
   const { t } = useTranslation()
   const { formatPhone } = useTenantFormat()
   const cacheClient = useCacheClient()
-  const choose = useChooseClient(definitions)
+  const choose = useChooseClient(definitions, hints)
   const id = useId()
   // The phone input is where a "choose a client" error takes the focus
   const {
@@ -101,6 +143,10 @@ function FindClient({ definitions }: { definitions: QuickJobDefinitions }) {
     cacheClient(client)
     choose.existing(client.id)
   }
+  const pickCandidate = (id: string, client?: Client) => {
+    if (client) cacheClient(client)
+    choose.existing(id)
+  }
 
   const lookupError =
     lookup.error instanceof ApiError && lookup.error.fieldErrors.phone
@@ -112,6 +158,9 @@ function FindClient({ definitions }: { definitions: QuickJobDefinitions }) {
 
   return (
     <div className="space-y-4">
+      {hints && (hints.phone ?? hints.email) && (
+        <Candidates phone={hints.phone ?? ''} email={hints.email ?? ''} onPick={pickCandidate} />
+      )}
       <Field data-invalid={lookupError ? true : undefined}>
         <FieldLabel htmlFor={id}>{t('job.create.phone')}</FieldLabel>
         <div className="flex gap-2">
@@ -201,7 +250,7 @@ function FindClient({ definitions }: { definitions: QuickJobDefinitions }) {
           type="button"
           variant="outline"
           onClick={() => {
-            choose.fresh()
+            choose.fresh(hints?.phone ? formatPhone(hints.phone) : '')
           }}
         >
           {t('job.create.newClient')}
@@ -212,6 +261,86 @@ function FindClient({ definitions }: { definitions: QuickJobDefinitions }) {
 
       {fieldState.error?.message && (
         <FieldError role="alert">{fieldState.error.message}</FieldError>
+      )}
+    </div>
+  )
+}
+
+/**
+ * Existing clients that may be the same person (by the known phone and email). Nothing is
+ * chosen for the user: they pick one of them or enter a new client.
+ */
+function Candidates({
+  phone,
+  email,
+  onPick,
+}: {
+  phone: string
+  email: string
+  onPick: (id: string, client?: Client) => void
+}) {
+  const { t } = useTranslation()
+  const { formatPhone } = useTenantFormat()
+  const byPhone = useLookupClientByPhone(phone)
+  const byEmail = useListClients({ q: email, pageSize: NAME_RESULTS }, { enabled: email !== '' })
+  const pending = (phone !== '' && byPhone.isPending) || (email !== '' && byEmail.isPending)
+  if (pending) return <Skeleton className="h-12" />
+  if (byPhone.isError || byEmail.isError) {
+    return <FieldError role="alert">{t('sales.convert.candidatesFailed')}</FieldError>
+  }
+  const seen = new Set<string>()
+  const candidates: { id: string; name: string; detail: string; client?: Client }[] = []
+  for (const match of byPhone.data?.matches ?? []) {
+    seen.add(match.id)
+    candidates.push({
+      id: match.id,
+      name: match.name,
+      detail: match.contacts[0]?.phone ? formatPhone(match.contacts[0].phone) : '',
+      client: match,
+    })
+  }
+  for (const item of byEmail.data?.items ?? []) {
+    if (seen.has(item.id)) continue
+    candidates.push({
+      id: item.id,
+      name: item.name,
+      detail: [item.primaryPhone ? formatPhone(item.primaryPhone) : null, item.primaryAddress]
+        .filter(Boolean)
+        .join(' · '),
+    })
+  }
+  return (
+    <div className="space-y-2" aria-live="polite">
+      <p className="text-sm font-medium">{t('sales.convert.candidates')}</p>
+      {candidates.length === 0 ? (
+        <p className="text-sm text-muted-foreground">{t('sales.convert.candidatesNone')}</p>
+      ) : (
+        <>
+          <p className="text-sm text-muted-foreground">{t('sales.convert.candidatesHint')}</p>
+          <ul className="space-y-2">
+            {candidates.map((candidate) => (
+              <li
+                key={candidate.id}
+                className="flex flex-wrap items-center justify-between gap-3 rounded-lg border p-3 text-sm"
+              >
+                <span className="min-w-0">
+                  <span className="block font-medium">{candidate.name}</span>
+                  <span className="block text-muted-foreground">{candidate.detail}</span>
+                </span>
+                <Button
+                  type="button"
+                  size="sm"
+                  aria-label={`${t('job.create.select')}: ${candidate.name}`}
+                  onClick={() => {
+                    onPick(candidate.id, candidate.client)
+                  }}
+                >
+                  {t('job.create.select')}
+                </Button>
+              </li>
+            ))}
+          </ul>
+        </>
       )}
     </div>
   )

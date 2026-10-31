@@ -52,6 +52,47 @@ const stageIdOf = async (name: string) => {
   return stage.id
 }
 
+describe('moving on the board', () => {
+  it('the card is in its new column while the request runs and goes back when it fails', async () => {
+    const { queryClient, wrapper } = queryWrapper()
+    const board = renderHook(() => useGetSalesBoard(), { wrapper })
+    await waitFor(() => {
+      expect(board.result.current.data).toBeDefined()
+    })
+    const before = board.result.current.data
+    const deal = before?.columns.find((c) => c.stage.kind === 'open' && c.deals.length > 0)
+      ?.deals[0]
+    const target = before?.columns.find(
+      (c) => c.stage.kind === 'open' && c.stage.id !== deal?.stage.id,
+    )
+    if (!deal || !target) throw new Error('seed')
+    const move = renderHook(() => useMoveDeal(), { wrapper })
+    const key = ['deals', 'board', {}]
+
+    // The server refuses: the board is put back
+    server.use(
+      http.post('http://localhost/api/v1/sales/deals/:id/move', async () => {
+        await new Promise((resolve) => setTimeout(resolve, 400))
+        return HttpResponse.json({ status: 500, title: 'Boom' }, { status: 500 })
+      }),
+    )
+    let failed: Promise<unknown> = Promise.resolve()
+    act(() => {
+      failed = move.result.current
+        .mutateAsync({ id: deal.id, body: { stageId: target.stage.id } })
+        .catch((e: unknown) => e)
+    })
+    await waitFor(() => {
+      const optimistic = queryClient.getQueryData<NonNullable<typeof before>>(key)
+      expect(
+        optimistic?.columns.find((c) => c.stage.id === target.stage.id)?.deals.map((d) => d.id),
+      ).toContain(deal.id)
+    })
+    expect(await failed).toBeInstanceOf(ApiError)
+    expect(queryClient.getQueryData(key)).toEqual(before)
+  })
+})
+
 describe('deal queries', () => {
   it('board, Today, a deal and its timeline', async () => {
     const { wrapper } = queryWrapper()

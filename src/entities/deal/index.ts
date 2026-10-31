@@ -17,13 +17,13 @@ export type {
   GetSalesBoardParams,
   GetSalesTodayParams,
   ListDealsParams,
-  LostReason,
   SalesBoard,
   SalesBoardColumn,
   SalesToday,
   SalesTodayItem,
   TodayReason,
 } from '@/shared/api/generated/model'
+export { LostReason } from '@/shared/api/generated/model'
 export {
   addDealNote,
   convertDeal,
@@ -51,3 +51,6 @@ export {
   useUpdateDeal,
   useUpdateDealFollowUp,
 } from './api'
+export { daysSince, findOnBoard, isFollowUpDue, moveOnBoard } from './model/board'
+export { buildDealSchema, dealFormValues, type DealFormValues, toDealBody } from './model/deal-form'
+export { DealFields } from './ui/deal-fields'

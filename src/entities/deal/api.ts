@@ -28,6 +28,7 @@ import {
   SALES_BOARD_STALE_TIME,
   SALES_TODAY_STALE_TIME,
 } from './const'
+import { moveOnBoard } from './model/board'
 import { handleDealConflict } from './model/conflict'
 
 export const dealKeys = {
@@ -214,13 +215,27 @@ export function useMoveDeal() {
   return useMutation({
     mutationFn: (request: { id: string; body: DealMoveRequest }) =>
       moveDeal(request.id, request.body, idempotency.keyFor(request)),
+    // The card goes to its new column at once; a failure puts the boards back
+    onMutate: async (request, { client }) => {
+      await client.cancelQueries({ queryKey: [...dealKeys.all, 'board'] })
+      const before = client.getQueriesData<SalesBoard>({ queryKey: [...dealKeys.all, 'board'] })
+      for (const [key, board] of before) {
+        if (Array.isArray(board?.columns)) {
+          client.setQueryData(key, moveOnBoard(board, request.id, request.body.stageId))
+        }
+      }
+      return { before }
+    },
     onSuccess: (deal, request, _result, { client }) => {
       idempotency.forget(request)
       client.setQueryData(dealKeys.detail(deal.id), deal)
       void invalidateRoots(client, SALES_DATA_ROOTS)
     },
-    onError: (error, _request, _result, { client }) =>
-      isConflict(error) ? handleDealConflict(client) : undefined,
+    onError: (error, _request, result, { client }) => {
+      for (const [key, board] of result?.before ?? []) client.setQueryData(key, board)
+      // 400 `sales.lost_reason_required` is left to the caller (the reason field)
+      if (isConflict(error)) void handleDealConflict(client)
+    },
   })
 }
 
