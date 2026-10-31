@@ -144,11 +144,12 @@ export function useListDeals(params: ListDealsParams = {}) {
   })
 }
 
-export function useGetDeal(id: string) {
+export function useGetDeal(id: string, { enabled = true }: { enabled?: boolean } = {}) {
   return useQuery({
     queryKey: dealKeys.detail(id),
     queryFn: ({ signal }) => getDeal(id, signal),
     staleTime: DEAL_DETAIL_STALE_TIME,
+    enabled,
   })
 }
 

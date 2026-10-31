@@ -35,3 +35,22 @@ export {
   useSaveThreadAttachment,
   useUpdateThreadClassification,
 } from './api'
+export {
+  AI_CARDS,
+  ALL_CATEGORIES,
+  cardParams,
+  cardsFor,
+  INBOX_CARDS,
+  type InboxCard,
+  isSalesCategory,
+  OTHER_CATEGORIES,
+  SALES_CATEGORIES,
+} from './model/inbox'
+export {
+  domainOf,
+  type ExcludeScope,
+  excludePattern,
+  externalSender,
+  toExcludeBody,
+} from './model/exclude'
+export { ThreadCategoryBadge } from './ui/thread-category-badge'

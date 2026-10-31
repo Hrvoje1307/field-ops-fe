@@ -166,10 +166,10 @@ Spec 0.3.1 (`Sales` tag). Backend not deployed yet: everything is built on MSW m
   - **Later (not S3):** the Danas and Inbox screens themselves (S6, S7) show the same data as the notice; the `?connected=` / `?error=` messages are S5.
 - [x] **S4: funnel.** Board (drag and drop, optimistic move with rollback, lost asks for a reason, won offers conversion), deal detail (version/409, timeline, notes, follow-up, attachments), manual new deal, conversion to client + location + job, stage settings.
 - [x] **S5: mailboxes.** List with status, error and last sync; OAuth connect (the mock's `authorizeUrl` is a stand-in consent page that calls the mock callback, which redirects to `/sales/settings/mailboxes?connected=` or `?error=`; the page reads and clears the query), Playwright for the OAuth return; IMAP form with 422; needs_reauth banner and "Ponovno spoji"; disconnect with confirmation and purge option.
-- [ ] **S6: inbox and conversation.** Sales / Za pregled / Čeka odgovor / Sve, filters; AI card, one-click correction, create/link deal, exclude sender, save attachment to deal, only messages from visible mailboxes.
+- [x] **S6: inbox and conversation.** Sales / Za pregled / Čeka odgovor / Sve, filters; AI card, one-click correction, create/link deal, exclude sender, save attachment to deal, only messages from visible mailboxes.
 - [ ] **S7: drafts and Today.** Editor, sending mailbox, Pošalji (confirm recipients), Spremi u sandučić, Odgodi, `DraftReady`, 429 AI quota.
 - [ ] **S8: other settings and report.** AI and knowledge, tone, signature, language, threshold, digest, retention, follow-up rules, exclusions; sales report.
-- [ ] **S9: realtime, mobile, readiness.** Sales event invalidation, mobile (Today and Deal in one column, funnel as a list), Playwright main flow for both tenants, "ready for backend" check (no mock imports outside `shared/api/mocks`, no mock-only behaviour).
+- [ ] **S9: realtime, mobile, readiness.** Also: after a card is dropped in a lost stage the board jumps back to the left (dnd-kit restores focus to the handle in the origin column): restore focus without scrolling (`focus({ preventScroll: true })`) or only for the keyboard. Sales event invalidation, mobile (Today and Deal in one column, funnel as a list), Playwright main flow for both tenants, "ready for backend" check (no mock imports outside `shared/api/mocks`, no mock-only behaviour).
 
 ## Separate
 

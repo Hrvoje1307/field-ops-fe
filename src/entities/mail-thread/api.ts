@@ -16,7 +16,11 @@ import type {
 import { useIdempotencyKeys } from '@/shared/api/idempotency'
 import { invalidateRoots, SALES_DATA_ROOTS } from '@/shared/api/query-roots'
 
-import { MAIL_THREAD_DETAIL_STALE_TIME, MAIL_THREADS_STALE_TIME } from './const'
+import {
+  MAIL_THREAD_DETAIL_STALE_TIME,
+  MAIL_THREAD_POLL_MS,
+  MAIL_THREADS_STALE_TIME,
+} from './const'
 
 export const mailThreadKeys = {
   all: ['mail-threads'] as const,
@@ -111,6 +115,9 @@ export function useGetMailThread(id: string) {
     queryKey: mailThreadKeys.detail(id),
     queryFn: ({ signal }) => getMailThread(id, signal),
     staleTime: MAIL_THREAD_DETAIL_STALE_TIME,
+    // Until the live event arrives (S9) a thread the AI is working on is read again
+    refetchInterval: (query) =>
+      query.state.data?.aiStatus === 'pending' ? MAIL_THREAD_POLL_MS : false,
   })
 }
 

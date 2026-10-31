@@ -15,6 +15,7 @@ import {
   useReprocessMailThread,
   useUpdateThreadClassification,
 } from './api'
+import { MAIL_THREAD_POLL_MS } from './const'
 
 beforeEach(async () => {
   resetMockDb()
@@ -36,6 +37,40 @@ function seed(queryClient: ReturnType<typeof queryWrapper>['queryClient']) {
 }
 const refreshed = (queryClient: ReturnType<typeof queryWrapper>['queryClient']) =>
   KEYS.map((key) => isInvalidated(queryClient, key))
+
+describe('a conversation the AI is working on', () => {
+  it('is read again every few seconds, and no more once it is done', async () => {
+    const { queryClient, wrapper } = queryWrapper()
+    const [item] = (await listMailThreads({ isSales: true, pageSize: 5 })).items
+    if (!item) throw new Error('seed')
+    const reprocess = renderHook(() => useReprocessMailThread(), { wrapper })
+    await act(async () => {
+      await reprocess.result.current.mutateAsync(item.id)
+    })
+    const thread = renderHook(() => useGetMailThread(item.id), { wrapper })
+    await waitFor(() => {
+      expect(thread.result.current.data?.aiStatus).toBe('pending')
+    })
+    const query = queryClient
+      .getQueryCache()
+      .find({ queryKey: ['mail-threads', 'detail', item.id] })
+    const interval = () => {
+      const option = query?.observers[0]?.options.refetchInterval
+      return typeof option === 'function' ? option(query as never) : option
+    }
+    expect(interval()).toBe(MAIL_THREAD_POLL_MS)
+    for (const row of Object.values(getDb().tenants).flatMap((t) => t.sales.threads)) {
+      row.aiReadyAt = '2000-01-01T00:00:00Z'
+    }
+    await act(async () => {
+      await thread.result.current.refetch()
+    })
+    await waitFor(() => {
+      expect(thread.result.current.data?.aiStatus).toBe('done')
+    })
+    expect(interval()).toBe(false)
+  })
+})
 
 describe('mail thread hooks', () => {
   it('the inbox cards are query parameters', async () => {
