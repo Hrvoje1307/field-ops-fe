@@ -9,11 +9,13 @@ import type {
   ListDraftsParams,
   SendDraftBody,
 } from '@/shared/api/generated/model'
+import { useHubLive } from '@/shared/api/realtime/live-status'
 import { useIdempotencyKeys } from '@/shared/api/idempotency'
 import { invalidateRoots, SALES_DATA_ROOTS } from '@/shared/api/query-roots'
 
-import { DRAFT_DETAIL_STALE_TIME, DRAFT_LIST_STALE_TIME, DRAFT_POLL_MS } from './const'
+import { DRAFT_DETAIL_STALE_TIME, DRAFT_LIST_STALE_TIME } from './const'
 import { handleDraftConflict } from './model/conflict'
+import { draftPollInterval } from './model/poll'
 
 export const draftKeys = {
   all: ['drafts'] as const,
@@ -92,13 +94,18 @@ export function useListDrafts(params: ListDraftsParams = {}) {
   })
 }
 
-/** The draft; while it is being written it is read again every few seconds. */
+/**
+ * The draft. `DraftReady` of the hub updates it when it is written; as a reserve, while it is
+ * still `generating` it is read again (slowly when the hub is up, faster when it is not) for
+ * a while after it was created, and then no more.
+ */
 export function useGetDraft(id: string) {
+  const hubLive = useHubLive()
   return useQuery({
     queryKey: draftKeys.detail(id),
     queryFn: ({ signal }) => getDraft(id, signal),
     staleTime: DRAFT_DETAIL_STALE_TIME,
-    refetchInterval: (query) => (query.state.data?.status === 'generating' ? DRAFT_POLL_MS : false),
+    refetchInterval: (query) => draftPollInterval(query.state.data, hubLive),
   })
 }
 

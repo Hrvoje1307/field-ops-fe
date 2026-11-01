@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import { ApiError } from '@/shared/api/api-error'
 import { getDb, resetMockDb } from '@/shared/api/mocks/db'
 import { server } from '@/shared/api/mocks/node'
+import { setHubLive } from '@/shared/api/realtime/live-status'
 import { isInvalidated, queryWrapper, signInForTest } from '@/shared/api/test/hook-test-utils'
 
 import {
@@ -22,6 +23,7 @@ beforeEach(async () => {
 })
 
 afterEach(() => {
+  setHubLive(false)
   server.events.removeAllListeners()
 })
 
@@ -66,6 +68,15 @@ describe('the list while a mailbox is connecting', () => {
       const option = query?.observers[0]?.options.refetchInterval
       return typeof option === 'function' ? option(query as never) : option
     }
+    expect(interval()).toBe(MAILBOX_POLL_MS)
+    // With the hub connected its events bring the result, so nothing is polled
+    act(() => {
+      setHubLive(true)
+    })
+    expect(interval()).toBe(false)
+    act(() => {
+      setHubLive(false)
+    })
     expect(interval()).toBe(MAILBOX_POLL_MS)
 
     // The first sync is over: the mailbox is active and the polling stops

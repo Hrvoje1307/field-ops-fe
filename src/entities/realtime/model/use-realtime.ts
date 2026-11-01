@@ -3,10 +3,12 @@ import { useEffect } from 'react'
 
 import { getSessionStore } from '@/shared/api/session-port'
 import { type HubStatus, isSalesEvent, startHub } from '@/shared/api/realtime/hub'
+import { setHubLive } from '@/shared/api/realtime/live-status'
 import { env } from '@/shared/config/env'
 
 import { renewSession } from '../api'
 import { createRefresher } from '../lib/refresher'
+import { createSalesRefresher } from '../lib/sales-refresher'
 import { channel } from './channel'
 import { trackOwnWrites } from './own-writes'
 
@@ -21,6 +23,7 @@ export function useRealtime(tenantId: string): void {
 
   useEffect(() => {
     const refresher = createRefresher(queryClient)
+    const salesRefresher = createSalesRefresher(queryClient)
     const writes = trackOwnWrites(queryClient)
     let wasUp = false
     let wasLost = false
@@ -30,16 +33,24 @@ export function useRealtime(tenantId: string): void {
       getAccessToken: () => getSessionStore().getAccessToken(),
       beforeRetry: renewSession,
       onEvent: (event) => {
-        // The sales events refresh sales data (step S9); job data and the technician's notices are not theirs
-        if (isSalesEvent(event)) return
+        // The sales events refresh the sales data they name; job data and the technician's notices are not theirs
+        if (isSalesEvent(event)) {
+          salesRefresher.handle(event)
+          return
+        }
         channel.publish({ ...event, own: writes.recent() })
         refresher.push()
       },
       onStatus: (status: HubStatus) => {
         channel.setStatus(status)
+        // Screens that poll do it only while the hub is not the way
+        setHubLive(status === 'connected')
         if (status === 'connected') {
           // Back after a break: whatever was announced meanwhile was not heard
-          if (wasLost) refresher.push()
+          if (wasLost) {
+            refresher.push()
+            salesRefresher.all()
+          }
           wasUp = true
           wasLost = false
         } else if (wasUp) {
@@ -50,7 +61,9 @@ export function useRealtime(tenantId: string): void {
 
     return () => {
       void hub.stop()
+      setHubLive(false)
       refresher.dispose()
+      salesRefresher.dispose()
       writes.dispose()
     }
   }, [queryClient, tenantId])

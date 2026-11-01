@@ -28,7 +28,7 @@ export const HUB_EVENT_TYPES = [
   'DraftReady',
 ] as const
 
-/** Events of the Sales module (group `sales:{tenantId}`); their cache refresh comes with step S9. */
+/** Events of the Sales module (group `sales:{tenantId}`); the realtime entity refreshes the data they name. */
 export const SALES_EVENT_TYPES: readonly HubEvent['type'][] = [
   'SalesThreadUpdated',
   'DealUpdated',

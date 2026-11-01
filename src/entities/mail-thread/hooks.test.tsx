@@ -5,6 +5,7 @@ import { ApiError } from '@/shared/api/api-error'
 import { getDb, resetMockDb } from '@/shared/api/mocks/db'
 import { MOCK_AI_MONTHLY_LIMIT } from '@/shared/api/mocks/lib/sales/const'
 import { server } from '@/shared/api/mocks/node'
+import { setHubLive } from '@/shared/api/realtime/live-status'
 import { isInvalidated, queryWrapper, signInForTest } from '@/shared/api/test/hook-test-utils'
 
 import {
@@ -23,6 +24,7 @@ beforeEach(async () => {
 })
 
 afterEach(() => {
+  setHubLive(false)
   server.events.removeAllListeners()
 })
 
@@ -58,6 +60,15 @@ describe('a conversation the AI is working on', () => {
       const option = query?.observers[0]?.options.refetchInterval
       return typeof option === 'function' ? option(query as never) : option
     }
+    expect(interval()).toBe(MAIL_THREAD_POLL_MS)
+    // With the hub connected its events bring the result, so nothing is polled
+    act(() => {
+      setHubLive(true)
+    })
+    expect(interval()).toBe(false)
+    act(() => {
+      setHubLive(false)
+    })
     expect(interval()).toBe(MAIL_THREAD_POLL_MS)
     for (const row of Object.values(getDb().tenants).flatMap((t) => t.sales.threads)) {
       row.aiReadyAt = '2000-01-01T00:00:00Z'

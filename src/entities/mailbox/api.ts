@@ -11,6 +11,7 @@ import type {
 } from '@/shared/api/generated/model'
 import { useIdempotencyKeys } from '@/shared/api/idempotency'
 import { invalidateRoots, SALES_DATA_ROOTS } from '@/shared/api/query-roots'
+import { useHubLive } from '@/shared/api/realtime/live-status'
 
 import { MAILBOX_POLL_MS, MAILBOXES_STALE_TIME } from './const'
 
@@ -77,14 +78,16 @@ export async function syncMailbox(id: string) {
 // --- Hooks (what features and widgets call) ---------------------------------
 
 export function useListMailboxes(options: { enabled?: boolean } = {}) {
+  const hubLive = useHubLive()
   return useQuery({
     queryKey: mailboxKeys.list,
     queryFn: ({ signal }) => listMailboxes(signal),
     staleTime: MAILBOXES_STALE_TIME,
     enabled: options.enabled ?? true,
-    // The first sync of a new mailbox takes a while; only then is the list polled
+    // The first sync of a new mailbox takes a while. With the hub the sync's thread events
+    // refresh the list; only without it is the list polled, and only while one is connecting
     refetchInterval: (query) =>
-      query.state.data?.some((mailbox) => mailbox.status === 'connecting')
+      !hubLive && query.state.data?.some((mailbox) => mailbox.status === 'connecting')
         ? MAILBOX_POLL_MS
         : false,
   })

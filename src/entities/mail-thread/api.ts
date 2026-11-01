@@ -13,6 +13,7 @@ import type {
   ThreadExcludeRequest,
   ThreadLinkRequest,
 } from '@/shared/api/generated/model'
+import { useHubLive } from '@/shared/api/realtime/live-status'
 import { useIdempotencyKeys } from '@/shared/api/idempotency'
 import { invalidateRoots, SALES_DATA_ROOTS } from '@/shared/api/query-roots'
 
@@ -110,14 +111,18 @@ export function useListMailThreads(params: ListMailThreadsParams) {
   })
 }
 
+/**
+ * The conversation. While the AI works on it (`aiStatus` pending) it is read again only if the
+ * hub is not connected: with the hub, `SalesThreadUpdated` brings the result.
+ */
 export function useGetMailThread(id: string) {
+  const hubLive = useHubLive()
   return useQuery({
     queryKey: mailThreadKeys.detail(id),
     queryFn: ({ signal }) => getMailThread(id, signal),
     staleTime: MAIL_THREAD_DETAIL_STALE_TIME,
-    // Until the live event arrives (S9) a thread the AI is working on is read again
     refetchInterval: (query) =>
-      query.state.data?.aiStatus === 'pending' ? MAIL_THREAD_POLL_MS : false,
+      !hubLive && query.state.data?.aiStatus === 'pending' ? MAIL_THREAD_POLL_MS : false,
   })
 }
 

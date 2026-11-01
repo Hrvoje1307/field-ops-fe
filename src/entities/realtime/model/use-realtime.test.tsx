@@ -8,6 +8,7 @@ import { resetMockDb } from '@/shared/api/mocks/db'
 import { dropConnections, openConnections } from '@/shared/api/mocks/lib/realtime'
 import { server } from '@/shared/api/mocks/node'
 import { signInForTest } from '@/shared/api/test/hook-test-utils'
+import { isHubLive } from '@/shared/api/realtime/live-status'
 import { env } from '@/shared/config/env'
 
 import { channel, type LiveEvent } from './channel'
@@ -83,17 +84,19 @@ describe('useRealtime', () => {
       expect(channel.getStatus()).toBe('connected')
     })
     expect(openConnections()).toBe(1)
+    expect(isHubLive()).toBe(true)
     view.unmount()
     await waitFor(() => {
       expect(openConnections()).toBe(0)
     })
     expect(channel.getStatus()).toBe('disconnected')
+    expect(isHubLive()).toBe(false)
   })
 
-  it('ignores the sales events until step S9: a deal moved by someone else refreshes no job data and reaches no one', async () => {
+  it('a deal moved by someone else marks the sales data it names stale, not job data, and reaches no screen’s channel', async () => {
     const heard: LiveEvent[] = []
     const stop = channel.subscribeEvents((event) => heard.push(event))
-    const { stale } = setup()
+    const { stale, queryClient } = setup()
     await waitFor(() => {
       expect(channel.getStatus()).toBe('connected')
     })
@@ -108,13 +111,27 @@ describe('useRealtime', () => {
       columns: { stage: { id: string }; deals: { id: string }[] }[]
     }
     const deal = board.columns[0]?.deals[0]
+    const other = board.columns[0]?.deals[1]
     const target = board.columns[1]?.stage.id
+    for (const key of [
+      ['deals', 'board', {}],
+      ['deals', 'today', {}],
+      ['deals', 'detail', deal?.id],
+      ['deals', 'detail', other?.id],
+    ]) {
+      queryClient.setQueryData(key, [])
+    }
     await fetch(`${env.apiUrl}/sales/deals/${deal?.id ?? ''}/move`, {
       method: 'POST',
       headers: { ...headers, 'Idempotency-Key': crypto.randomUUID() },
       body: JSON.stringify({ stageId: target }),
     })
-    await new Promise((resolve) => setTimeout(resolve, 400))
+    await waitFor(() => {
+      expect(stale(['deals', 'detail', deal?.id])).toBe(true)
+    })
+    expect(stale(['deals', 'board', {}])).toBe(true)
+    expect(stale(['deals', 'today', {}])).toBe(true)
+    expect(stale(['deals', 'detail', other?.id])).toBe(false)
     expect(stale(['jobs', 'list'])).toBe(false)
     expect(heard).toEqual([])
     stop()
