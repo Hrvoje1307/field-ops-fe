@@ -3,6 +3,7 @@ import { setupWorker } from 'msw/browser'
 import { getDb, resetMockDb, saveDb } from './db'
 import { handlers } from './handlers'
 import { dropConnections, realtimeHandlers } from './lib/realtime'
+import { holdMailboxes } from './lib/sales/mailboxes'
 
 export const worker = setupWorker(...handlers, ...realtimeHandlers)
 
@@ -24,6 +25,10 @@ if (import.meta.env.DEV) {
         }
       }
       saveDb()
+    },
+    // Keeps new mailboxes connecting until released: window.__fieldopsHoldMailboxes(true / false)
+    __fieldopsHoldMailboxes: (hold: boolean) => {
+      holdMailboxes(hold)
     },
     __fieldopsResetMock: () => {
       resetMockDb()

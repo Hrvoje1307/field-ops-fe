@@ -4,8 +4,20 @@ import { getDb, saveDb } from '../../db'
 import type { MailboxRow } from '../../db/sales-rows'
 import { emitSales } from './events'
 
+const HOLD_KEY = 'fieldops.mock.hold-connecting'
+
+/** An e2e test keeps new mailboxes connecting (kept in the browser, which a redirect to the provider leaves). */
+function isHeld(): boolean {
+  try {
+    return globalThis.localStorage.getItem(HOLD_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
 /** Mailboxes whose first sync is over become `active`. True when something changed. */
 export function settleMailboxes(mailboxes: MailboxRow[], now = Date.now()): boolean {
+  if (isHeld()) return false
   let changed = false
   for (const row of mailboxes) {
     if (row.status !== 'connecting' || !row.connectingUntil) continue
@@ -29,7 +41,7 @@ const timers = new Map<string, ReturnType<typeof setTimeout>>()
  * clock of their own.
  */
 export function scheduleMailboxSettle(tenantId: string, mailboxes: MailboxRow[]): void {
-  if (import.meta.env.MODE === 'test' || timers.has(tenantId)) return
+  if (import.meta.env.MODE === 'test' || timers.has(tenantId) || isHeld()) return
   const due = mailboxes
     .filter((m) => m.status === 'connecting' && m.connectingUntil)
     .map((m) => Date.parse(m.connectingUntil ?? ''))
@@ -54,4 +66,33 @@ export function scheduleMailboxSettle(tenantId: string, mailboxes: MailboxRow[])
       scheduleMailboxSettle(tenantId, t.sales.mailboxes)
     }, wait),
   )
+}
+
+/**
+ * Test hook (`window.__fieldopsHoldMailboxes`): while held, a new mailbox stays `connecting`;
+ * releasing it ends every first sync at once and announces it like the timer does.
+ */
+export function holdMailboxes(hold: boolean): void {
+  try {
+    if (hold) globalThis.localStorage.setItem(HOLD_KEY, '1')
+    else globalThis.localStorage.removeItem(HOLD_KEY)
+  } catch {
+    return
+  }
+  if (hold) return
+  for (const [tenantId, t] of Object.entries(getDb().tenants)) {
+    const now = Date.now()
+    for (const row of t.sales.mailboxes) {
+      if (row.status === 'connecting') row.connectingUntil = toIsoInstant(now)
+    }
+    if (!settleMailboxes(t.sales.mailboxes, now)) continue
+    saveDb()
+    const thread = t.sales.threads.find((x) => !x.deletedAt)
+    if (thread) {
+      emitSales(tenantId, {
+        target: 'SalesThreadUpdated',
+        payload: { threadId: thread.id, dealId: thread.dealId },
+      })
+    }
+  }
 }

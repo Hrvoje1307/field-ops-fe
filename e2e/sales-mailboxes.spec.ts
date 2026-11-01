@@ -46,6 +46,15 @@ async function consent(page: Page, action: 'allow' | 'deny' | 'fail', account = 
   }
 }
 
+/** The mock's way to keep a new mailbox connecting until it is released (see the mock README). */
+async function mockHook(page: Page, _name: 'Hold', hold: boolean) {
+  await page.evaluate((value) => {
+    ;(
+      window as unknown as { __fieldopsHoldMailboxes: (h: boolean) => void }
+    ).__fieldopsHoldMailboxes(value)
+  }, hold)
+}
+
 async function startConnect(page: Page, provider: 'Gmail ili Google Workspace' | 'Microsoft 365') {
   await page.getByRole('button', { name: 'Spoji sandučić' }).first().click()
   await page.getByRole('menuitem', { name: provider }).click()
@@ -59,6 +68,9 @@ for (const tenant of TENANTS) {
     }) => {
       await openMailboxes(page, tenant.owner, tenant.name)
       const address = `prodaja@${tenant.owner.split('@')[1] ?? ''}`
+      // The first sync does not end by itself, so "connecting" is there to be seen however
+      // slow the machine is; the test lets it end
+      await mockHook(page, 'Hold', true)
       await startConnect(page, 'Gmail ili Google Workspace')
       await consent(page, 'allow', address)
 
@@ -75,6 +87,7 @@ for (const tenant of TENANTS) {
       const row = rowOf(page, address)
       await expect(row).toBeVisible()
       await expect(row.getByText('Spaja se')).toBeVisible()
+      await mockHook(page, 'Hold', false)
       await expect(row.getByText('Aktivan')).toBeVisible()
     })
 

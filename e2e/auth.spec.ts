@@ -89,13 +89,37 @@ for (const tenant of TENANTS) {
       await expect(other.getByText('Odjavljeni ste u drugom prozoru.')).toBeVisible()
     })
 
-    test('revoked access ends on /login with a clear message', async ({ page }) => {
+    test('revoked access ends on /login with a clear message when the app is opened again', async ({
+      page,
+    }) => {
       await signIn(page, tenant.technician)
       await expect(page).toHaveURL('/field')
 
+      // Away from the signed-in screens (a public page has no hub and no data to read), so
+      // nothing of theirs notices the revocation before the app is opened again
+      await page.goto('/p/pub_nepostojeci')
+      await expect(page.getByRole('heading', { name: 'Poveznica nije ispravna' })).toBeVisible()
       await deactivateMember(page, tenant.owner, tenant.technician)
 
-      await page.reload()
+      await page.goto('/field')
+      await expect(page).toHaveURL('/login?reason=access_revoked')
+      await expect(
+        page.getByText('Vaš pristup je ukinut. Obratite se vlasniku tvrtke.'),
+      ).toBeVisible()
+    })
+
+    test('revoked access is noticed by a screen that is open when its connection comes back: it ends on /login with the message', async ({
+      page,
+    }) => {
+      await signIn(page, tenant.technician)
+      await expect(page).toHaveURL('/field')
+      await deactivateMember(page, tenant.owner, tenant.technician)
+
+      // The connection is lost and comes back: before it is tried again the session is renewed
+      // and the API says the access is gone
+      await page.evaluate(() => {
+        ;(window as unknown as { __fieldopsDropHub: (ms?: number) => void }).__fieldopsDropHub()
+      })
       await expect(page).toHaveURL('/login?reason=access_revoked')
       await expect(
         page.getByText('Vaš pristup je ukinut. Obratite se vlasniku tvrtke.'),
