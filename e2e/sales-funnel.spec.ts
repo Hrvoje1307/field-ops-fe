@@ -98,12 +98,19 @@ async function moveCard(page: Page, title: string, stageId: string) {
   await page.mouse.move(region.x + region.width / 2, region.y + 120, { steps: 4 })
   await frame()
   await frame()
-  const box = await target.boundingBox()
-  if (!box) throw new Error('Stage not found')
-  await page.mouse.move(box.x + box.width / 2, box.y + Math.min(box.height / 2, 30), { steps: 8 })
-  // Let the board settle under the pointer (the scrolling has stopped) before letting go
-  await frame()
-  await frame()
+  // Aim at the stage, and check where it is once the board has settled under the pointer: a
+  // slow machine can leave the board a little scrolled, and the pointer is then over its neighbour
+  for (let tries = 0; ; tries++) {
+    const box = await target.boundingBox()
+    if (!box) throw new Error('Stage not found')
+    const x = box.x + box.width / 2
+    await page.mouse.move(x, box.y + Math.min(box.height / 2, 30), { steps: 8 })
+    await frame()
+    await frame()
+    const after = await target.boundingBox()
+    if (after && after.x <= x && x <= after.x + after.width) break
+    if (tries >= 5) throw new Error('The stage keeps moving away from the pointer')
+  }
   await page.mouse.up()
 }
 
@@ -371,7 +378,13 @@ for (const tenant of TENANTS) {
       await page.goto(`/sales/deals/${deal.id}`)
       await expect(page.getByRole('heading', { level: 1 })).toHaveText(deal.title)
 
-      // Someone else moves the deal behind the page's back
+      // Someone else moves the deal behind the page's back. With the live connection the page
+      // would hear of it and show the new version, so the connection is cut first
+      await page.evaluate(() => {
+        ;(window as unknown as { __fieldopsDropHub: (ms?: number) => void }).__fieldopsDropHub(
+          60_000,
+        )
+      })
       const other = open.find((column) => column.stage.id !== deal.stage.id)
       if (!other) throw new Error('Seed needs two open stages')
       const moved = await apiPost(page, tenant.owner, `/sales/deals/${deal.id}/move`, {

@@ -14,8 +14,9 @@ export default defineConfig({
     baseURL,
     locale: 'hr-HR',
     timezoneId: 'Europe/Zagreb',
-    // A failure keeps its trace, so a flake has its cause the first time it happens (no retries hide it)
-    trace: 'retain-on-failure',
+    // PW_TRACE=1 keeps the trace of every failure (to find the cause of a flake). It is not on by
+    // default: recording slows every test down, and the drag helpers of the boards are timing-sensitive
+    trace: process.env.PW_TRACE ? 'retain-on-failure' : 'on-first-retry',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {

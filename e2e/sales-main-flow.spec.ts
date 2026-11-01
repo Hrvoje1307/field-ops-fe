@@ -59,6 +59,8 @@ for (const tenant of TENANTS) {
     test('the main flow: connect a mailbox, answer an inquiry, win the deal and convert it into a job', async ({
       page,
     }) => {
+      // A journey of nine steps, not one wait: it gets the longer budget of a slow test
+      test.slow()
       await signIn(page, tenant.owner)
       await expectSignedInAs(page, tenant.name)
       const [list, stages, jobTypes, jobFields, clientFields, locationFields] = await apiGet<
