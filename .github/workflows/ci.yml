@@ -28,4 +28,6 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
-      - run: npm run build
+      # The build without the mock holds none of the mock (MSW, seed data, triggers)
+      - name: Production bundle has no mock
+        run: npm run check:prod-bundle

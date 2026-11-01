@@ -15,14 +15,10 @@ if (!rootElement) throw new Error('Root element #root not found')
 connectSession()
 startSessionWatcher(router, queryClient)
 
-void enableMocking()
-  .catch((error: unknown) => {
-    console.error('[MSW] Failed to start the mock API', error)
-  })
-  .finally(() => {
-    createRoot(rootElement).render(
-      <StrictMode>
-        <App />
-      </StrictMode>,
-    )
-  })
+void enableMocking().then(() => {
+  createRoot(rootElement).render(
+    <StrictMode>
+      <App />
+    </StrictMode>,
+  )
+})

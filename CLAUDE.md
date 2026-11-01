@@ -106,7 +106,9 @@ Sales is an optional module (API tag `Sales`, `/sales/*`), still generic: nothin
 - **Everything configurable comes from the API**: stages (name, colour, kind open/won/lost, follow-up days), follow-up rules, exclusions, tone, language, signature, knowledge, threshold, SLA, digest. No hardcoded stage names or colours; only the platform enums of the contract (thread category, mailbox status, draft status, lost reason, deal source, activity type) have fixed labels in i18n.
 - **Error codes** (`ProblemDetails.code`, listed in the Sales tag description) go through one i18n map (`sales.not_enabled`, `sales.forbidden`, `sales.lost_reason_required`, `sales.stage_required`, `sales.stage_in_use`, `sales.mailbox_exists`, `sales.mailbox_needs_reauth`, `mailbox.cannot_send`, `mailbox.imap_failed`, `mailbox.smtp_failed`, `sales.ai_disabled`, `thread.not_linked`, `sales.deal_already_converted`, `sales.ai_quota_exceeded` with `Retry-After`); an unknown code falls back to a generic message. 409 on a stale `version` refetches and tells the user; 400 `lostReason` shows next to the field.
 - **The backend is not ready yet** (spec 0.3.1 is ahead of the deployed API), so the sales module is built on MSW mocks. The mock must follow the contract exactly (shapes, status codes, error codes, 202 + `DraftReady` for drafts, visibility rules) and add no behaviour the spec lacks, so that `VITE_API_MOCK=false` works without a code change. Mock code is imported only inside `shared/api/mocks`. Anything missing or unclear in the spec goes to `docs/backend-questions.md`, not into the mock or the UI.
-- Realtime: `SalesThreadUpdated`, `DealUpdated` and `DraftReady` (group `sales:{tenantId}`, sent only to users with sales access) mark sales data stale like the job events do.
+- Realtime: `SalesThreadUpdated`, `DealUpdated` and `DraftReady` (group `sales:{tenantId}`, sent only to users with sales access) mark stale, by the ids in the payload, the thread, deal and draft and the lists they appear in (`entities/realtime/lib/sales-refresher.ts`); a hub that connects again marks all sales data stale. Polling is only the reserve: a screen polls only while `useHubLive()` is false (a draft that is still `generating` is also read slowly, for a limited time).
+- Phone: at 768 px and below (`useIsMobile`, `max-md:`) Today and the deal are one column with big targets, the funnel is a list with "Premjesti u…" instead of dragging, the inbox shows a conversation instead of the list.
+- `docs/sales-backend-handoff.md` is the page for the backend developer: the open questions (#52–#64), ordered by what blocks the frontend.
 
 ## Mock API
 
@@ -126,3 +128,4 @@ The Sales module's mock (`handlers/sales-*.ts`, `lib/sales/`, `seed/sales*.ts`) 
 - `npm run dev` – dev server (mock API by default)
 - `npm run api:generate` – regenerate client from `openapi/openapi.json`
 - `npm run lint` / `npm run typecheck` / `npm test` / `npx playwright test`
+- `npm run check:prod-bundle` – builds with `VITE_API_MOCK=false` and fails when `dist/` holds the mock (MSW, seed data, mock triggers); runs in CI

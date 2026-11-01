@@ -14,7 +14,8 @@ export default defineConfig({
     baseURL,
     locale: 'hr-HR',
     timezoneId: 'Europe/Zagreb',
-    trace: 'on-first-retry',
+    // A failure keeps its trace, so a flake has its cause the first time it happens (no retries hide it)
+    trace: 'retain-on-failure',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {

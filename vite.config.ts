@@ -3,9 +3,11 @@ import { fileURLToPath, URL } from 'node:url'
 import tailwindcss from '@tailwindcss/vite'
 import { tanstackRouter } from '@tanstack/router-plugin/vite'
 import react from '@vitejs/plugin-react'
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
+  // The only file in public/ is MSW's worker script: a build without the mock does not ship it
+  publicDir: loadEnv(mode, process.cwd(), 'VITE_').VITE_API_MOCK === 'true' ? 'public' : false,
   plugins: [
     // Must come before react()
     tanstackRouter({
@@ -46,4 +48,4 @@ export default defineConfig({
       VITE_API_MOCK: 'false',
     },
   },
-})
+}))
