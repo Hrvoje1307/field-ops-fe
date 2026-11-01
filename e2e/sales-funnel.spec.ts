@@ -194,6 +194,13 @@ for (const tenant of TENANTS) {
       await closed(dialog)
       await expect(columnOf(page, lost.id).getByText(deal.title)).toBeVisible()
       expect(await page.evaluate(() => document.documentElement.scrollLeft)).toBe(0)
+      // The board stays where the card was dropped: it does not jump back to the first stage
+      await expect(columnOf(page, lost.id)).toBeInViewport()
+      expect(
+        await page.evaluate(
+          () => document.querySelector('[aria-label="Lijevak prodaje"][role="region"]')?.scrollLeft,
+        ),
+      ).toBeGreaterThan(0)
     })
 
     test('a lost stage asks for the reason first; cancelling sends nothing', async ({ page }) => {

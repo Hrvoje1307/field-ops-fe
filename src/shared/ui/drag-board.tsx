@@ -148,7 +148,10 @@ export function DragBoard({
       }}
     >
       {children}
-      <DragOverlay>{activeId ? renderOverlay(activeId) : null}</DragOverlay>
+      {/* No drop animation: dnd-kit scrolls the card's original place into view before it
+          plays, which threw a board scrolled to its far end back to the start when the card
+          was dropped on a stage that is far from where it came from */}
+      <DragOverlay dropAnimation={null}>{activeId ? renderOverlay(activeId) : null}</DragOverlay>
     </DndContext>
   )
 }
