@@ -9,8 +9,10 @@ import {
   digestFormValues,
   isLanguageTag,
   languageName,
+  staleRecipients,
   tenantLanguage,
   toAiFields,
+  toDigestFields,
 } from './settings-form'
 
 const settings: SalesSettings = {
@@ -102,7 +104,10 @@ describe('what a save deletes', () => {
 })
 
 describe('the digest form', () => {
-  it('leaves out recipients who no longer have access to Prodaja', () => {
-    expect(digestFormValues(settings, ['b', 'c']).digestRecipientIds).toEqual(['b'])
+  it('keeps the stored recipients in the form and drops those without access only when saving', () => {
+    const values = digestFormValues(settings)
+    expect(values.digestRecipientIds).toEqual(['a', 'b'])
+    expect(staleRecipients(values.digestRecipientIds, ['b', 'c'])).toEqual(['a'])
+    expect(toDigestFields(values, ['b', 'c']).digestRecipientIds).toEqual(['b'])
   })
 })

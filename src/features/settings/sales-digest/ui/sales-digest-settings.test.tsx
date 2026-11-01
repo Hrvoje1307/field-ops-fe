@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 
 import { getSalesSettings } from '@/entities/sales-config'
 import { listMembers, memberHasSalesAccess } from '@/entities/member'
+import { getDb } from '@/shared/api/mocks/db'
 import { alarmkoSales, renderScreen, signInAs } from '@/shared/api/test/screen-test-utils'
 
 import { SalesDigestSettings } from './sales-digest-settings'
@@ -89,5 +90,26 @@ describe('SalesDigestSettings', () => {
       storeNonSalesBodies: true,
       digestEnabled: false,
     })
+  })
+
+  it('a recipient who no longer has access is shown with a mark and removed on saving', async () => {
+    const [first, second] = await withAccess()
+    if (!first || !second) throw new Error('seed')
+    alarmkoSales().settings.digestRecipientIds = [first.userId, second.userId]
+    // The second member loses access to Prodaja
+    const membership = getDb().memberships.find(
+      (m) => m.userId === second.userId && m.canAccessSales,
+    )
+    if (!membership) throw new Error('seed')
+    membership.canAccessSales = false
+    const user = renderScreen(<SalesDigestSettings />)
+    await form()
+    const stale = screen.getByText('Nema više pristup prodaji')
+    expect(stale.closest('li')).toHaveTextContent(second.fullName)
+    expect(screen.getByRole('note')).toHaveTextContent('bit će maknuti pri spremanju')
+    await user.click(save())
+    await screen.findByText('Postavke su spremljene.')
+    expect((await getSalesSettings()).digestRecipientIds).toEqual([first.userId])
+    expect(screen.queryByText('Nema više pristup prodaji')).not.toBeInTheDocument()
   })
 })

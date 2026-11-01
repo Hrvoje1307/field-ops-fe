@@ -4,13 +4,14 @@ import { FormProvider, useController, useForm } from 'react-hook-form'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
 
-import { useSalesMembers } from '@/entities/member'
+import { type Member, memberHasSalesAccess, useListMembers } from '@/entities/member'
 import {
   buildDigestSchema,
   type DataLoss,
   DataLossDialog,
   dataLossOf,
   digestFormValues,
+  staleRecipients,
   type DigestFields,
   type DigestFormValues,
   type SalesSettings,
@@ -22,6 +23,7 @@ import { reportSaveError } from '@/shared/lib/report-save-error'
 import { salesErrorCode, salesErrorMessage } from '@/shared/lib/sales-error'
 import { useTenantFormat } from '@/shared/lib/tenant-format'
 import { Alert, AlertAction, AlertDescription } from '@/shared/ui/alert'
+import { Badge } from '@/shared/ui/badge'
 import { Button } from '@/shared/ui/button'
 import { Checkbox } from '@/shared/ui/checkbox'
 import { CheckboxField } from '@/shared/ui/checkbox-field'
@@ -37,9 +39,9 @@ import { TextField } from '@/shared/ui/text-field'
 export function SalesDigestSettings() {
   const { t } = useTranslation()
   const settings = useGetSalesSettings()
-  const members = useSalesMembers()
+  const members = useListMembers()
   if (settings.data && members.data) {
-    return <DigestBody settings={settings.data} memberIds={members.data.map((m) => m.userId)} />
+    return <DigestBody settings={settings.data} members={members.data} />
   }
   if (settings.isError || members.isError) {
     return (
@@ -63,19 +65,15 @@ export function SalesDigestSettings() {
   return <Skeleton className="h-72" />
 }
 
-function DigestBody({
-  settings,
-  memberIds,
-}: {
-  settings: SalesSettings
-  memberIds: readonly string[]
-}) {
+function DigestBody({ settings, members }: { settings: SalesSettings; members: Member[] }) {
   const { t } = useTranslation()
   const { timeZone } = useTenantFormat()
+  const withAccess = members.filter((m) => m.isActive && memberHasSalesAccess(m))
+  const memberIds = withAccess.map((m) => m.userId)
   const schema = useMemo(() => buildDigestSchema(), [])
   const form = useForm<DigestFormValues>({
     resolver: zodResolver(schema),
-    defaultValues: digestFormValues(settings, memberIds),
+    defaultValues: digestFormValues(settings),
   })
   const save = useSaveSalesSettings()
   const [pending, setPending] = useState<{ fields: DigestFields; loss: DataLoss[] } | null>(null)
@@ -84,7 +82,7 @@ function DigestBody({
   async function write(fields: DigestFields) {
     try {
       const saved = await save.mutateAsync(fields)
-      form.reset(digestFormValues(saved, memberIds))
+      form.reset(digestFormValues(saved))
       setPending(null)
       setConfirmError(null)
       toast.success(t('sales.settings.saved'))
@@ -98,7 +96,7 @@ function DigestBody({
   }
 
   const submit = form.handleSubmit(async (values) => {
-    const fields = toDigestFields(values)
+    const fields = toDigestFields(values, memberIds)
     const loss = dataLossOf(settings, fields)
     if (loss.length > 0) {
       setPending({ fields, loss })
@@ -129,7 +127,7 @@ function DigestBody({
             hint={t('sales.settings.digest.timeHint', { zone: timeZone })}
             className="max-w-48"
           />
-          <Recipients members={memberIds} />
+          <Recipients withAccess={withAccess} everyone={members} />
         </FormSection>
 
         <FormSection title={t('sales.settings.digest.dataSection')}>
@@ -162,24 +160,30 @@ function DigestBody({
   )
 }
 
-/** The members with access to Prodaja, one checkbox each. */
-function Recipients({ members }: { members: readonly string[] }) {
+/**
+ * The members with access to Prodaja, one checkbox each. A stored recipient who no longer has
+ * access is shown too, marked, and is removed when the settings are saved.
+ */
+function Recipients({ withAccess, everyone }: { withAccess: Member[]; everyone: Member[] }) {
   const { t } = useTranslation()
   const groupId = useId()
-  const list = useSalesMembers()
   const { field } = useController<DigestFormValues, 'digestRecipientIds'>({
     name: 'digestRecipientIds',
   })
   const chosen = field.value
+  const stale = staleRecipients(
+    chosen,
+    withAccess.map((m) => m.userId),
+  )
   return (
     <Field role="group" aria-labelledby={`${groupId}-label`}>
       <FieldLabel id={`${groupId}-label`}>{t('sales.settings.digest.recipients')}</FieldLabel>
       <FieldDescription>{t('sales.settings.digest.recipientsHint')}</FieldDescription>
-      {members.length === 0 ? (
+      {withAccess.length === 0 && stale.length === 0 ? (
         <p className="text-sm text-muted-foreground">{t('sales.settings.digest.recipientsNone')}</p>
       ) : (
         <ul className="space-y-2">
-          {(list.data ?? []).map((member) => {
+          {withAccess.map((member) => {
             const id = `${groupId}-${member.userId}`
             return (
               <li key={member.userId} className="flex items-center gap-2">
@@ -200,7 +204,22 @@ function Recipients({ members }: { members: readonly string[] }) {
               </li>
             )
           })}
+          {stale.map((userId) => (
+            <li key={userId} className="flex flex-wrap items-center gap-2 text-sm">
+              <Checkbox checked disabled aria-labelledby={`${groupId}-${userId}-name`} />
+              <span id={`${groupId}-${userId}-name`} className="text-muted-foreground">
+                {everyone.find((m) => m.userId === userId)?.fullName ??
+                  t('sales.settings.digest.unknownMember')}
+              </span>
+              <Badge variant="outline">{t('sales.settings.digest.noAccess')}</Badge>
+            </li>
+          ))}
         </ul>
+      )}
+      {stale.length > 0 && (
+        <p role="note" className="text-sm text-muted-foreground">
+          {t('sales.settings.digest.willBeRemoved')}
+        </p>
       )}
     </Field>
   )

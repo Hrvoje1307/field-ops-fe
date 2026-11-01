@@ -64,7 +64,8 @@ export function SelectField({
         aria-required={required || undefined}
         aria-describedby={describedBy}
       >
-        <NativeSelectOption value="">{emptyLabel}</NativeSelectOption>
+        {/* A required field that has a value has no empty choice to go back to */}
+        {!(required && value) && <NativeSelectOption value="">{emptyLabel}</NativeSelectOption>}
         {options.map((option) => (
           <NativeSelectOption key={option.value} value={option.value}>
             {option.label}

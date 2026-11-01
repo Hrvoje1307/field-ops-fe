@@ -160,6 +160,7 @@ function AiBody({ settings }: { settings: SalesSettings }) {
               name="tone"
               label={t('sales.settings.ai.tone')}
               emptyLabel={t('sales.settings.ai.tone')}
+              required
               options={TONES.map((tone) => ({
                 value: tone,
                 label: t(`sales.settings.ai.toneLabel.${tone}`),
@@ -169,6 +170,7 @@ function AiBody({ settings }: { settings: SalesSettings }) {
               name="language"
               label={t('sales.settings.ai.language')}
               emptyLabel={t('sales.settings.ai.language')}
+              required
               hint={t('sales.settings.ai.languageHint')}
               options={languageOptions}
             />

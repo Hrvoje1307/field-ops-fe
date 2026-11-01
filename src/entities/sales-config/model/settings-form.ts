@@ -168,21 +168,33 @@ export function buildDigestSchema() {
   })
 }
 
-/** Recipients who no longer have access to Prodaja are left out of the form. */
-export function digestFormValues(
-  settings: SalesSettings,
-  memberIds: readonly string[],
-): DigestFormValues {
+/** The form starts from what is stored, including recipients who no longer have access. */
+export function digestFormValues(settings: SalesSettings): DigestFormValues {
   return {
     digestEnabled: settings.digestEnabled,
     digestTime: settings.digestTime,
-    digestRecipientIds: (settings.digestRecipientIds ?? []).filter((id) => memberIds.includes(id)),
+    digestRecipientIds: [...(settings.digestRecipientIds ?? [])],
     storeNonSalesBodies: settings.storeNonSalesBodies,
   }
 }
 
-export function toDigestFields(values: DigestFormValues): DigestFields {
-  return { ...values }
+/** Recipients who no longer have access to Prodaja (shown in the form, removed on save). */
+export function staleRecipients(
+  recipientIds: readonly string[],
+  memberIds: readonly string[],
+): string[] {
+  return recipientIds.filter((id) => !memberIds.includes(id))
+}
+
+/** What is saved: the recipients are the members who still have access. */
+export function toDigestFields(
+  values: DigestFormValues,
+  memberIds: readonly string[],
+): DigestFields {
+  return {
+    ...values,
+    digestRecipientIds: values.digestRecipientIds.filter((id) => memberIds.includes(id)),
+  }
 }
 
 // --- What a save deletes ----------------------------------------------------------------

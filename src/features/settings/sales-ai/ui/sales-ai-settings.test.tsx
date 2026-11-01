@@ -31,8 +31,8 @@ describe('SalesAiSettings', () => {
     alarmkoSales().settings.tone = 'friendly'
     renderScreen(<SalesAiSettings />)
     await form()
-    expect(screen.getByLabelText('Ton')).toHaveValue('friendly')
-    expect(screen.getByLabelText('Jezik odgovora')).toHaveValue('auto')
+    expect(screen.getByLabelText(/^Ton\*?$/)).toHaveValue('friendly')
+    expect(screen.getByLabelText(/^Jezik odgovora\*?$/)).toHaveValue('auto')
     expect(screen.getByLabelText('Prag sigurnosti')).toHaveValue('85')
     expect(screen.getByLabelText('Rok za prvi odgovor (sati)')).toHaveValue('4')
   })
@@ -40,11 +40,10 @@ describe('SalesAiSettings', () => {
   it('offers "auto", the tenant language named by the browser, and a typed tag; no fixed list', async () => {
     const user = renderScreen(<SalesAiSettings />)
     await form()
-    const select = screen.getByLabelText('Jezik odgovora')
+    const select = screen.getByLabelText(/^Jezik odgovora\*?$/)
     expect(
       within(select)
         .getAllByRole('option')
-        .slice(1)
         .map((o) => o.textContent),
     ).toEqual(['Jezik klijenta', 'Jezik tvrtke: hrvatski', 'Drugi jezik…'])
     await user.selectOptions(select, 'other')
@@ -80,7 +79,7 @@ describe('SalesAiSettings', () => {
     await form()
     await user.clear(screen.getByLabelText('Prag sigurnosti'))
     await user.type(screen.getByLabelText('Prag sigurnosti'), '55')
-    await user.selectOptions(screen.getByLabelText('Ton'), 'formal')
+    await user.selectOptions(screen.getByLabelText(/^Ton\*?$/), 'formal')
     await user.clear(screen.getByLabelText('Potpis'))
     await user.type(screen.getByLabelText('Potpis'), 'Ekipa')
     await user.click(save())
@@ -97,7 +96,7 @@ describe('SalesAiSettings', () => {
     alarmkoSales().settings.storeNonSalesBodies = true
     const user = renderScreen(<SalesAiSettings />)
     await form()
-    await user.selectOptions(screen.getByLabelText('Ton'), 'friendly')
+    await user.selectOptions(screen.getByLabelText(/^Ton\*?$/), 'friendly')
     await user.click(save())
     await screen.findByText('Postavke su spremljene.')
     expect(await getSalesSettings()).toMatchObject({
@@ -147,7 +146,7 @@ describe('SalesAiSettings', () => {
     renderScreen(<SalesAiSettings />)
     await form()
     expect(screen.getAllByText('AI je isključen, pa se ove postavke ne koriste.')).toHaveLength(3)
-    expect(screen.getByLabelText('Ton')).toBeEnabled()
+    expect(screen.getByLabelText(/^Ton\*?$/)).toBeEnabled()
     expect(screen.getByLabelText('Što AI smije reći')).toBeEnabled()
     expect(screen.getByLabelText('Prag sigurnosti')).toBeEnabled()
   })

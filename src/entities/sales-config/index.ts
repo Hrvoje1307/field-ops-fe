@@ -44,6 +44,7 @@ export {
   LANGUAGE_OTHER,
   languageName,
   RETENTION_MIN_DAYS,
+  staleRecipients,
   tenantLanguage,
   toAiFields,
   toDigestFields,

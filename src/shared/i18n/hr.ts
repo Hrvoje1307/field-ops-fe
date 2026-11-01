@@ -1537,6 +1537,9 @@ export const hr = {
         recipients: 'Primatelji',
         recipientsHint: 'Članovi koji imaju pristup prodaji.',
         recipientsNone: 'Nijedan član nema pristup prodaji.',
+        noAccess: 'Nema više pristup prodaji',
+        unknownMember: 'Nepoznat član',
+        willBeRemoved: 'Primatelji koji nemaju pristup prodaji bit će maknuti pri spremanju.',
         dataSection: 'Razgovori koji nisu prodaja',
         storeBodies: 'Čuvaj sadržaj razgovora koji nisu prodaja',
         storeBodiesHint:
