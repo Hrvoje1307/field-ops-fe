@@ -112,8 +112,17 @@ async function moveCard(page: Page, title: string, stageId: string) {
     if (after && after.x <= x && x <= after.x + after.width) break
     if (tries >= 5) throw new Error('The stage keeps moving away from the pointer')
   }
-  // The board has taken the stage for the drop target; only then is the card let go
-  await expect(target).toHaveAttribute('data-drop-target', 'true')
+  // The board has taken the stage for the drop target; only then is the card let go. If it has
+  // not yet, the pointer moves a little, as a hand does, so the board looks again
+  const at = await target.boundingBox()
+  if (!at) throw new Error('Stage not found')
+  let nudge = 0
+  await expect(async () => {
+    nudge += 3
+    await page.mouse.move(at.x + at.width / 2 + (nudge % 9), at.y + Math.min(at.height / 2, 30))
+    await frame()
+    await expect(target).toHaveAttribute('data-drop-target', 'true', { timeout: 1000 })
+  }).toPass({ timeout: 10_000 })
   await page.mouse.up()
 }
 
