@@ -11,3 +11,4 @@ src/shared/api/generated
 # Contract and DB docs are owned by the backend
 openapi
 schemas
+pnpm-lock.yaml
