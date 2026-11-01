@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 
 import { type DealSummary, type SalesBoardColumn, useGetSalesBoard } from '@/entities/deal'
 import type { SalesStage } from '@/entities/sales-stage'
+import { useIsMobile } from '@/shared/lib/use-is-mobile'
 import { useDebouncedValue } from '@/shared/lib/use-debounced-value'
 import { useTenantFormat } from '@/shared/lib/tenant-format'
 import { Alert, AlertAction, AlertDescription } from '@/shared/ui/alert'
@@ -13,6 +14,7 @@ import { Input } from '@/shared/ui/input'
 import { Skeleton } from '@/shared/ui/skeleton'
 
 import { DealCard } from './deal-card'
+import { StageList } from './stage-list'
 
 /**
  * The funnel: a column per stage in the order the API gives (the stages are the tenant's,
@@ -32,6 +34,7 @@ export function SalesBoard({
   const [query, setQuery] = useState('')
   const q = useDebouncedValue(query.trim(), 300)
   const board = useGetSalesBoard(q ? { q } : {})
+  const mobile = useIsMobile()
 
   const columns = board.data?.columns
   const deals = useMemo(() => {
@@ -52,7 +55,7 @@ export function SalesBoard({
   )
 
   const search = (
-    <div className="relative max-w-xs flex-1">
+    <div className="relative max-w-xs flex-1 max-md:max-w-none">
       <SearchIcon
         aria-hidden="true"
         className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
@@ -62,7 +65,7 @@ export function SalesBoard({
         aria-label={t('sales.board.search')}
         placeholder={t('sales.board.search')}
         autoComplete="off"
-        className="pl-8"
+        className="pl-8 max-md:h-11"
         value={query}
         onChange={(event) => {
           setQuery(event.target.value)
@@ -119,6 +122,15 @@ export function SalesBoard({
           )}
         </div>
         <Stages columns={columns} />
+      </div>
+    )
+  }
+
+  if (mobile) {
+    return (
+      <div className="space-y-4">
+        {search}
+        <StageList columns={columns} onMove={onMove} />
       </div>
     )
   }

@@ -29,6 +29,7 @@ export function DealStageSelect({
       </label>
       <NativeSelect
         id={id}
+        className="max-md:[&_select]:h-11"
         value={deal.stage.id}
         disabled={pending || !stages.data}
         onChange={(event) => {

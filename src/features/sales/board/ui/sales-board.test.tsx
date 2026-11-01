@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { http, HttpResponse } from 'msw'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { getSalesBoard } from '@/entities/deal'
 import { login, sessionStore } from '@/entities/auth'
@@ -129,5 +129,57 @@ describe('SalesBoard', () => {
     expect(
       await screen.findByText('Nijedna prilika ne odgovara pretrazi "nema".'),
     ).toBeInTheDocument()
+  })
+})
+
+describe('SalesBoard on a phone', () => {
+  beforeEach(() => {
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: true,
+      media: query,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    }))
+  })
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  it('is a list of stages in the API order, with no drag handles', async () => {
+    await renderBoard()
+    const board = await getSalesBoard({})
+    const region = await screen.findByRole('region', { name: 'Lijevak prodaje' })
+    const headings = within(region).getAllByRole('heading', { level: 2 })
+    expect(headings.map((h) => h.textContent)).toEqual(board.columns.map((c) => c.stage.name))
+    expect(
+      screen.queryByRole('button', { name: /Premjesti karticu|Povuci/ }),
+    ).not.toBeInTheDocument()
+    const deal = board.columns.flatMap((c) => c.deals)[0]
+    expect(
+      await screen.findByRole('combobox', { name: `Premjesti u…: ${deal?.title ?? ''}` }),
+    ).toBeInTheDocument()
+  })
+
+  it('"Premjesti u…" offers the other stages and reports the move; the screen decides what it asks', async () => {
+    const moves: { deal: string; stage: string }[] = []
+    const user = await renderBoard({
+      onMove: (deal, stage) => moves.push({ deal: deal.id, stage: stage.id }),
+    })
+    const board = await getSalesBoard({})
+    const column = board.columns.find((c) => c.deals.length > 0)
+    const deal = column?.deals[0]
+    if (!column || !deal) throw new Error('seed')
+    const select = await screen.findByRole('combobox', { name: `Premjesti u…: ${deal.title}` })
+    const options = within(select)
+      .getAllByRole('option')
+      .map((o) => o.textContent)
+    expect(options).toEqual([
+      'Premjesti u…',
+      ...board.columns.filter((c) => c.stage.id !== column.stage.id).map((c) => c.stage.name),
+    ])
+    const target = board.columns.find((c) => c.stage.kind === 'lost')
+    if (!target) throw new Error('seed')
+    await user.selectOptions(select, target.stage.id)
+    expect(moves).toEqual([{ deal: deal.id, stage: target.stage.id }])
   })
 })

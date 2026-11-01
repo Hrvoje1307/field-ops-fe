@@ -7,7 +7,16 @@ import { useTenantFormat } from '@/shared/lib/tenant-format'
 import { Badge } from '@/shared/ui/badge'
 
 /** One deal in a column: who, how much, and what needs attention. */
-export function DealCard({ deal, handle }: { deal: DealSummary; handle?: React.ReactNode }) {
+export function DealCard({
+  deal,
+  handle,
+  footer,
+}: {
+  deal: DealSummary
+  handle?: React.ReactNode
+  /** Under the card's facts (on a phone: the control that moves it). */
+  footer?: React.ReactNode
+}) {
   const { t } = useTranslation()
   const { formatMoney, formatPhone, formatRelativeDateTime } = useTenantFormat()
   const who = deal.client?.name ?? deal.contactName ?? deal.contactEmail
@@ -50,6 +59,7 @@ export function DealCard({ deal, handle }: { deal: DealSummary; handle?: React.R
             )}
           </div>
         )}
+        {footer}
       </div>
     </div>
   )

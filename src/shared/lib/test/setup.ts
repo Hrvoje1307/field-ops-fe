@@ -15,6 +15,17 @@ if (!('ResizeObserver' in globalThis)) {
   }
 }
 
+// jsdom has no matchMedia; a test that wants a phone screen stubs it (see `useIsMobile`)
+if (typeof window.matchMedia !== 'function') {
+  window.matchMedia = (query: string) =>
+    ({
+      matches: false,
+      media: query,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+    }) as unknown as MediaQueryList
+}
+
 beforeAll(() => {
   server.listen({ onUnhandledFrame: 'error' })
 })

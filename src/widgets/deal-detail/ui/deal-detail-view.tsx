@@ -78,7 +78,7 @@ export function DealDetailView({
     <div className="space-y-4">
       <Link
         to="/sales/board"
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground max-md:min-h-11"
       >
         <ArrowLeftIcon aria-hidden="true" className="size-4" />
         {t('sales.deal.back')}
@@ -93,7 +93,7 @@ export function DealDetailView({
             }}
           />
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 max-md:w-full max-md:flex-col max-md:[&_a]:h-11 max-md:[&_button]:h-11 max-md:[&>*]:w-full">
           {deal.jobId ? (
             <Button variant="outline" asChild>
               <Link to="/jobs/$jobId" params={{ jobId: deal.jobId }}>

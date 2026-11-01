@@ -40,7 +40,7 @@ export function SalesTodayView() {
             : t('sales.today.title')}
         </h2>
         {isOwner && (
-          <Field className="w-auto">
+          <Field className="w-auto max-md:w-full max-md:[&_select]:h-11">
             <FieldLabel htmlFor={ownerId}>{t('sales.today.owner')}</FieldLabel>
             <NativeSelect
               id={ownerId}
@@ -92,7 +92,7 @@ export function SalesTodayView() {
               <Link
                 to="/sales/inbox"
                 search={{ card: 'review' }}
-                className="underline-offset-2 hover:underline"
+                className="underline-offset-2 hover:underline max-md:inline-flex max-md:min-h-11 max-md:items-center max-md:font-medium"
               >
                 {t('sales.today.reviewLink')}
               </Link>
@@ -125,7 +125,7 @@ export function SalesTodayView() {
                       to="/sales/deals/$id"
                       params={{ id: deal.id }}
                       aria-label={t('sales.today.openDeal', { title: deal.title })}
-                      className="font-medium underline-offset-2 hover:underline"
+                      className="font-medium underline-offset-2 hover:underline max-md:inline-flex max-md:min-h-11 max-md:items-center"
                     >
                       {deal.title}
                     </Link>
@@ -167,7 +167,7 @@ function TodayRow({ item, showDraft }: { item: SalesTodayItem; showDraft: boolea
         to="/sales/inbox"
         search={{ card: 'all', thread: item.thread.id }}
         aria-label={t('sales.today.open', { subject: item.thread.subject })}
-        className="block font-medium underline-offset-2 hover:underline"
+        className="block font-medium underline-offset-2 hover:underline max-md:flex max-md:min-h-11 max-md:items-center"
       >
         {item.thread.subject}
       </Link>
@@ -178,7 +178,7 @@ function TodayRow({ item, showDraft }: { item: SalesTodayItem; showDraft: boolea
             to="/sales/deals/$id"
             params={{ id: item.deal.id }}
             aria-label={t('sales.today.openDeal', { title: item.deal.title })}
-            className="underline-offset-2 hover:underline"
+            className="underline-offset-2 hover:underline max-md:inline-flex max-md:min-h-11 max-md:items-center"
           >
             {item.deal.title}
           </Link>

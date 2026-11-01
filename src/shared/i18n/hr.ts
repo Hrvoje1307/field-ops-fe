@@ -1765,6 +1765,8 @@ export const hr = {
       emptyDescription: 'Prilike nastaju iz razgovora s klijentima ili ih upišete ručno.',
       noResults: 'Nijedna prilika ne odgovara pretrazi "{{query}}".',
       emptyStage: 'Nema prilika u ovoj fazi.',
+      moveTo: 'Premjesti u…',
+      moveToDeal: 'Premjesti u…: {{name}}',
       stageCount_one: '{{count}} prilika',
       stageCount_few: '{{count}} prilike',
       stageCount_other: '{{count}} prilika',
@@ -1912,6 +1914,7 @@ export const hr = {
       pagination: 'Stranice razgovora',
       previous: 'Prethodna',
       next: 'Sljedeća',
+      backToList: 'Natrag na popis',
       pickOne: 'Odaberite razgovor s popisa.',
     },
     thread: {
