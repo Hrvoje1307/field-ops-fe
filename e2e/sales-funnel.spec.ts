@@ -10,6 +10,7 @@ import {
   resetMock,
   signIn,
   TENANTS,
+  cutHub,
 } from './support'
 
 interface Deal {
@@ -111,6 +112,8 @@ async function moveCard(page: Page, title: string, stageId: string) {
     if (after && after.x <= x && x <= after.x + after.width) break
     if (tries >= 5) throw new Error('The stage keeps moving away from the pointer')
   }
+  // The board has taken the stage for the drop target; only then is the card let go
+  await expect(target).toHaveAttribute('data-drop-target', 'true')
   await page.mouse.up()
 }
 
@@ -380,11 +383,7 @@ for (const tenant of TENANTS) {
 
       // Someone else moves the deal behind the page's back. With the live connection the page
       // would hear of it and show the new version, so the connection is cut first
-      await page.evaluate(() => {
-        ;(window as unknown as { __fieldopsDropHub: (ms?: number) => void }).__fieldopsDropHub(
-          60_000,
-        )
-      })
+      await cutHub(page, 60_000)
       const other = open.find((column) => column.stage.id !== deal.stage.id)
       if (!other) throw new Error('Seed needs two open stages')
       const moved = await apiPost(page, tenant.owner, `/sales/deals/${deal.id}/move`, {

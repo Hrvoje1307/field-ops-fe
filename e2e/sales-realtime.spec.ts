@@ -1,6 +1,15 @@
 import { expect, type Page, test } from '@playwright/test'
 
-import { apiGet, apiPost, expectSignedInAs, labelled, resetMock, signIn, TENANTS } from './support'
+import {
+  apiGet,
+  apiPost,
+  cutHub,
+  expectSignedInAs,
+  labelled,
+  resetMock,
+  signIn,
+  TENANTS,
+} from './support'
 
 interface Deal {
   id: string
@@ -16,11 +25,6 @@ test.beforeEach(async ({ page }) => {
   await resetMock(page)
   await page.setViewportSize({ width: 1440, height: 900 })
 })
-
-const dropHub = (page: Page, outageMs: number) =>
-  page.evaluate((ms) => {
-    ;(window as unknown as { __fieldopsDropHub: (ms?: number) => void }).__fieldopsDropHub(ms)
-  }, outageMs)
 
 async function dealAndOtherStage(page: Page, email: string) {
   const [board] = await apiGet<[Board]>(page, email, ['/sales/board?perStage=200'])
@@ -84,7 +88,7 @@ for (const tenant of TENANTS) {
       await expect(view).toBeVisible()
 
       // The hub is gone for a minute: only the reserve can bring the result
-      await dropHub(page, 60_000)
+      await cutHub(page, 60_000)
       await view.getByRole('button', { name: 'Pripremi nacrt' }).click()
       const ask = page.getByRole('dialog', { name: 'Pripremi nacrt odgovora' })
       await ask.getByRole('button', { name: 'Pripremi nacrt' }).click()

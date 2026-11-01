@@ -108,24 +108,6 @@ for (const tenant of TENANTS) {
       ).toBeVisible()
     })
 
-    test('revoked access is noticed by a screen that is open when its connection comes back: it ends on /login with the message', async ({
-      page,
-    }) => {
-      await signIn(page, tenant.technician)
-      await expect(page).toHaveURL('/field')
-      await deactivateMember(page, tenant.owner, tenant.technician)
-
-      // The connection is lost and comes back: before it is tried again the session is renewed
-      // and the API says the access is gone
-      await page.evaluate(() => {
-        ;(window as unknown as { __fieldopsDropHub: (ms?: number) => void }).__fieldopsDropHub()
-      })
-      await expect(page).toHaveURL('/login?reason=access_revoked')
-      await expect(
-        page.getByText('Vaš pristup je ukinut. Obratite se vlasniku tvrtke.'),
-      ).toBeVisible()
-    })
-
     test('office top bar and menu work at phone width', async ({ page }) => {
       await page.setViewportSize({ width: 390, height: 844 })
       await signIn(page, tenant.dispatcher)

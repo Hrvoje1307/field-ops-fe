@@ -82,6 +82,8 @@ let outageUntil = 0
  */
 export function dropConnections(outageMs = 0): void {
   outageUntil = outageMs > 0 ? Date.now() + outageMs : 0
+  // A connection that has negotiated but not finished its handshake goes too
+  negotiated.clear()
   for (const connection of [...connections]) connection.close(1012, 'restart')
 }
 
@@ -103,6 +105,11 @@ export const realtimeHandlers = [
   }),
 
   hubSocket.addEventListener('connection', ({ client }) => {
+    // The hub is unreachable (an outage): a connection that was on its way is refused too
+    if (Date.now() < outageUntil) {
+      client.close(1012, 'restart')
+      return
+    }
     const url = client.url.toString()
     // A browser puts the token in the address; the connection id says who negotiated it
     const id = new URL(url).searchParams.get('id') ?? ''

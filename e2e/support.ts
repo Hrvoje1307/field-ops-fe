@@ -248,3 +248,13 @@ export async function apiSend(
     { api: API_URL, email, password: PASSWORD, method, path, body },
   )
 }
+
+/**
+ * Cuts the mock hub and keeps it away for `outageMs`: the page hears of nothing until then,
+ * whether its connection is up yet or not (a connection that is still being made is refused).
+ */
+export async function cutHub(page: Page, outageMs: number): Promise<void> {
+  await page.evaluate((ms) => {
+    ;(window as unknown as { __fieldopsDropHub: (ms?: number) => void }).__fieldopsDropHub(ms)
+  }, outageMs)
+}

@@ -3,6 +3,7 @@ import {
   closestCenter,
   DndContext,
   type DragEndEvent,
+  type DragOverEvent,
   DragOverlay,
   type DragStartEvent,
   KeyboardSensor,
@@ -21,7 +22,15 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import { cn } from 'cn'
 import { GripVerticalIcon } from 'lucide-react'
-import { type ReactNode, useCallback, useId, useMemo, useState } from 'react'
+import {
+  createContext,
+  type ReactNode,
+  useCallback,
+  useContext,
+  useId,
+  useMemo,
+  useState,
+} from 'react'
 import { useTranslation } from 'react-i18next'
 
 import { type DragLayout, type DragMove, resolveMove } from '@/shared/lib/drag-move'
@@ -32,6 +41,9 @@ interface ItemData {
   type: 'item'
   containerId: string
 }
+
+/** The list the dragged item is over (the list itself or one of its items), for the lists to show. */
+const OverListContext = createContext<string | null>(null)
 
 /**
  * Lists of items that can be moved between and within the lists: pointer or keyboard.
@@ -56,6 +68,7 @@ export function DragBoard({
 }) {
   const { t } = useTranslation()
   const [activeId, setActiveId] = useState<string | null>(null)
+  const [overListId, setOverListId] = useState<string | null>(null)
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -102,8 +115,23 @@ export function DragBoard({
     setActiveId(String(event.active.id))
   }
 
+  function handleDragOver(event: DragOverEvent) {
+    const { over } = event
+    if (!over) {
+      setOverListId(null)
+      return
+    }
+    const overId = String(over.id)
+    setOverListId(
+      overId.startsWith(LIST_PREFIX)
+        ? overId.slice(LIST_PREFIX.length)
+        : ((over.data.current as ItemData | undefined)?.containerId ?? null),
+    )
+  }
+
   function handleDragEnd(event: DragEndEvent) {
     setActiveId(null)
+    setOverListId(null)
     const { active, over } = event
     if (!over) return
     const from = containerOf(String(active.id))
@@ -142,12 +170,14 @@ export function DragBoard({
         screenReaderInstructions: { draggable: t('common.drag.instructions') },
       }}
       onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
       onDragCancel={() => {
         setActiveId(null)
+        setOverListId(null)
       }}
     >
-      {children}
+      <OverListContext value={overListId}>{children}</OverListContext>
       {/* No drop animation: dnd-kit scrolls the card's original place into view before it
           plays, which threw a board scrolled to its far end back to the start when the card
           was dropped on a stage that is far from where it came from */}
@@ -169,11 +199,14 @@ export function DragList({
   children: ReactNode
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `${LIST_PREFIX}${id}` })
+  // Over the list, or over one of its cards: the list is where the card would land
+  const overListId = useContext(OverListContext)
+  const dropTarget = isOver || overListId === id
   return (
     <SortableContext items={[...itemIds]} strategy={verticalListSortingStrategy}>
       <ul
         ref={setNodeRef}
-        data-drop-target={isOver ? 'true' : undefined}
+        data-drop-target={dropTarget ? 'true' : undefined}
         className={cn(
           'min-h-12 rounded-lg transition-colors data-[drop-target=true]:bg-primary/5 data-[drop-target=true]:ring-2 data-[drop-target=true]:ring-primary/30',
           className,
