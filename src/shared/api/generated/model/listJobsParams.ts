@@ -52,13 +52,9 @@ import type { Priority } from './priority.ts'
 
 export type ListJobsParams = {
   status?: JobStatus[]
-  /**
-   * scheduledDate >= from
-   */
+  /** scheduledDate >= from */
   from?: string
-  /**
-   * scheduledDate <= to
-   */
+  /** scheduledDate <= to */
   to?: string
   unscheduled?: boolean
   technicianId?: Id
@@ -67,13 +63,9 @@ export type ListJobsParams = {
   locationId?: Id
   assetId?: Id
   priority?: Priority
-  /**
-   * Number, title, client name, address
-   */
+  /** Number, title, client name, address */
   q?: string
-  /**
-   * @minimum 1
-   */
+  /** @minimum 1 */
   page?: PageParameter
   /**
    * @minimum 1

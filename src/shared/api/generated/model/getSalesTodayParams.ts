@@ -46,8 +46,6 @@
 import type { Id } from './id.ts'
 
 export type GetSalesTodayParams = {
-  /**
-   * Default: deals of the caller plus unowned shared-mailbox threads; owners may pass any user or omit for everyone
-   */
+  /** Default: deals of the caller plus unowned shared-mailbox threads; owners may pass any user or omit for everyone */
   ownerUserId?: Id
 }

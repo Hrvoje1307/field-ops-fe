@@ -49,14 +49,10 @@ import type { PageParameter } from './pageParameter.ts'
 import type { PageSizeParameter } from './pageSizeParameter.ts'
 
 export type ListClientsParams = {
-  /**
-   * Fuzzy search: name, phone, OIB, address
-   */
+  /** Fuzzy search: name, phone, OIB, address */
   q?: string
   type?: ClientType
-  /**
-   * @minimum 1
-   */
+  /** @minimum 1 */
   page?: PageParameter
   /**
    * @minimum 1

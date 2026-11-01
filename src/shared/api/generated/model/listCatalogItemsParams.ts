@@ -49,9 +49,7 @@ import type { PageSizeParameter } from './pageSizeParameter.ts'
 export type ListCatalogItemsParams = {
   q?: string
   includeInactive?: boolean
-  /**
-   * @minimum 1
-   */
+  /** @minimum 1 */
   page?: PageParameter
   /**
    * @minimum 1

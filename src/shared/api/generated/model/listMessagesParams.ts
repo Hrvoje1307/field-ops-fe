@@ -51,9 +51,7 @@ import type { PageSizeParameter } from './pageSizeParameter.ts'
 export type ListMessagesParams = {
   jobId?: Id
   status?: MessageStatus
-  /**
-   * @minimum 1
-   */
+  /** @minimum 1 */
   page?: PageParameter
   /**
    * @minimum 1

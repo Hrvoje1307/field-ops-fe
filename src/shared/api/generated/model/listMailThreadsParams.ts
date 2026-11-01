@@ -51,25 +51,17 @@ import type { ThreadCategory } from './threadCategory.ts'
 
 export type ListMailThreadsParams = {
   mailboxId?: Id
-  /**
-   * Comma-separated
-   */
+  /** Comma-separated */
   category?: ThreadCategory[]
   isSales?: boolean
   needsReview?: boolean
   awaitingReply?: boolean
   dealId?: Id
-  /**
-   * Only sales threads not linked to a deal
-   */
+  /** Only sales threads not linked to a deal */
   unlinked?: boolean
-  /**
-   * Subject, participants, body
-   */
+  /** Subject, participants, body */
   q?: string
-  /**
-   * @minimum 1
-   */
+  /** @minimum 1 */
   page?: PageParameter
   /**
    * @minimum 1

@@ -45,8 +45,6 @@
  */
 
 export type GetTenantUsageParams = {
-  /**
-   * @pattern ^\d{4}-\d{2}$
-   */
+  /** @pattern ^\d{4}-\d{2}$ */
   month: string
 }

@@ -56,13 +56,9 @@ export type ListDealsParams = {
   status?: ListDealsStatus
   stale?: boolean
   awaitingReply?: boolean
-  /**
-   * Title, contact, client
-   */
+  /** Title, contact, client */
   q?: string
-  /**
-   * @minimum 1
-   */
+  /** @minimum 1 */
   page?: PageParameter
   /**
    * @minimum 1

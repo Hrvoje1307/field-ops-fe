@@ -47,9 +47,7 @@ import type { DraftStatus } from './draftStatus.ts'
 import type { Id } from './id.ts'
 
 export type ListDraftsParams = {
-  /**
-   * Comma-separated; default generating,ready,edited
-   */
+  /** Comma-separated; default generating,ready,edited */
   status?: DraftStatus[]
   dealId?: Id
   threadId?: Id

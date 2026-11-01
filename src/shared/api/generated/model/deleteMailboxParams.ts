@@ -45,8 +45,6 @@
  */
 
 export type DeleteMailboxParams = {
-  /**
-   * Also delete imported threads, messages and drafts
-   */
+  /** Also delete imported threads, messages and drafts */
   purge?: boolean
 }
