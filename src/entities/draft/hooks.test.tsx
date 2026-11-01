@@ -138,8 +138,10 @@ describe('draft hooks', () => {
     await act(async () => {
       await update.result.current.mutateAsync({ id: ready.id, body }).catch(() => undefined)
     })
+    // One notice, in the words of the error map for the code the API sent
+    expect(warning).toHaveBeenCalledTimes(1)
     expect(warning).toHaveBeenCalledWith(
-      'Nacrt je u međuvremenu promijenjen ili poslan. Prikazani su najnoviji podaci.',
+      'Podatak je u međuvremenu promijenjen. Prikazani su najnoviji podaci.',
     )
     expect(refreshed(queryClient).slice(0, 3)).toEqual([true, true, true])
   })

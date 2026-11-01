@@ -59,8 +59,9 @@ export function DraftActions({ context }: { context: DraftActionsContext }) {
         toast.success(t('sales.draft.savedToMailbox'))
       },
       onError: (error) => {
+        // A 409 is told once by the draft's hook
         if (isConflict(error)) context.keepEdits()
-        fail(error, t('sales.draft.saveToMailboxFailed'))
+        else fail(error, t('sales.draft.saveToMailboxFailed'))
       },
     })
   }
@@ -144,8 +145,8 @@ function SendDialog({ context, onClose }: { context: DraftActionsContext; onClos
     } catch (error) {
       if (isConflict(error)) {
         // The newest draft is shown; the text typed here stays in the editor
+        // Told once by the draft's hook
         context.keepEdits()
-        toast.error(salesErrorCode(error) ? salesErrorMessage(error) : t('sales.draft.sendFailed'))
         onClose()
         return
       }

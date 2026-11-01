@@ -28,7 +28,9 @@ import { assertWonAndLost, checkStageName, fromInput, renumber } from '../lib/sa
 const sortedStages = (rows: ReturnType<typeof activeStages>) =>
   [...rows].sort((a, b) => a.position - b.position)
 
-const EXCLUSION_PATTERN = /^(@[a-z0-9.-]+\.[a-z]{2,}|[^\s@]+@[^\s@]+\.[^\s@]+)$/
+// The pattern of `ExclusionRuleInput`, word for word
+const EXCLUSION_PATTERN = /^(@[^@\s]+\.[^@\s]+|[^@\s]+@[^@\s]+\.[^@\s]+)$/
+const TIME_OF_DAY = /^([01]\d|2[0-3]):[0-5]\d$/
 
 export const salesConfigHandlers = [
   // --- settings ---------------------------------------------------------------------
@@ -39,6 +41,7 @@ export const salesConfigHandlers = [
   route<SalesSettings>('put', '/sales/settings', ({ db, auth, body }) => {
     const { sales } = openSales(auth, { ownerOnly: true })
     const errors = new FieldErrors()
+    checkSettings(body, errors)
     for (const [index, id] of (body.digestRecipientIds ?? []).entries()) {
       const member = db.memberships.some(
         (m) => m.tenantId === auth.tenantId && m.userId === id && m.isActive,
@@ -161,6 +164,7 @@ export const salesConfigHandlers = [
 
   route<FollowUpRuleInput>('post', '/sales/follow-up-rules', ({ auth, body }) => {
     const { sales } = openSales(auth, { ownerOnly: true })
+    checkRule(body)
     checkRuleStage(auth, body)
     const row = { id: newId(), deletedAt: null, ...ruleFields(body) }
     sales.followUpRules.push(row)
@@ -171,6 +175,7 @@ export const salesConfigHandlers = [
     const { sales } = openSales(auth, { ownerOnly: true })
     const row = sales.followUpRules.find((r) => r.id === params.id && !r.deletedAt)
     if (!row) throw notFound()
+    checkRule(body)
     checkRuleStage(auth, body)
     Object.assign(row, ruleFields(body))
     return ok(presentRule(row))
@@ -218,6 +223,45 @@ export const salesConfigHandlers = [
     return noContent()
   }),
 ]
+
+/** The ranges and formats of `SalesSettings`. */
+function checkSettings(body: SalesSettings, errors: FieldErrors): void {
+  if (!['formal', 'neutral', 'friendly'].includes(body.tone))
+    errors.add('tone', MESSAGES.notAllowed)
+  if (typeof body.replyLanguage !== 'string' || body.replyLanguage.trim() === '') {
+    errors.add('replyLanguage', MESSAGES.required)
+  } else if (body.replyLanguage !== 'auto') {
+    try {
+      if (Intl.getCanonicalLocales(body.replyLanguage).length !== 1) throw new RangeError()
+    } catch {
+      errors.add('replyLanguage', MESSAGES.invalidFormat)
+    }
+  }
+  if ((body.knowledge?.length ?? 0) > 20_000) errors.add('knowledge', MESSAGES.maxLength(20_000))
+  const sla = body.responseSlaHours
+  if (!Number.isInteger(sla) || sla < 1) errors.add('responseSlaHours', MESSAGES.minimum(1))
+  else if (sla > 168) errors.add('responseSlaHours', MESSAGES.maximum(168))
+  if (!TIME_OF_DAY.test(body.digestTime)) errors.add('digestTime', MESSAGES.invalidFormat)
+  if (
+    body.retentionDays != null &&
+    (!Number.isInteger(body.retentionDays) || body.retentionDays < 30)
+  )
+    errors.add('retentionDays', MESSAGES.minimum(30))
+  const threshold = body.reviewThreshold
+  if (threshold !== undefined && (typeof threshold !== 'number' || threshold < 0 || threshold > 1))
+    errors.add('reviewThreshold', MESSAGES.invalid)
+}
+
+/** The name and the range of days of `FollowUpRuleInput`. */
+function checkRule(body: FollowUpRuleInput): void {
+  const errors = new FieldErrors()
+  if (typeof body.name !== 'string' || body.name.trim() === '')
+    errors.add('name', MESSAGES.required)
+  const days = body.daysWithoutReply
+  if (!Number.isInteger(days) || days < 1) errors.add('daysWithoutReply', MESSAGES.minimum(1))
+  else if (days > 90) errors.add('daysWithoutReply', MESSAGES.maximum(90))
+  errors.throwIfAny()
+}
 
 function ruleFields(body: FollowUpRuleInput) {
   return {

@@ -128,7 +128,7 @@ export function useUpdateDraft() {
       void invalidateRoots(client, ['drafts', 'mail-threads', 'deals'])
     },
     onError: (error, _request, _result, { client }) =>
-      isConflict(error) ? handleDraftConflict(client) : undefined,
+      isConflict(error) ? handleDraftConflict(client, error) : undefined,
   })
 }
 
@@ -149,7 +149,7 @@ export function useSaveDraftToMailbox() {
       void invalidateRoots(client, ['drafts', 'mail-threads'])
     },
     onError: (error, _id, _result, { client }) =>
-      isConflict(error) ? handleDraftConflict(client) : undefined,
+      isConflict(error) ? handleDraftConflict(client, error) : undefined,
   })
 }
 
@@ -165,6 +165,6 @@ export function useSendDraft() {
       void invalidateRoots(client, SALES_DATA_ROOTS)
     },
     onError: (error, _request, _result, { client }) =>
-      isConflict(error) ? handleDraftConflict(client) : undefined,
+      isConflict(error) ? handleDraftConflict(client, error) : undefined,
   })
 }

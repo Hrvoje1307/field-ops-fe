@@ -46,6 +46,7 @@ import { Route as AuthedOfficeSalesDealsIdRouteImport } from './routes/_authed/_
 import { Route as AuthedOfficeSalesSettingsMailboxesRouteImport } from './routes/_authed/_office/sales/settings/mailboxes'
 import { Route as AuthedOfficeSettingsSalesIndexRouteImport } from './routes/_authed/_office/settings/sales/index'
 import { Route as AuthedOfficeSettingsSalesAiRouteImport } from './routes/_authed/_office/settings/sales/ai'
+import { Route as AuthedOfficeSettingsSalesDigestRouteImport } from './routes/_authed/_office/settings/sales/digest'
 import { Route as AuthedOfficeSettingsSalesExclusionsRouteImport } from './routes/_authed/_office/settings/sales/exclusions'
 import { Route as AuthedOfficeSettingsSalesFollowUpRulesRouteImport } from './routes/_authed/_office/settings/sales/follow-up-rules'
 import { Route as AuthedOfficeSettingsSalesMailboxesRouteImport } from './routes/_authed/_office/settings/sales/mailboxes'
@@ -253,6 +254,12 @@ const AuthedOfficeSettingsSalesAiRoute =
     path: '/ai',
     getParentRoute: () => AuthedOfficeSettingsSalesRoute,
   } as any)
+const AuthedOfficeSettingsSalesDigestRoute =
+  AuthedOfficeSettingsSalesDigestRouteImport.update({
+    id: '/digest',
+    path: '/digest',
+    getParentRoute: () => AuthedOfficeSettingsSalesRoute,
+  } as any)
 const AuthedOfficeSettingsSalesExclusionsRoute =
   AuthedOfficeSettingsSalesExclusionsRouteImport.update({
     id: '/exclusions',
@@ -325,6 +332,7 @@ export interface FileRoutesByFullPath {
   '/sales/deals/$id': typeof AuthedOfficeSalesDealsIdRoute
   '/sales/settings/mailboxes': typeof AuthedOfficeSalesSettingsMailboxesRoute
   '/settings/sales/ai': typeof AuthedOfficeSettingsSalesAiRoute
+  '/settings/sales/digest': typeof AuthedOfficeSettingsSalesDigestRoute
   '/settings/sales/exclusions': typeof AuthedOfficeSettingsSalesExclusionsRoute
   '/settings/sales/follow-up-rules': typeof AuthedOfficeSettingsSalesFollowUpRulesRoute
   '/settings/sales/mailboxes': typeof AuthedOfficeSettingsSalesMailboxesRoute
@@ -364,6 +372,7 @@ export interface FileRoutesByTo {
   '/sales/deals/$id': typeof AuthedOfficeSalesDealsIdRoute
   '/sales/settings/mailboxes': typeof AuthedOfficeSalesSettingsMailboxesRoute
   '/settings/sales/ai': typeof AuthedOfficeSettingsSalesAiRoute
+  '/settings/sales/digest': typeof AuthedOfficeSettingsSalesDigestRoute
   '/settings/sales/exclusions': typeof AuthedOfficeSettingsSalesExclusionsRoute
   '/settings/sales/follow-up-rules': typeof AuthedOfficeSettingsSalesFollowUpRulesRoute
   '/settings/sales/mailboxes': typeof AuthedOfficeSettingsSalesMailboxesRoute
@@ -410,6 +419,7 @@ export interface FileRoutesById {
   '/_authed/_office/sales/deals/$id': typeof AuthedOfficeSalesDealsIdRoute
   '/_authed/_office/sales/settings/mailboxes': typeof AuthedOfficeSalesSettingsMailboxesRoute
   '/_authed/_office/settings/sales/ai': typeof AuthedOfficeSettingsSalesAiRoute
+  '/_authed/_office/settings/sales/digest': typeof AuthedOfficeSettingsSalesDigestRoute
   '/_authed/_office/settings/sales/exclusions': typeof AuthedOfficeSettingsSalesExclusionsRoute
   '/_authed/_office/settings/sales/follow-up-rules': typeof AuthedOfficeSettingsSalesFollowUpRulesRoute
   '/_authed/_office/settings/sales/mailboxes': typeof AuthedOfficeSettingsSalesMailboxesRoute
@@ -455,6 +465,7 @@ export interface FileRouteTypes {
     | '/sales/deals/$id'
     | '/sales/settings/mailboxes'
     | '/settings/sales/ai'
+    | '/settings/sales/digest'
     | '/settings/sales/exclusions'
     | '/settings/sales/follow-up-rules'
     | '/settings/sales/mailboxes'
@@ -494,6 +505,7 @@ export interface FileRouteTypes {
     | '/sales/deals/$id'
     | '/sales/settings/mailboxes'
     | '/settings/sales/ai'
+    | '/settings/sales/digest'
     | '/settings/sales/exclusions'
     | '/settings/sales/follow-up-rules'
     | '/settings/sales/mailboxes'
@@ -539,6 +551,7 @@ export interface FileRouteTypes {
     | '/_authed/_office/sales/deals/$id'
     | '/_authed/_office/sales/settings/mailboxes'
     | '/_authed/_office/settings/sales/ai'
+    | '/_authed/_office/settings/sales/digest'
     | '/_authed/_office/settings/sales/exclusions'
     | '/_authed/_office/settings/sales/follow-up-rules'
     | '/_authed/_office/settings/sales/mailboxes'
@@ -816,6 +829,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthedOfficeSettingsSalesAiRouteImport
       parentRoute: typeof AuthedOfficeSettingsSalesRoute
     }
+    '/_authed/_office/settings/sales/digest': {
+      id: '/_authed/_office/settings/sales/digest'
+      path: '/digest'
+      fullPath: '/settings/sales/digest'
+      preLoaderRoute: typeof AuthedOfficeSettingsSalesDigestRouteImport
+      parentRoute: typeof AuthedOfficeSettingsSalesRoute
+    }
     '/_authed/_office/settings/sales/exclusions': {
       id: '/_authed/_office/settings/sales/exclusions'
       path: '/exclusions'
@@ -885,6 +905,7 @@ const AuthedOfficeSalesRouteWithChildren =
 
 interface AuthedOfficeSettingsSalesRouteChildren {
   AuthedOfficeSettingsSalesAiRoute: typeof AuthedOfficeSettingsSalesAiRoute
+  AuthedOfficeSettingsSalesDigestRoute: typeof AuthedOfficeSettingsSalesDigestRoute
   AuthedOfficeSettingsSalesExclusionsRoute: typeof AuthedOfficeSettingsSalesExclusionsRoute
   AuthedOfficeSettingsSalesFollowUpRulesRoute: typeof AuthedOfficeSettingsSalesFollowUpRulesRoute
   AuthedOfficeSettingsSalesMailboxesRoute: typeof AuthedOfficeSettingsSalesMailboxesRoute
@@ -895,6 +916,7 @@ interface AuthedOfficeSettingsSalesRouteChildren {
 const AuthedOfficeSettingsSalesRouteChildren: AuthedOfficeSettingsSalesRouteChildren =
   {
     AuthedOfficeSettingsSalesAiRoute: AuthedOfficeSettingsSalesAiRoute,
+    AuthedOfficeSettingsSalesDigestRoute: AuthedOfficeSettingsSalesDigestRoute,
     AuthedOfficeSettingsSalesExclusionsRoute:
       AuthedOfficeSettingsSalesExclusionsRoute,
     AuthedOfficeSettingsSalesFollowUpRulesRoute:

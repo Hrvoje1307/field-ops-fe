@@ -12,16 +12,17 @@ describe('settingsSectionsFor', () => {
     expect(list.some((path) => path.startsWith('/settings/sales'))).toBe(false)
   })
 
-  it('the owner of a plan with Sales gets the five sales sections after the others', () => {
+  it('the owner of a plan with Sales gets the six sales sections after the others', () => {
     const list = paths({ role: 'owner', features: ['sales'], canAccessSales: true })
-    expect(list.slice(-5)).toEqual([
+    expect(list.slice(-6)).toEqual([
       '/settings/sales/mailboxes',
       '/settings/sales/stages',
       '/settings/sales/follow-up-rules',
       '/settings/sales/ai',
+      '/settings/sales/digest',
       '/settings/sales/exclusions',
     ])
-    expect(list).toHaveLength(14)
+    expect(list).toHaveLength(15)
   })
 
   it('an owner whose plan lacks the module, or an API without the flag, does not get them', () => {

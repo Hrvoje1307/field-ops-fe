@@ -1,14 +1,23 @@
 import { useTranslation } from 'react-i18next'
 
-import { PagePlaceholder } from '@/shared/ui/page-placeholder'
+import {
+  type ReportSearch,
+  type ReportSearchChange,
+  SalesReportView,
+} from '@/features/sales/report'
 
-export function SalesReportPage() {
+export function SalesReportPage({
+  search,
+  onSearchChange,
+}: {
+  search: ReportSearch
+  onSearchChange: ReportSearchChange
+}) {
   const { t } = useTranslation()
   return (
-    <div className="space-y-6">
-      <PagePlaceholder title={t('sales.pages.report')}>
-        <p>{t('sales.soon')}</p>
-      </PagePlaceholder>
+    <div className="space-y-4">
+      <h1 className="sr-only">{t('sales.pages.report')}</h1>
+      <SalesReportView search={search} onSearchChange={onSearchChange} />
     </div>
   )
 }

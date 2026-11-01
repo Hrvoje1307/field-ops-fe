@@ -126,6 +126,28 @@ export function useUpdateSalesSettings() {
   })
 }
 
+/**
+ * Saves some of the settings. The API replaces the whole record, and the AI and digest
+ * screens write the same one, so each save starts from the record as it is now and changes
+ * only its own fields; whatever the other screen (or another owner) saved stays.
+ */
+export function useSaveSalesSettings() {
+  const idempotency = useIdempotencyKeys()
+  return useMutation({
+    mutationFn: async (fields: Partial<SalesSettings>) => {
+      const fresh = await getSalesSettings()
+      const body = { ...fresh, ...fields }
+      const result = await updateSalesSettings(body, idempotency.keyFor(body))
+      idempotency.forget(body)
+      return result
+    },
+    onSuccess: (settings, _fields, _result, { client }) => {
+      client.setQueryData(salesConfigKeys.settings, settings)
+      void invalidateRoots(client, SALES_DATA_ROOTS)
+    },
+  })
+}
+
 export function useCreateFollowUpRule() {
   const idempotency = useIdempotencyKeys()
   return useMutation({

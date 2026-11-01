@@ -8,6 +8,7 @@ import { isInvalidated, queryWrapper, signInForTest } from '@/shared/api/test/ho
 
 import {
   getSalesSettings,
+  updateSalesSettings,
   useCreateExclusionRule,
   useCreateFollowUpRule,
   useDeleteExclusionRule,
@@ -16,6 +17,7 @@ import {
   useListExclusionRules,
   useListFollowUpRules,
   useUpdateFollowUpRule,
+  useSaveSalesSettings,
   useUpdateSalesSettings,
 } from './api'
 
@@ -54,6 +56,25 @@ describe('sales config hooks', () => {
         ?.reviewThreshold,
     ).toBe(0.9)
     expect(isInvalidated(queryClient, ['mail-threads', 'list'])).toBe(true)
+  })
+
+  it('saving some fields starts from the record as it is now, so the other screen’s fields stay', async () => {
+    const { queryClient, wrapper } = queryWrapper()
+    const stale = await getSalesSettings()
+    // Meanwhile the other screen (or another owner) saved these
+    await getSalesSettings().then((now) =>
+      updateSalesSettings({ ...now, knowledge: 'Cjenik 2026', tone: 'friendly' }),
+    )
+    const save = renderHook(() => useSaveSalesSettings(), { wrapper })
+    await act(async () => {
+      await save.result.current.mutateAsync({ digestTime: '09:30' })
+    })
+    const now = await getSalesSettings()
+    expect(now).toMatchObject({ digestTime: '09:30', knowledge: 'Cjenik 2026', tone: 'friendly' })
+    expect(stale.knowledge).not.toBe('Cjenik 2026')
+    expect(
+      queryClient.getQueryData<{ knowledge: string }>(['sales-config', 'settings'])?.knowledge,
+    ).toBe('Cjenik 2026')
   })
 
   it('rules: create, edit, delete; 400 for days outside 1–90 with the field', async () => {

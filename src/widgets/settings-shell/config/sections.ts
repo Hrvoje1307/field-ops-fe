@@ -16,6 +16,7 @@ export interface SettingsSection {
     | '/settings/sales/stages'
     | '/settings/sales/follow-up-rules'
     | '/settings/sales/ai'
+    | '/settings/sales/digest'
     | '/settings/sales/exclusions'
   labelKey:
     | 'settings.nav.company'
@@ -31,6 +32,7 @@ export interface SettingsSection {
     | 'settings.nav.salesStages'
     | 'settings.nav.salesFollowUpRules'
     | 'settings.nav.salesAi'
+    | 'settings.nav.salesDigest'
     | 'settings.nav.salesExclusions'
   /** The section belongs to the Sales module: shown only when the user may use it. */
   requiresSales?: boolean
@@ -55,6 +57,7 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
     requiresSales: true,
   },
   { to: '/settings/sales/ai', labelKey: 'settings.nav.salesAi', requiresSales: true },
+  { to: '/settings/sales/digest', labelKey: 'settings.nav.salesDigest', requiresSales: true },
   {
     to: '/settings/sales/exclusions',
     labelKey: 'settings.nav.salesExclusions',
