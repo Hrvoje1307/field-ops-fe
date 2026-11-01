@@ -1,18 +1,16 @@
 /**
  * Downloads the backend's OpenAPI document into openapi/openapi.json.
  *
- *   OPENAPI_URL=https://…/openapi.json npm run api:pull
+ *   OPENAPI_URL=https://…/openapi.json pnpm api:pull
  *
  * The file is written as JSON.stringify(spec, null, 2), so pulling an unchanged
- * spec gives no diff. `npm run api:pull` regenerates the client afterwards.
+ * spec gives no diff. `pnpm api:pull` regenerates the client afterwards.
  */
 import { writeFile } from 'node:fs/promises'
 
 const url = process.env.OPENAPI_URL
 if (!url) {
-  console.error(
-    'Set OPENAPI_URL, e.g. OPENAPI_URL=https://example.com/openapi.json npm run api:pull',
-  )
+  console.error('Set OPENAPI_URL, e.g. OPENAPI_URL=https://example.com/openapi.json pnpm api:pull')
   process.exit(1)
 }
 

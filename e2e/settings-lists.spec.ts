@@ -64,19 +64,19 @@ for (const tenant of TENANTS) {
     test('depots: add one, change its hours, and a used one cannot be deleted', async ({
       page,
     }) => {
-      await openSection(page, tenant.owner, tenant.name, 'Skladišta')
-      const list = page.getByRole('list', { name: 'Popis skladišta' })
+      await openSection(page, tenant.owner, tenant.name, 'Polazišta')
+      const list = page.getByRole('list', { name: 'Popis polazišta' })
       const [before] = await apiGet<[Depot[]]>(page, tenant.owner, ['/depots'])
       await expect(list.getByRole('listitem')).toHaveCount(before.length)
 
-      await page.getByRole('button', { name: 'Dodaj skladište' }).click()
-      await page.getByLabel(/Naziv/).fill('Pomoćno skladište')
+      await page.getByRole('button', { name: 'Dodaj polazište' }).click()
+      await page.getByLabel(/Naziv/).fill('Pomoćno polazište')
       await page.getByLabel(/Adresa/).fill('Pomoćna ulica 5')
       await page.getByLabel(/Radno vrijeme do/).fill('15:30')
       await page.getByRole('button', { name: 'Spremi' }).click()
       await expect(list.getByText('Pomoćna ulica 5 · 07:00–15:30')).toBeVisible()
 
-      await page.getByRole('button', { name: 'Uredi: Pomoćno skladište' }).click()
+      await page.getByRole('button', { name: 'Uredi: Pomoćno polazište' }).click()
       await page.getByLabel(/Radno vrijeme do/).fill('16:00')
       await page.getByRole('button', { name: 'Spremi' }).click()
       await expect(list.getByText('Pomoćna ulica 5 · 07:00–16:00')).toBeVisible()
@@ -84,15 +84,15 @@ for (const tenant of TENANTS) {
       // The depot technicians start from stays
       const used = before[0]
       await page.getByRole('button', { name: `Obriši: ${used?.name ?? ''}` }).click()
-      await page.getByRole('button', { name: 'Obriši skladište' }).click()
-      await expect(page.getByText(/Monteri još kreću iz ovog skladišta/)).toBeVisible()
+      await page.getByRole('button', { name: 'Obriši polazište' }).click()
+      await expect(page.getByText(/Monteri još kreću iz ovog polazišta/)).toBeVisible()
       await page.keyboard.press('Escape')
       await expect(list.getByText(used?.name ?? '')).toBeVisible()
 
-      await page.getByRole('button', { name: 'Obriši: Pomoćno skladište' }).click()
-      await page.getByRole('button', { name: 'Obriši skladište' }).click()
+      await page.getByRole('button', { name: 'Obriši: Pomoćno polazište' }).click()
+      await page.getByRole('button', { name: 'Obriši polazište' }).click()
       await expect(page.getByRole('dialog')).toBeHidden()
-      await expect(list.getByText('Pomoćno skladište')).toHaveCount(0)
+      await expect(list.getByText('Pomoćno polazište')).toHaveCount(0)
     })
 
     test('equipment types: add one, and a type with equipment cannot be deleted', async ({

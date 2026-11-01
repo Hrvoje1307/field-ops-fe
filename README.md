@@ -5,8 +5,8 @@ React frontend for FieldOps. See `CLAUDE.md` for the rules and architecture.
 ## Getting started
 
 ```bash
-npm install
-npm run dev          # http://localhost:5173, mock API (MSW) on by default
+pnpm install
+pnpm dev          # http://localhost:5173, mock API (MSW) on by default
 ```
 
 Copy `.env.example` to `.env.local` to point at a real API (`VITE_API_MOCK=false`).
@@ -30,15 +30,15 @@ Developer previews (mock mode only, sign in first). They are registered in `src/
 
 ## Scripts
 
-| script                 | what it does                                                 |
-| ---------------------- | ------------------------------------------------------------ |
-| `npm run dev`          | Vite dev server                                              |
-| `npm run build`        | typecheck + production build to `dist/`                      |
-| `npm run lint`         | ESLint (incl. FSD boundaries) + Prettier check               |
-| `npm run typecheck`    | `tsc -b`                                                     |
-| `npm test`             | Vitest unit/component tests                                  |
-| `npm run test:e2e`     | Playwright (run `npx playwright install chromium` once)      |
-| `npm run api:generate` | regenerate the client from `openapi/openapi.json` via Orval  |
-| `npm run api:check`    | fail if the committed client differs from a fresh generation |
+| script              | what it does                                                  |
+| ------------------- | ------------------------------------------------------------- |
+| `pnpm dev`          | Vite dev server                                               |
+| `pnpm build`        | typecheck + production build to `dist/`                       |
+| `pnpm lint`         | ESLint (incl. FSD boundaries) + Prettier check                |
+| `pnpm typecheck`    | `tsc -b`                                                      |
+| `pnpm test`         | Vitest unit/component tests                                   |
+| `ppnpm test:e2e`    | Playwright (run `pnpm exec playwright install chromium` once) |
+| `pnpm api:generate` | regenerate the client from `openapi/openapi.json` via Orval   |
+| `pnpm api:check`    | fail if the committed client differs from a fresh generation  |
 
-The generated code (`src/shared/api/generated`; the app uses its types, requests are written in `entities/<area>/api.ts`) is committed. After changing `openapi/openapi.json`, run `npm run api:generate` and commit the result; CI runs `npm run api:check` and fails on drift.
+The generated code (`src/shared/api/generated`; the app uses its types, requests are written in `entities/<area>/api.ts`) is committed. After changing `openapi/openapi.json`, run `pnpm api:generate` and commit the result; CI runs `pnpm api:check` and fails on drift.

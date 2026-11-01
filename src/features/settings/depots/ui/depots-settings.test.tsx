@@ -41,12 +41,12 @@ function renderDepots() {
   return userEvent.setup()
 }
 
-const list = () => screen.findByRole('list', { name: 'Popis skladišta' })
+const list = () => screen.findByRole('list', { name: 'Popis polazišta' })
 
 async function openNew(user: ReturnType<typeof userEvent.setup>) {
   await list()
-  await user.click(screen.getByRole('button', { name: 'Dodaj skladište' }))
-  return screen.findByRole('dialog', { name: 'Novo skladište' })
+  await user.click(screen.getByRole('button', { name: 'Dodaj polazište' }))
+  return screen.findByRole('dialog', { name: 'Novo polazište' })
 }
 
 describe('DepotsSettings', () => {
@@ -79,7 +79,7 @@ describe('DepotsSettings', () => {
     await user.type(within(dialog).getByLabelText('Geografska dužina'), '14.4422')
     await user.click(within(dialog).getByRole('button', { name: 'Spremi' }))
 
-    expect(await screen.findByText('Skladište je spremljeno.')).toBeInTheDocument()
+    expect(await screen.findByText('Polazište je spremljeno.')).toBeInTheDocument()
     expect(await within(await list()).findByText('Radionica Rijeka')).toBeInTheDocument()
     await waitFor(() => {
       expect(sent).toMatchObject({
@@ -112,14 +112,14 @@ describe('DepotsSettings', () => {
     const [depot] = await listDepots()
     await list()
     await user.click(screen.getByRole('button', { name: `Uredi: ${depot?.name ?? ''}` }))
-    const dialog = await screen.findByRole('dialog', { name: 'Uredi skladište' })
+    const dialog = await screen.findByRole('dialog', { name: 'Uredi polazište' })
     expect(within(dialog).getByLabelText(/Adresa/)).toHaveValue(depot?.address)
     const closes = within(dialog).getByLabelText(/Radno vrijeme do/)
     expect(closes).toHaveValue(depot?.closesAt)
     await user.clear(closes)
     await user.type(closes, '23:30')
     await user.click(within(dialog).getByRole('button', { name: 'Spremi' }))
-    await screen.findByText('Skladište je spremljeno.')
+    await screen.findByText('Polazište je spremljeno.')
     expect((await listDepots()).find((d) => d.id === depot?.id)?.closesAt).toBe('23:30')
   })
 
@@ -128,9 +128,9 @@ describe('DepotsSettings', () => {
     const [depot] = await listDepots()
     await list()
     await user.click(screen.getByRole('button', { name: `Obriši: ${depot?.name ?? ''}` }))
-    const dialog = await screen.findByRole('dialog', { name: 'Obrisati skladište?' })
-    await user.click(within(dialog).getByRole('button', { name: 'Obriši skladište' }))
-    expect(await within(dialog).findByText(/Monteri još kreću iz ovog skladišta/)).toBeVisible()
+    const dialog = await screen.findByRole('dialog', { name: 'Obrisati polazište?' })
+    await user.click(within(dialog).getByRole('button', { name: 'Obriši polazište' }))
+    expect(await within(dialog).findByText(/Monteri još kreću iz ovog polazišta/)).toBeVisible()
     expect(await listDepots()).toHaveLength(1)
   })
 
@@ -143,8 +143,8 @@ describe('DepotsSettings', () => {
     await within(await list()).findByText('Privremeno')
 
     await user.click(screen.getByRole('button', { name: 'Obriši: Privremeno' }))
-    const confirm = await screen.findByRole('dialog', { name: 'Obrisati skladište?' })
-    await user.click(within(confirm).getByRole('button', { name: 'Obriši skladište' }))
+    const confirm = await screen.findByRole('dialog', { name: 'Obrisati polazište?' })
+    await user.click(within(confirm).getByRole('button', { name: 'Obriši polazište' }))
     await waitFor(() => {
       expect(screen.queryByText('Privremeno')).not.toBeInTheDocument()
     })
@@ -158,6 +158,6 @@ describe('DepotsSettings', () => {
       ),
     )
     renderDepots()
-    expect(await screen.findByText('Skladišta nije moguće učitati.')).toBeInTheDocument()
+    expect(await screen.findByText('Polazišta nije moguće učitati.')).toBeInTheDocument()
   })
 })

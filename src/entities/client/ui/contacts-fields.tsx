@@ -19,8 +19,10 @@ export function ContactsFields({ name = '' }: { name?: string }) {
   const { fields, append, remove } = useFieldArray({ control, name: path, keyName: 'key' })
   const contacts = (useWatch({ name: path }) as ContactFormValue[] | undefined) ?? []
   const { errors } = useFormState({ name: path })
-  const listError = get(errors, path) as
+  const listError = get<
+    typeof errors,
     { root?: { message?: string }; message?: string } | undefined
+  >(errors, path)
   const listMessage = listError?.root?.message ?? listError?.message
 
   const makePrimary = (index: number) => {

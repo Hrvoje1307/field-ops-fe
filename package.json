@@ -18,8 +18,8 @@
     "test:e2e": "playwright test",
     "format": "prettier --write .",
     "api:generate": "orval --config ./orval.config.ts",
-    "api:pull": "node scripts/pull-openapi.ts && npm run api:generate",
-    "api:check": "npm run api:generate && git diff --exit-code -- src/shared/api/generated && test -z \"$(git status --porcelain -- src/shared/api/generated)\"",
+    "api:pull": "node scripts/pull-openapi.ts && pnpm api:generate",
+    "api:check": "pnpm api:generate && git diff --exit-code -- src/shared/api/generated && test -z \"$(git status --porcelain -- src/shared/api/generated)\"",
     "postinstall": "msw init"
   },
   "msw": {
@@ -93,5 +93,6 @@
     "@hookform/resolvers": {
       "ajv-formats": "$ajv-formats"
     }
-  }
+  },
+  "packageManager": "pnpm@11.0.9"
 }

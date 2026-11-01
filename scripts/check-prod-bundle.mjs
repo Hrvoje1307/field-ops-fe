@@ -1,7 +1,7 @@
 // A build with VITE_API_MOCK=false must contain none of the mock: not MSW, not the seed
 // data, not the triggers only the mock understands. Builds the app the way production
 // does and reads every file of dist/.
-//   npm run check:prod-bundle
+//   pnpm check:prod-bundle
 import { execFileSync } from 'node:child_process'
 import { readdirSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
@@ -29,7 +29,7 @@ const run = (command, args, env) =>
 if (!process.argv.includes('--no-build')) {
   rmSync(DIST, { recursive: true, force: true })
   // The same build as production: the mock off, whatever .env.local says
-  run('npm', ['run', 'build'], {
+  run('pnpm', ['build'], {
     VITE_API_MOCK: 'false',
     VITE_API_URL: process.env.VITE_API_URL ?? 'https://api.example.test/api/v1',
   })

@@ -76,7 +76,7 @@ Rules:
 
 ## Rules
 
-- API calls only through the request functions in `entities/<area>/api.ts`, built on `apiFetch` (`src/shared/api/api-fetch.ts`) and the single fetcher `src/shared/api/fetcher.ts`. Paths and bodies follow `openapi/openapi.json`; types come from the generated model. Never edit the generated code; after changing the spec run `npm run api:generate` and commit the result (CI fails on drift via `npm run api:check`).
+- API calls only through the request functions in `entities/<area>/api.ts`, built on `apiFetch` (`src/shared/api/api-fetch.ts`) and the single fetcher `src/shared/api/fetcher.ts`. Paths and bodies follow `openapi/openapi.json`; types come from the generated model. Never edit the generated code; after changing the spec run `pnpm api:generate` and commit the result (CI fails on drift via `pnpm api:check`).
 - The fetcher handles: base URL from `VITE_API_URL`, bearer token, refresh on 401 (refresh tokens rotate), `Idempotency-Key` on every non-GET request except the internal `/auth/refresh` call, throwing `ApiError` with RFC 9457 ProblemDetails (`errors` = field path → messages).
 - Access token in memory only; refresh token in localStorage.
 - Tenant comes from the JWT. Never put tenantId in URLs or bodies.
@@ -119,13 +119,13 @@ The Sales module's mock (`handlers/sales-*.ts`, `lib/sales/`, `seed/sales*.ts`) 
 ## Workflow
 
 - Before a feature: read the relevant OpenAPI paths, propose the plan (which FSD layer and slice each piece goes into, routes, components, queries/mutations, and what comes from tenant configuration instead of code), wait for my OK.
-- Small, reviewable steps. After each step run `npm run lint`, `npm run typecheck`, `npm test`.
+- Small, reviewable steps. After each step run `pnpm lint`, `pnpm typecheck`, `pnpm test`.
 - Add a Vitest test for logic (formatting, fetcher, state helpers) and a Playwright test for each main user flow.
 - Commit with clear messages; don't commit `.env.local`.
 
 ## Commands
 
-- `npm run dev` – dev server (mock API by default)
-- `npm run api:generate` – regenerate client from `openapi/openapi.json`
-- `npm run lint` / `npm run typecheck` / `npm test` / `npx playwright test`
-- `npm run check:prod-bundle` – builds with `VITE_API_MOCK=false` and fails when `dist/` holds the mock (MSW, seed data, mock triggers); runs in CI
+- `pnpm dev` – dev server (mock API by default)
+- `pnpm api:generate` – regenerate client from `openapi/openapi.json`
+- `pnpm lint` / `pnpm typecheck` / `pnpm test` / `pnpm exec playwright test`
+- `pnpm check:prod-bundle` – builds with `VITE_API_MOCK=false` and fails when `dist/` holds the mock (MSW, seed data, mock triggers); runs in CI

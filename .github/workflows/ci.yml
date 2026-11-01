@@ -14,20 +14,23 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # The pnpm version is the `packageManager` of package.json
+      - uses: pnpm/action-setup@v4
+
       - uses: actions/setup-node@v7
         with:
           node-version: 24
-          cache: npm
+          cache: pnpm
 
-      - run: npm ci
+      - run: pnpm install --frozen-lockfile
 
       # The committed Orval client must match openapi/openapi.json (incl. new files)
       - name: Generated API client is up to date
-        run: npm run api:check
+        run: pnpm api:check
 
-      - run: npm run lint
-      - run: npm run typecheck
-      - run: npm test
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test
       # The build without the mock holds none of the mock (MSW, seed data, triggers)
       - name: Production bundle has no mock
-        run: npm run check:prod-bundle
+        run: pnpm check:prod-bundle
